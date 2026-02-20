@@ -6,9 +6,10 @@ export default function Sidebar({
   currentConversationId,
   onSelectConversation,
   onNewConversation,
+  isOpen,
 }) {
   return (
-    <div className="sidebar">
+    <div className={`sidebar ${isOpen ? 'open' : ''}`}>
       <div className="sidebar-header">
         <h1>LLM Council</h1>
         <button className="new-conversation-btn" onClick={onNewConversation}>

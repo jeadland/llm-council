@@ -2,7 +2,8 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
+  min-width: 0;
   background: #ffffff;
 }
 
@@ -160,4 +161,36 @@
   cursor: not-allowed;
   background: #ccc;
   border-color: #ccc;
+}
+
+@media (max-width: 900px) {
+  .messages-container {
+    padding: 14px;
+  }
+
+  .user-message .message-content {
+    max-width: 100%;
+  }
+
+  .message-group {
+    margin-bottom: 20px;
+  }
+
+  .empty-state h2 {
+    font-size: 1.6rem;
+  }
+
+  .input-form {
+    padding: 12px;
+    gap: 8px;
+  }
+
+  .message-input {
+    min-height: 58px;
+    font-size: 16px;
+  }
+
+  .send-button {
+    padding: 12px 14px;
+  }
 }
