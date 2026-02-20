@@ -13,7 +13,7 @@ COUNCIL_MODELS = [
     "anthropic/claude-opus-4.6",
     "openai/gpt-5.2",
     "google/gemini-2.5-pro",
-    "x-ai/grok-4.2",
+    "x-ai/grok-4",
 ]
 
 # Chairman model - synthesizes final response
