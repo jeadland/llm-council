@@ -211,6 +211,7 @@ function App() {
         <ChatInterface
           conversation={currentConversation}
           onSendMessage={handleSendMessage}
+          onCreateConversation={handleNewConversation}
           isLoading={isLoading}
         />
       </div>
