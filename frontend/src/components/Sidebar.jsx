@@ -362,14 +362,13 @@ export default function Sidebar({
                       >
                         {conv.pinned ? (
                           /* Filled pushpin — conversation IS pinned */
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                            <path d="M21.44 11.05L12.95 2.56a1.5 1.5 0 0 0-2.12 0l-1.06 1.06a1.5 1.5 0 0 0-.36 1.49L8.34 6.14a3 3 0 0 1-.76 3.06L5.5 11.27a1 1 0 0 0 0 1.42l1.06 1.06-3.18 3.18a1 1 0 1 0 1.42 1.42l3.18-3.18 1.06 1.06a1 1 0 0 0 1.42 0l2.07-2.07a3 3 0 0 1 3.06-.77l1.03-1.07a1.5 1.5 0 0 0 1.49-.36l1.06-1.06a1.5 1.5 0 0 0 0-2.12z"/>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+                            <path d="M12 17v5M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/>
                           </svg>
                         ) : (
                           /* Outline pushpin — conversation is NOT pinned */
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                            <line x1="12" y1="17" x2="12" y2="22"/>
-                            <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/>
+                            <path d="M12 17v5M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/>
                           </svg>
                         )}
                       </button>
