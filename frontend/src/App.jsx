@@ -13,9 +13,11 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeRunId, setActiveRunId] = useState(null);
+  const [settings, setSettings] = useState(null);
 
   useEffect(() => {
     loadConversations();
+    loadSettings();
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
       if (saved.currentConversationId) setCurrentConversationId(saved.currentConversationId);
@@ -48,6 +50,24 @@ function App() {
       }
     } catch (error) {
       console.error('Failed to load conversations:', error);
+    }
+  };
+
+  const loadSettings = async () => {
+    try {
+      const data = await api.getSettings();
+      setSettings(data);
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+    }
+  };
+
+  const handleSaveSettings = async (patch) => {
+    try {
+      const updated = await api.updateSettings(patch);
+      setSettings(updated);
+    } catch (error) {
+      console.error('Failed to save settings:', error);
     }
   };
 
@@ -188,6 +208,8 @@ function App() {
         onNewConversation={handleNewConversation}
         onTogglePin={handleTogglePin}
         onDeleteConversation={handleDeleteConversation}
+        settings={settings}
+        onSaveSettings={handleSaveSettings}
         isOpen={isSidebarOpen}
       />
 

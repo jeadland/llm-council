@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import './Sidebar.css';
 
 export default function Sidebar({
@@ -7,8 +8,29 @@ export default function Sidebar({
   onNewConversation,
   onTogglePin,
   onDeleteConversation,
+  settings,
+  onSaveSettings,
   isOpen,
 }) {
+  const [showSettings, setShowSettings] = useState(false);
+  const [draftCouncil, setDraftCouncil] = useState(settings?.council_models || []);
+  const [draftChairman, setDraftChairman] = useState(settings?.chairman_model || '');
+
+  const available = settings?.available_models || [];
+
+  const toggleModel = (model) => {
+    setDraftCouncil((prev) =>
+      prev.includes(model) ? prev.filter((m) => m !== model) : [...prev, model]
+    );
+  };
+
+  const save = async () => {
+    const safeCouncil = draftCouncil.length ? draftCouncil : settings?.council_models || [];
+    const safeChairman = draftChairman || settings?.chairman_model;
+    await onSaveSettings({ council_models: safeCouncil, chairman_model: safeChairman });
+    setShowSettings(false);
+  };
+
   return (
     <div className={`sidebar ${isOpen ? 'open' : ''}`}>
       <div className="sidebar-header">
@@ -16,7 +38,49 @@ export default function Sidebar({
         <button className="new-conversation-btn" onClick={onNewConversation}>
           + New Conversation
         </button>
+        <button
+          className="settings-btn"
+          onClick={() => {
+            setDraftCouncil(settings?.council_models || []);
+            setDraftChairman(settings?.chairman_model || '');
+            setShowSettings((v) => !v);
+          }}
+        >
+          ⚙ Settings
+        </button>
       </div>
+
+      {showSettings && (
+        <div className="settings-panel">
+          <div className="settings-title">Model Picker</div>
+          <div className="settings-subtitle">Council Models</div>
+          {available.map((model) => (
+            <label key={model} className="settings-row">
+              <input
+                type="checkbox"
+                checked={draftCouncil.includes(model)}
+                onChange={() => toggleModel(model)}
+              />
+              <span>{model}</span>
+            </label>
+          ))}
+
+          <div className="settings-subtitle">Chairman</div>
+          <select
+            className="settings-select"
+            value={draftChairman}
+            onChange={(e) => setDraftChairman(e.target.value)}
+          >
+            {available.map((model) => (
+              <option key={model} value={model}>
+                {model}
+              </option>
+            ))}
+          </select>
+
+          <button className="settings-save-btn" onClick={save}>Save Settings</button>
+        </div>
+      )}
 
       <div className="conversation-list">
         {conversations.length === 0 ? (
@@ -58,9 +122,7 @@ export default function Sidebar({
                   </button>
                 </div>
               </div>
-              <div className="conversation-meta">
-                {conv.message_count} messages
-              </div>
+              <div className="conversation-meta">{conv.message_count} messages</div>
             </div>
           ))
         )}

@@ -19,6 +19,15 @@ COUNCIL_MODELS = [
 # Chairman model - synthesizes final response
 CHAIRMAN_MODEL = "anthropic/claude-opus-4.6"
 
+# Curated premier models list (update over time)
+PREMIER_MODELS = [
+    "anthropic/claude-opus-4.6",
+    "anthropic/claude-sonnet-4.6",
+    "openai/gpt-5.2",
+    "google/gemini-2.5-pro",
+    "x-ai/grok-4",
+]
+
 # OpenRouter API endpoint
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 

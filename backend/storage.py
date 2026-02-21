@@ -5,9 +5,10 @@ import os
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from pathlib import Path
-from .config import DATA_DIR
+from .config import DATA_DIR, COUNCIL_MODELS, CHAIRMAN_MODEL, PREMIER_MODELS
 
 RUNS_DIR = "data/runs"
+SETTINGS_PATH = "data/settings.json"
 
 
 def ensure_data_dir():
@@ -313,3 +314,56 @@ def get_latest_active_run_for_conversation(conversation_id: str) -> Optional[Dic
             if latest is None or run.get("created_at", "") > latest.get("created_at", ""):
                 latest = run
     return latest
+
+
+def get_settings() -> Dict[str, Any]:
+    default = {
+        "available_models": PREMIER_MODELS,
+        "council_models": COUNCIL_MODELS,
+        "chairman_model": CHAIRMAN_MODEL,
+    }
+    if not os.path.exists(SETTINGS_PATH):
+        return default
+
+    with open(SETTINGS_PATH, "r") as f:
+        current = json.load(f)
+
+    settings = {**default, **current}
+
+    # sanitize
+    settings["council_models"] = [
+        m for m in settings.get("council_models", []) if m in settings["available_models"]
+    ]
+    if not settings["council_models"]:
+        settings["council_models"] = default["council_models"]
+
+    if settings.get("chairman_model") not in settings["available_models"]:
+        settings["chairman_model"] = default["chairman_model"]
+
+    return settings
+
+
+def save_settings(settings: Dict[str, Any]) -> Dict[str, Any]:
+    ensure_data_dir()
+    current = get_settings()
+    merged = {**current, **settings}
+
+    available = merged.get("available_models", PREMIER_MODELS)
+    council = [m for m in merged.get("council_models", []) if m in available]
+    if not council:
+        council = current.get("council_models", COUNCIL_MODELS)
+
+    chairman = merged.get("chairman_model", current.get("chairman_model", CHAIRMAN_MODEL))
+    if chairman not in available:
+        chairman = current.get("chairman_model", CHAIRMAN_MODEL)
+
+    final = {
+        "available_models": available,
+        "council_models": council,
+        "chairman_model": chairman,
+    }
+
+    with open(SETTINGS_PATH, "w") as f:
+        json.dump(final, f, indent=2)
+
+    return final

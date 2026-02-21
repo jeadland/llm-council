@@ -49,6 +49,11 @@ class PinConversationRequest(BaseModel):
     pinned: bool
 
 
+class UpdateSettingsRequest(BaseModel):
+    council_models: Optional[List[str]] = None
+    chairman_model: Optional[str] = None
+
+
 class ConversationMetadata(BaseModel):
     """Conversation metadata for list view."""
 
@@ -78,6 +83,22 @@ async def root():
 async def list_conversations():
     """List all conversations (metadata only)."""
     return storage.list_conversations()
+
+
+@app.get("/api/settings")
+async def get_settings():
+    return storage.get_settings()
+
+
+@app.patch("/api/settings")
+async def update_settings(request: UpdateSettingsRequest):
+    patch = {}
+    if request.council_models is not None:
+        patch["council_models"] = request.council_models
+    if request.chairman_model is not None:
+        patch["chairman_model"] = request.chairman_model
+    updated = storage.save_settings(patch)
+    return updated
 
 
 @app.post("/api/conversations", response_model=Conversation)
@@ -140,6 +161,9 @@ async def _execute_run(run_id: str):
 
     conversation_id = run["conversation_id"]
     content = run["content"]
+    settings = storage.get_settings()
+    council_models = settings.get("council_models", [])
+    chairman_model = settings.get("chairman_model")
 
     try:
         storage.update_run(
@@ -153,7 +177,7 @@ async def _execute_run(run_id: str):
         )
 
         # Stage 1
-        stage1_results = await stage1_collect_responses(content)
+        stage1_results = await stage1_collect_responses(content, council_models=council_models)
         storage.update_run(
             run_id,
             {
@@ -169,7 +193,7 @@ async def _execute_run(run_id: str):
 
         # Stage 2
         storage.update_run(run_id, {"stage2": {"status": "running"}})
-        stage2_results, label_to_model = await stage2_collect_rankings(content, stage1_results)
+        stage2_results, label_to_model = await stage2_collect_rankings(content, stage1_results, council_models=council_models)
         aggregate_rankings = calculate_aggregate_rankings(stage2_results, label_to_model)
         stage2_metadata = {
             "label_to_model": label_to_model,
@@ -195,7 +219,7 @@ async def _execute_run(run_id: str):
 
         # Stage 3
         storage.update_run(run_id, {"stage3": {"status": "running"}})
-        stage3_result = await stage3_synthesize_final(content, stage1_results, stage2_results)
+        stage3_result = await stage3_synthesize_final(content, stage1_results, stage2_results, chairman_model=chairman_model)
         storage.update_run(
             run_id,
             {
