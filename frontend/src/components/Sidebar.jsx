@@ -45,6 +45,9 @@ export default function Sidebar({
     setShowSettings(false);
   };
 
+  const currentChairman = settings?.chairman_model || '';
+  const chairmanShort = currentChairman ? currentChairman.split('/').pop() : '';
+
   return (
     <div className={`sidebar ${isOpen ? 'open' : ''} ${showSettings ? 'settings-fullpanel' : ''}`}>
 
@@ -58,13 +61,11 @@ export default function Sidebar({
               onClick={closeSettings}
               aria-label="Back to conversations"
             >
-              {/* Left arrow icon */}
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                 <path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
             <span className="settings-fullpanel-title">Settings</span>
-            {/* Spinning active gear indicator */}
             <div className="settings-fullpanel-gear" aria-hidden="true">
               <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
                 <path
@@ -80,7 +81,7 @@ export default function Sidebar({
 
           {/* Settings body — scrollable */}
           <div className="settings-fullpanel-body">
-            <div className="settings-subtitle">Your Available Models</div>
+            <div className="settings-subtitle">Council Models</div>
             {available.length === 0 && (
               <p className="settings-empty-note">No models available. Check your OpenClaw model library.</p>
             )}
@@ -91,22 +92,46 @@ export default function Sidebar({
                   checked={draftCouncil.includes(model)}
                   onChange={() => toggleModel(model)}
                 />
-                <span>{model}</span>
+                <span>{model.split('/').pop()}</span>
               </label>
             ))}
 
-            <div className="settings-subtitle">Chairman</div>
-            <select
-              className="settings-select"
-              value={draftChairman}
-              onChange={(e) => setDraftChairman(e.target.value)}
-            >
-              {available.map((model) => (
-                <option key={model} value={model}>
-                  {model}
-                </option>
-              ))}
-            </select>
+            <div className="settings-subtitle settings-chairman-subtitle">
+              <span>Chairman</span>
+              <span className="settings-chairman-hint">Synthesizes the final verdict</span>
+            </div>
+            {/* Chairman selector — visually highlighted */}
+            <div className="settings-chairman-section">
+              {available.map((model) => {
+                const isChairman = draftChairman === model;
+                const shortName = model.split('/').pop();
+                return (
+                  <div
+                    key={model}
+                    className={`settings-chairman-option${isChairman ? ' selected' : ''}`}
+                    onClick={() => setDraftChairman(model)}
+                    role="radio"
+                    aria-checked={isChairman}
+                    tabIndex={0}
+                    onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setDraftChairman(model)}
+                  >
+                    <div className="settings-chairman-bubble">
+                      {isChairman ? (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                          <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+                        </svg>
+                      ) : (
+                        <span className="settings-chairman-initial">{shortName[0]?.toUpperCase()}</span>
+                      )}
+                    </div>
+                    <span className="settings-chairman-name">{shortName}</span>
+                    {isChairman && (
+                      <span className="settings-chairman-badge">Chairman</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
 
             <div className="settings-subtitle">Appearance</div>
             <select
@@ -120,10 +145,10 @@ export default function Sidebar({
             </select>
           </div>
 
-          {/* Sticky footer with actions */}
+          {/* Sticky footer with actions — even-width buttons */}
           <div className="settings-fullpanel-footer">
             <button className="settings-cancel-btn" onClick={closeSettings}>Cancel</button>
-            <button className="settings-save-btn" onClick={save}>Save Settings</button>
+            <button className="settings-save-btn" onClick={save}>Save</button>
           </div>
         </div>
       )}
@@ -132,16 +157,26 @@ export default function Sidebar({
       {!showSettings && (
         <>
           <div className="sidebar-header">
-            {/* Brand row: title + settings gear */}
+            {/* Brand row: logo + settings gear */}
             <div className="sidebar-brand-row">
-              <h1>LLM Council</h1>
+              {/* Logo image — falls back to text */}
+              <div className="sidebar-logo-group">
+                <img
+                  src="/images/llm-council-icon.svg"
+                  alt="LLM Council"
+                  className="sidebar-logo-icon"
+                  width="28"
+                  height="28"
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+                <h1>LLM Council</h1>
+              </div>
               <button
                 className="settings-icon-btn"
                 aria-label="Open settings"
                 title="Settings"
                 onClick={openSettings}
               >
-                {/* Gear SVG */}
                 <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
                   <path
                     d="M8.07 2.63A1 1 0 0 1 9.06 2h1.88a1 1 0 0 1 .99.63l.37 1A6.12 6.12 0 0 1 13.4 4.6l1.01-.35a1 1 0 0 1 1.16.39l.94 1.63a1 1 0 0 1-.18 1.21l-.76.7c.04.28.06.57.06.86s-.02.58-.06.86l.76.7a1 1 0 0 1 .18 1.21l-.94 1.63a1 1 0 0 1-1.16.39l-1.01-.35a6.12 6.12 0 0 1-1.1.97l-.37 1A1 1 0 0 1 10.94 18H9.06a1 1 0 0 1-.99-.63l-.37-1A6.12 6.12 0 0 1 6.6 15.4l-1.01.35a1 1 0 0 1-1.16-.39l-.94-1.63a1 1 0 0 1 .18-1.21l.76-.7A6.17 6.17 0 0 1 4.37 11a6.17 6.17 0 0 1 .06-.86l-.76-.7a1 1 0 0 1-.18-1.21l.94-1.63a1 1 0 0 1 1.16-.39l1.01.35a6.12 6.12 0 0 1 1.1-.97l.37-1Z"
@@ -153,6 +188,22 @@ export default function Sidebar({
                 </svg>
               </button>
             </div>
+
+            {/* Chairman bubble — visible when chairman is set */}
+            {chairmanShort && (
+              <div className="sidebar-chairman-row" onClick={openSettings} title="Edit chairman in Settings">
+                <span className="sidebar-chairman-label">Chairman</span>
+                <div className="sidebar-chairman-bubble">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+                  </svg>
+                  <span>{chairmanShort}</span>
+                  <svg width="10" height="10" viewBox="0 0 16 16" fill="none" className="chairman-edit-icon" aria-hidden="true">
+                    <path d="M11.5 2.5a1.5 1.5 0 0 1 2.12 2.12L4.5 13.73l-3 .88.88-3L11.5 2.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+              </div>
+            )}
 
             {/* New conversation button */}
             <button className="new-conversation-btn" onClick={onNewConversation}>

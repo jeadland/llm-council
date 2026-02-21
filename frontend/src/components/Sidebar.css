@@ -54,12 +54,82 @@
   gap: 8px;
 }
 
+/* Logo group: icon + title side by side */
+.sidebar-logo-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sidebar-logo-icon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  display: block;
+}
+
 .sidebar-brand-row h1 {
   font-size: 17px;
   font-weight: 700;
   color: #1a1f2e;
   margin: 0;
   letter-spacing: -0.3px;
+}
+
+/* ── Chairman bubble row (below brand) ── */
+.sidebar-chairman-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 4px 2px;
+  transition: background 0.15s;
+  user-select: none;
+}
+
+.sidebar-chairman-row:hover {
+  background: rgba(74, 144, 226, 0.06);
+}
+
+.sidebar-chairman-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: #a0aab8;
+  flex-shrink: 0;
+}
+
+.sidebar-chairman-bubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: linear-gradient(135deg, #fffbe6 0%, #fef3c7 100%);
+  border: 1px solid #f5a623;
+  border-radius: 20px;
+  padding: 3px 10px 3px 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #a05400;
+  box-shadow: 0 0 0 2px rgba(245, 166, 35, 0.12), 0 1px 4px rgba(245, 166, 35, 0.15);
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.sidebar-chairman-row:hover .sidebar-chairman-bubble {
+  box-shadow: 0 0 0 3px rgba(245, 166, 35, 0.22), 0 2px 6px rgba(245, 166, 35, 0.2);
+  border-color: #e09614;
+}
+
+.chairman-edit-icon {
+  color: #c07830;
+  opacity: 0.7;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+}
+
+.sidebar-chairman-row:hover .chairman-edit-icon {
+  opacity: 1;
 }
 
 /* Settings toggle icon button — sits in brand row */
@@ -256,6 +326,104 @@
   border-color: #c0c8d8;
 }
 
+/* Chairman section in settings */
+.settings-chairman-subtitle {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.settings-chairman-hint {
+  font-size: 10px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #b0b8c8;
+}
+
+.settings-chairman-section {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 4px;
+}
+
+.settings-chairman-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border: 1px solid #e0e4ec;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+  background: #fff;
+}
+
+.settings-chairman-option:hover {
+  background: #f5f7fb;
+  border-color: #c8d0e0;
+}
+
+.settings-chairman-option.selected {
+  background: linear-gradient(135deg, #fffbe6 0%, #fef3c7 100%);
+  border-color: #f5a623;
+  box-shadow: 0 0 0 2px rgba(245, 166, 35, 0.15);
+}
+
+.settings-chairman-bubble {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e8f0fe;
+  color: #4a90e2;
+  font-weight: 700;
+  font-size: 12px;
+  flex-shrink: 0;
+  border: 1px solid #c8d8f8;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.settings-chairman-option.selected .settings-chairman-bubble {
+  background: linear-gradient(135deg, #fef3c7, #f5a623);
+  color: #7a3d00;
+  border-color: #e09614;
+}
+
+.settings-chairman-initial {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.settings-chairman-name {
+  flex: 1;
+  font-size: 13px;
+  color: #2a3040;
+  word-break: break-all;
+  min-width: 0;
+}
+
+.settings-chairman-option.selected .settings-chairman-name {
+  font-weight: 600;
+  color: #7a3d00;
+}
+
+.settings-chairman-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #a05400;
+  background: rgba(245, 166, 35, 0.15);
+  padding: 2px 6px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
 .settings-empty-note {
   font-size: 12px;
   color: #9aa0b0;
@@ -345,13 +513,12 @@
 }
 
 .settings-save-btn {
-  width: 100%;
-  margin-top: 12px;
-  padding: 9px;
+  flex: 1;
+  padding: 9px 12px;
   border: none;
   background: #4a90e2;
   color: #fff;
-  border-radius: 7px;
+  border-radius: 8px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -510,6 +677,76 @@
 :root[data-theme='dark'] .sidebar {
   background: #0f1115 !important;
   border-right-color: #2d3545 !important;
+}
+
+/* Logo icon in dark mode — use brightness filter to lighten the dark SVG */
+:root[data-theme='dark'] .sidebar-logo-icon {
+  filter: brightness(1.4) saturate(1.2);
+}
+
+:root[data-theme='dark'] .sidebar-chairman-row:hover {
+  background: rgba(245, 166, 35, 0.06) !important;
+}
+
+:root[data-theme='dark'] .sidebar-chairman-label {
+  color: #4a5268 !important;
+}
+
+:root[data-theme='dark'] .sidebar-chairman-bubble {
+  background: linear-gradient(135deg, #1e1a0a 0%, #2a2010 100%) !important;
+  border-color: #c07830 !important;
+  color: #f5c060 !important;
+  box-shadow: 0 0 0 2px rgba(245, 166, 35, 0.08), 0 1px 4px rgba(0,0,0,0.3) !important;
+}
+
+:root[data-theme='dark'] .chairman-edit-icon {
+  color: #d09040 !important;
+}
+
+:root[data-theme='dark'] .settings-chairman-option {
+  background: #11151d !important;
+  border-color: #2d3848 !important;
+  color: #c8d0e0 !important;
+}
+
+:root[data-theme='dark'] .settings-chairman-option:hover {
+  background: #1a2030 !important;
+  border-color: #3a4560 !important;
+}
+
+:root[data-theme='dark'] .settings-chairman-option.selected {
+  background: linear-gradient(135deg, #1e1a0a 0%, #2a2010 100%) !important;
+  border-color: #c07830 !important;
+  box-shadow: 0 0 0 2px rgba(245, 166, 35, 0.1) !important;
+}
+
+:root[data-theme='dark'] .settings-chairman-bubble {
+  background: #1a2030 !important;
+  border-color: #2d3848 !important;
+  color: #7fb2ff !important;
+}
+
+:root[data-theme='dark'] .settings-chairman-option.selected .settings-chairman-bubble {
+  background: linear-gradient(135deg, #2a2010, #c07830) !important;
+  color: #fef3c7 !important;
+  border-color: #c07830 !important;
+}
+
+:root[data-theme='dark'] .settings-chairman-name {
+  color: #c8d0e0 !important;
+}
+
+:root[data-theme='dark'] .settings-chairman-option.selected .settings-chairman-name {
+  color: #f5c060 !important;
+}
+
+:root[data-theme='dark'] .settings-chairman-badge {
+  color: #f5c060 !important;
+  background: rgba(245, 166, 35, 0.12) !important;
+}
+
+:root[data-theme='dark'] .settings-chairman-hint {
+  color: #3a4258 !important;
 }
 
 :root[data-theme='dark'] .settings-fullpanel-header {

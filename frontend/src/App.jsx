@@ -252,6 +252,15 @@ function App() {
           </button>
 
           <div className="mobile-title-group">
+            <img
+              src="/images/llm-council-icon.svg"
+              alt=""
+              className="mobile-logo-icon"
+              width="22"
+              height="22"
+              aria-hidden="true"
+              onError={(e) => { e.target.style.display = 'none'; }}
+            />
             <span className="mobile-title">LLM Council</span>
           </div>
 

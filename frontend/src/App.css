@@ -70,9 +70,21 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 7px;
   /* keep centred even with the new-chat button on the right */
   margin: 0 -40px;
   pointer-events: none;
+}
+
+.mobile-logo-icon {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  display: block;
+}
+
+:root[data-theme='dark'] .mobile-logo-icon {
+  filter: brightness(1.4) saturate(1.2);
 }
 
 .mobile-title {

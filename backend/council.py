@@ -164,19 +164,42 @@ Provide a clear, well-reasoned final answer that represents the council's collec
 
     model = chairman_model or CHAIRMAN_MODEL
 
-    # Query the chairman model
-    response = await query_model(model, messages)
+    # Query the chairman model — with retry and fallback
+    response = None
+    attempts = [model]
 
-    if response is None:
-        # Fallback if chairman fails
+    # If chairman fails, try any council model as fallback
+    fallback_models = [m for m in (council_models or []) if m != model]
+    for m in fallback_models[:2]:  # try up to 2 fallbacks
+        attempts.append(m)
+
+    for attempt_model in attempts:
+        response = await query_model(attempt_model, messages, timeout=180.0)
+        if response and response.get('content'):
+            return {
+                "model": attempt_model,
+                "response": response.get('content', ''),
+                "used_fallback": attempt_model != model,
+            }
+        print(f"Chairman synthesis failed on {attempt_model}, trying next…")
+
+    # All attempts failed — build a best-effort synthesis from stage1 instead
+    if stage1_results:
+        best_response = max(stage1_results, key=lambda r: len(r.get('response', '')))
         return {
-            "model": model,
-            "response": "Error: Unable to generate final synthesis."
+            "model": f"{model} (fallback: top stage-1 response)",
+            "response": (
+                "⚠️ Chairman synthesis unavailable. "
+                "Showing the top individual response:\n\n"
+                + best_response.get('response', '')
+            ),
+            "used_fallback": True,
         }
 
     return {
         "model": model,
-        "response": response.get('content', '')
+        "response": "⚠️ Unable to generate synthesis. All council models failed to respond.",
+        "used_fallback": True,
     }
 
 

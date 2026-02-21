@@ -4,6 +4,28 @@
   border-radius: 12px;
 }
 
+/* Fallback/warning state */
+.stage3.stage3-fallback {
+  background: linear-gradient(135deg, #fffbf0 0%, #fff7e6 100%) !important;
+  border-color: #f5c060 !important;
+}
+
+.stage3.stage3-fallback .stage3-icon {
+  background: linear-gradient(135deg, #f5a623, #e08010) !important;
+}
+
+.stage3.stage3-fallback .stage-title {
+  color: #7a4f00 !important;
+}
+
+.stage3.stage3-fallback .chairman-label {
+  color: #a06010 !important;
+}
+
+.stage3.stage3-fallback .final-response {
+  border-color: #f5c060 !important;
+}
+
 .stage3-header {
   display: flex;
   align-items: center;
@@ -55,6 +77,23 @@
 :root[data-theme='dark'] .stage3 {
   background: linear-gradient(135deg, #0f1a14 0%, #111d16 100%) !important;
   border-color: #1e3a2a !important;
+}
+
+:root[data-theme='dark'] .stage3.stage3-fallback {
+  background: linear-gradient(135deg, #1a1505 0%, #211a08 100%) !important;
+  border-color: #8a5800 !important;
+}
+
+:root[data-theme='dark'] .stage3.stage3-fallback .stage-title {
+  color: #f5c060 !important;
+}
+
+:root[data-theme='dark'] .stage3.stage3-fallback .chairman-label {
+  color: #d09040 !important;
+}
+
+:root[data-theme='dark'] .stage3.stage3-fallback .final-response {
+  border-color: #8a5800 !important;
 }
 
 :root[data-theme='dark'] .stage3-icon {

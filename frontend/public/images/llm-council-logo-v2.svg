@@ -1,0 +1,160 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 100" width="360" height="100">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a1628"/>
+      <stop offset="100%" stop-color="#0e2040"/>
+    </linearGradient>
+    <radialGradient id="nodeBlue" cx="40%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#93c5fd"/>
+      <stop offset="50%" stop-color="#4a90e2"/>
+      <stop offset="100%" stop-color="#1e4f8c"/>
+    </radialGradient>
+    <radialGradient id="nodeGold" cx="35%" cy="30%" r="65%">
+      <stop offset="0%" stop-color="#fef3c7"/>
+      <stop offset="50%" stop-color="#f5a623"/>
+      <stop offset="100%" stop-color="#b45309"/>
+    </radialGradient>
+    <linearGradient id="llmGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#bfdbfe"/>
+    </linearGradient>
+    <filter id="gB" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="2.5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="gG" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="3" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="tG" x="-5%" y="-10%" width="115%" height="130%">
+      <feGaussianBlur stdDeviation="1.2" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <clipPath id="rounded">
+      <rect width="360" height="100" rx="10"/>
+    </clipPath>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="360" height="100" rx="10" fill="url(#bgGrad)"/>
+  
+  <!-- Subtle grid lines in background -->
+  <g opacity="0.04" stroke="#4a90e2" stroke-width="0.5">
+    <line x1="0" y1="25" x2="110" y2="25"/>
+    <line x1="0" y1="50" x2="110" y2="50"/>
+    <line x1="0" y1="75" x2="110" y2="75"/>
+    <line x1="25" y1="0" x2="25" y2="100"/>
+    <line x1="50" y1="0" x2="50" y2="100"/>
+    <line x1="75" y1="0" x2="75" y2="100"/>
+  </g>
+  
+  <!-- === ICON: Hexagonal Council === -->
+  <!-- Centered at (56, 50), outer radius 33 -->
+  
+  <!-- Outer ring glow -->
+  <circle cx="56" cy="50" r="36" fill="none" stroke="#4a90e2" stroke-width="0.4" opacity="0.25"/>
+  <circle cx="56" cy="50" r="28" fill="none" stroke="#4a90e2" stroke-width="0.3" opacity="0.15"/>
+  
+  <!-- Connection lines: center to each outer node -->
+  <!-- Top: 56,18 | TR: 84,33 | BR: 84,67 | Bot: 56,82 | BL: 28,67 | TL: 28,33 -->
+  <g stroke="#4a90e2" stroke-width="0.9" opacity="0.45">
+    <line x1="56" y1="50" x2="56" y2="20"/>
+    <line x1="56" y1="50" x2="83" y2="35"/>
+    <line x1="56" y1="50" x2="83" y2="65"/>
+    <line x1="56" y1="50" x2="56" y2="80"/>
+    <line x1="56" y1="50" x2="29" y2="65"/>
+    <line x1="56" y1="50" x2="29" y2="35"/>
+  </g>
+  
+  <!-- Hexagon outline connecting nodes -->
+  <polygon points="56,20 83,35 83,65 56,80 29,65 29,35"
+    fill="none" stroke="#4a90e2" stroke-width="0.7" opacity="0.35"
+    stroke-dasharray="2,3"/>
+  
+  <!-- Cross-connections (select diagonals for depth) -->
+  <g stroke="#4a90e2" stroke-width="0.4" opacity="0.2">
+    <line x1="56" y1="20" x2="83" y2="65"/>
+    <line x1="83" y1="35" x2="56" y2="80"/>
+    <line x1="56" y1="20" x2="29" y2="65"/>
+    <line x1="29" y1="35" x2="56" y2="80"/>
+    <line x1="83" y1="35" x2="29" y2="65"/>
+    <line x1="29" y1="35" x2="83" y2="65"/>
+  </g>
+  
+  <!-- Outer node halos -->
+  <g fill="#4a90e2" opacity="0.12">
+    <circle cx="56" cy="20" r="8"/>
+    <circle cx="83" cy="35" r="8"/>
+    <circle cx="83" cy="65" r="8"/>
+    <circle cx="56" cy="80" r="8"/>
+    <circle cx="29" cy="65" r="8"/>
+    <circle cx="29" cy="35" r="8"/>
+  </g>
+  
+  <!-- Outer nodes (6 council members, blue) -->
+  <g filter="url(#gB)">
+    <circle cx="56" cy="20" r="5.5" fill="url(#nodeBlue)"/>
+    <circle cx="83" cy="35" r="5.5" fill="url(#nodeBlue)"/>
+    <circle cx="83" cy="65" r="5.5" fill="url(#nodeBlue)"/>
+    <circle cx="56" cy="80" r="5.5" fill="url(#nodeBlue)"/>
+    <circle cx="29" cy="65" r="5.5" fill="url(#nodeBlue)"/>
+    <circle cx="29" cy="35" r="5.5" fill="url(#nodeBlue)"/>
+  </g>
+  
+  <!-- Inner ring on outer nodes -->
+  <g fill="none" stroke="#ffffff" stroke-width="0.5" opacity="0.4">
+    <circle cx="56" cy="20" r="2.5"/>
+    <circle cx="83" cy="35" r="2.5"/>
+    <circle cx="83" cy="65" r="2.5"/>
+    <circle cx="56" cy="80" r="2.5"/>
+    <circle cx="29" cy="65" r="2.5"/>
+    <circle cx="29" cy="35" r="2.5"/>
+  </g>
+  
+  <!-- Chairman center halo -->
+  <circle cx="56" cy="50" r="14" fill="#f5a623" opacity="0.12"/>
+  <circle cx="56" cy="50" r="10" fill="#f5a623" opacity="0.08"/>
+  
+  <!-- Chairman node (gold, larger) -->
+  <circle cx="56" cy="50" r="9" fill="url(#nodeGold)" filter="url(#gG)"/>
+  
+  <!-- Chairman inner ring -->
+  <circle cx="56" cy="50" r="5.5" fill="none" stroke="#fff8dc" stroke-width="0.6" opacity="0.5"/>
+  
+  <!-- Chairman center dot -->
+  <circle cx="56" cy="50" r="2.5" fill="#fffbeb" opacity="0.95"/>
+  
+  <!-- === TEXT: Right of icon === -->
+  
+  <!-- "LLM" - bold, large -->
+  <text x="122" y="46"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', 'Helvetica Neue', sans-serif"
+    font-weight="800"
+    font-size="30"
+    letter-spacing="-1"
+    fill="url(#llmGrad)"
+    filter="url(#tG)">LLM</text>
+  
+  <!-- Separator line -->
+  <line x1="122" y1="52" x2="328" y2="52" stroke="#4a90e2" stroke-width="0.5" opacity="0.5"/>
+  
+  <!-- "COUNCIL" - light, spaced -->
+  <text x="122" y="68"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', 'Helvetica Neue', sans-serif"
+    font-weight="300"
+    font-size="17"
+    letter-spacing="5"
+    fill="#7bafd4">COUNCIL</text>
+  
+  <!-- Tagline -->
+  <text x="123" y="83"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif"
+    font-weight="400"
+    font-size="8"
+    letter-spacing="1"
+    fill="#3a6a9a"
+    opacity="0.9">Multi-model deliberation</text>
+  
+  <!-- Border -->
+  <rect width="360" height="100" rx="10" fill="none" stroke="#1e3f6e" stroke-width="1" opacity="0.5"/>
+</svg>

@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 120" width="320" height="120">
+  <defs>
+    <!-- Background gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a1628;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0d1f3c;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Node glow effects -->
+    <radialGradient id="nodeGlow1" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#7bb8f5;stop-opacity:1" />
+      <stop offset="60%" style="stop-color:#4a90e2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2563a8;stop-opacity:0.8" />
+    </radialGradient>
+    <radialGradient id="nodeGlowGold" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#ffd700;stop-opacity:1" />
+      <stop offset="60%" style="stop-color:#f5a623;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#c97a10;stop-opacity:0.8" />
+    </radialGradient>
+    
+    <!-- Text gradient -->
+    <linearGradient id="textGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d0e8ff;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Glow filter for nodes -->
+    <filter id="glowBlue" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="glowGold" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="textGlow" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="320" height="120" rx="12" fill="url(#bgGrad)"/>
+  
+  <!-- Subtle border -->
+  <rect width="320" height="120" rx="12" fill="none" stroke="#1e3a5f" stroke-width="1" opacity="0.6"/>
+  
+  <!-- === ICON: Council of nodes === -->
+  <!-- Center: 60,60 — radius: 28 for outer nodes -->
+  
+  <!-- Connection lines (drawn first, behind nodes) -->
+  <!-- Center (chairman) to outer nodes -->
+  <line x1="60" y1="60" x2="60" y2="33" stroke="#4a90e2" stroke-width="0.8" opacity="0.5"/>
+  <line x1="60" y1="60" x2="84" y2="46" stroke="#4a90e2" stroke-width="0.8" opacity="0.5"/>
+  <line x1="60" y1="60" x2="84" y2="74" stroke="#4a90e2" stroke-width="0.8" opacity="0.5"/>
+  <line x1="60" y1="60" x2="60" y2="87" stroke="#4a90e2" stroke-width="0.8" opacity="0.5"/>
+  <line x1="60" y1="60" x2="36" y2="74" stroke="#4a90e2" stroke-width="0.8" opacity="0.5"/>
+  <line x1="60" y1="60" x2="36" y2="46" stroke="#4a90e2" stroke-width="0.8" opacity="0.5"/>
+  
+  <!-- Outer ring connections (polygon) -->
+  <polygon points="60,33 84,46 84,74 60,87 36,74 36,46"
+    fill="none" stroke="#4a90e2" stroke-width="0.5" opacity="0.3"/>
+  
+  <!-- Glow halos for outer nodes -->
+  <circle cx="60" cy="33" r="7" fill="#4a90e2" opacity="0.15"/>
+  <circle cx="84" cy="46" r="7" fill="#4a90e2" opacity="0.15"/>
+  <circle cx="84" cy="74" r="7" fill="#4a90e2" opacity="0.15"/>
+  <circle cx="60" cy="87" r="7" fill="#4a90e2" opacity="0.15"/>
+  <circle cx="36" cy="74" r="7" fill="#4a90e2" opacity="0.15"/>
+  <circle cx="36" cy="46" r="7" fill="#4a90e2" opacity="0.15"/>
+  
+  <!-- Outer nodes (6 council members) -->
+  <circle cx="60" cy="33" r="5" fill="url(#nodeGlow1)" filter="url(#glowBlue)"/>
+  <circle cx="84" cy="46" r="5" fill="url(#nodeGlow1)" filter="url(#glowBlue)"/>
+  <circle cx="84" cy="74" r="5" fill="url(#nodeGlow1)" filter="url(#glowBlue)"/>
+  <circle cx="60" cy="87" r="5" fill="url(#nodeGlow1)" filter="url(#glowBlue)"/>
+  <circle cx="36" cy="74" r="5" fill="url(#nodeGlow1)" filter="url(#glowBlue)"/>
+  <circle cx="36" cy="46" r="5" fill="url(#nodeGlow1)" filter="url(#glowBlue)"/>
+  
+  <!-- Chairman glow halo -->
+  <circle cx="60" cy="60" r="11" fill="#f5a623" opacity="0.18"/>
+  
+  <!-- Chairman node (center, gold) -->
+  <circle cx="60" cy="60" r="8" fill="url(#nodeGlowGold)" filter="url(#glowGold)"/>
+  
+  <!-- Small inner dot on chairman -->
+  <circle cx="60" cy="60" r="3" fill="#fff5d0" opacity="0.9"/>
+
+  <!-- === TEXT === -->
+  <!-- "LLM" label - bold, larger -->
+  <text x="146" y="52"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif"
+    font-weight="800"
+    font-size="28"
+    letter-spacing="-0.5"
+    fill="url(#textGrad)"
+    filter="url(#textGlow)">LLM</text>
+  
+  <!-- "COUNCIL" label - lighter weight, spaced -->
+  <text x="146" y="75"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif"
+    font-weight="300"
+    font-size="16"
+    letter-spacing="4"
+    fill="#7bafd4">COUNCIL</text>
+  
+  <!-- Thin accent line between LLM and COUNCIL -->
+  <line x1="146" y1="58" x2="285" y2="58" stroke="#4a90e2" stroke-width="0.5" opacity="0.6"/>
+  
+  <!-- Small tagline -->
+  <text x="146" y="93"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif"
+    font-weight="400"
+    font-size="8.5"
+    letter-spacing="0.5"
+    fill="#4a7aaa"
+    opacity="0.8">Multi-model deliberation</text>
+</svg>

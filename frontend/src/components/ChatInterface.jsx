@@ -112,6 +112,14 @@ export default function ChatInterface({
     return (
       <div className="chat-interface">
         <div className="empty-state">
+          <img
+            src="/images/llm-council-icon.svg"
+            alt="LLM Council"
+            className="empty-state-logo"
+            width="64"
+            height="64"
+            onError={(e) => { e.target.style.display = 'none'; }}
+          />
           <h2>Welcome to LLM Council</h2>
           <p>Create a new conversation to get started</p>
           <button className="start-conversation-btn" onClick={onCreateConversation}>
