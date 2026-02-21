@@ -100,6 +100,13 @@
   font-style: italic;
 }
 
+:root[data-theme='dark'] .stage-loading,
+:root[data-theme='dark'] .loading-indicator {
+  background: #11151d;
+  border-color: #2d3545;
+  color: #e8eaf0;
+}
+
 .spinner {
   width: 20px;
   height: 20px;
