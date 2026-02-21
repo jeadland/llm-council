@@ -69,13 +69,16 @@ function App() {
     document.body.style.userSelect = 'none';
   }, [sidebarWidth]);
 
-  useEffect(() => {
-    const mode = settings?.theme_mode || 'system';
+  const applyTheme = useCallback((mode) => {
     const isDark =
       mode === 'dark' ||
       (mode === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-  }, [settings?.theme_mode]);
+  }, []);
+
+  useEffect(() => {
+    applyTheme(settings?.theme_mode || 'system');
+  }, [settings?.theme_mode, applyTheme]);
 
   useEffect(() => {
     loadConversations();
@@ -286,6 +289,7 @@ function App() {
         onDeleteConversation={handleDeleteConversation}
         settings={settings}
         onSaveSettings={handleSaveSettings}
+        onThemePreview={applyTheme}
         isOpen={isSidebarOpen}
         openSettingsOnOpen={openSettingsOnSidebarOpen}
         onSettingsOpened={() => setOpenSettingsOnSidebarOpen(false)}

@@ -15,6 +15,7 @@ export default function Sidebar({
   onDeleteConversation,
   settings,
   onSaveSettings,
+  onThemePreview,
   isOpen,
   openSettingsOnOpen,
   onSettingsOpened,
@@ -64,6 +65,8 @@ export default function Sidebar({
   };
 
   const closeSettings = () => {
+    // Revert live theme preview to the saved/persisted setting
+    if (onThemePreview) onThemePreview(settings?.theme_mode || 'system');
     setChairmanExpanded(false);
     setCouncilExpanded(false);
     setShowSettings(false);
@@ -294,7 +297,7 @@ export default function Sidebar({
               {/* Light — Sun */}
               <button
                 className={`appearance-icon-btn${draftThemeMode === 'light' ? ' selected' : ''}`}
-                onClick={() => setDraftThemeMode('light')}
+                onClick={() => { setDraftThemeMode('light'); onThemePreview?.('light'); }}
                 aria-pressed={draftThemeMode === 'light'}
                 title="Light"
               >
@@ -315,7 +318,7 @@ export default function Sidebar({
               {/* Dark — Moon */}
               <button
                 className={`appearance-icon-btn${draftThemeMode === 'dark' ? ' selected' : ''}`}
-                onClick={() => setDraftThemeMode('dark')}
+                onClick={() => { setDraftThemeMode('dark'); onThemePreview?.('dark'); }}
                 aria-pressed={draftThemeMode === 'dark'}
                 title="Dark"
               >
@@ -328,7 +331,7 @@ export default function Sidebar({
               {/* System — Monitor */}
               <button
                 className={`appearance-icon-btn${draftThemeMode === 'system' ? ' selected' : ''}`}
-                onClick={() => setDraftThemeMode('system')}
+                onClick={() => { setDraftThemeMode('system'); onThemePreview?.('system'); }}
                 aria-pressed={draftThemeMode === 'system'}
                 title="System"
               >
