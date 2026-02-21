@@ -13,4 +13,9 @@ export default defineConfig({
       },
     },
   },
+  preview: {
+    // Fail loudly instead of silently picking another port,
+    // which causes blank pages when Caddy proxies to the expected port.
+    strictPort: true,
+  },
 })
