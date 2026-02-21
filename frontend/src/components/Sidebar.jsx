@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './Sidebar.css';
 
 export default function Sidebar({
@@ -11,8 +11,18 @@ export default function Sidebar({
   settings,
   onSaveSettings,
   isOpen,
+  openSettingsOnOpen,
+  onSettingsOpened,
 }) {
   const [showSettings, setShowSettings] = useState(false);
+
+  // When mobile topbar gear is tapped: sidebar opens + settings should auto-open
+  useEffect(() => {
+    if (isOpen && openSettingsOnOpen && !showSettings) {
+      openSettings();
+      onSettingsOpened?.();
+    }
+  }, [isOpen, openSettingsOnOpen]); // eslint-disable-line react-hooks/exhaustive-deps
   const [draftCouncil, setDraftCouncil] = useState(settings?.council_models || []);
   const [draftChairman, setDraftChairman] = useState(settings?.chairman_model || '');
   const [draftThemeMode, setDraftThemeMode] = useState(settings?.theme_mode || 'system');
@@ -99,16 +109,29 @@ export default function Sidebar({
             {available.length === 0 && (
               <p className="settings-empty-note">No models available. Check your OpenClaw model library.</p>
             )}
-            {available.map((model) => (
-              <label key={model} className="settings-row">
-                <input
-                  type="checkbox"
-                  checked={draftCouncil.includes(model)}
-                  onChange={() => toggleModel(model)}
-                />
-                <span>{model.split('/').pop()}</span>
-              </label>
-            ))}
+            {available.map((model) => {
+              const checked = draftCouncil.includes(model);
+              const shortName = model.split('/').pop();
+              return (
+                <button
+                  key={model}
+                  type="button"
+                  role="checkbox"
+                  aria-checked={checked}
+                  className={`council-model-row${checked ? ' checked' : ''}`}
+                  onClick={() => toggleModel(model)}
+                >
+                  <span className="council-model-checkbox" aria-hidden="true">
+                    {checked && (
+                      <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                        <path d="M2 6L5 9L10 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
+                  </span>
+                  <span className="council-model-name">{shortName}</span>
+                </button>
+              );
+            })}
 
             {/* ── Chairman accordion ── */}
             <div className="settings-subtitle settings-chairman-subtitle">

@@ -96,30 +96,14 @@
 }
 
 /* "New chat" shortcut on the right of the topbar */
-.mobile-new-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: transparent;
-  color: #4a90e2;
-  border-radius: 8px;
+/* Mobile settings button — inherits settings-icon-btn from Sidebar.css;
+   override size to match topbar tap target */
+.mobile-settings-btn.settings-icon-btn {
   width: 40px;
   height: 40px;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background 0.15s, color 0.15s;
+  border-radius: 8px;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-}
-
-.mobile-new-btn:hover,
-.mobile-new-btn:focus-visible {
-  background: #eef4ff;
-}
-
-.mobile-new-btn:active {
-  background: #ddeaff;
 }
 
 .mobile-backdrop {
@@ -157,14 +141,7 @@
     background: #252c3c;
   }
 
-  :root[data-theme='dark'] .mobile-new-btn {
-    color: #7fb2ff;
-  }
-
-  :root[data-theme='dark'] .mobile-new-btn:hover,
-  :root[data-theme='dark'] .mobile-new-btn:focus-visible {
-    background: #1a2236;
-  }
+  /* dark-mode settings button in topbar inherits from dark .settings-icon-btn in Sidebar.css */
 
   .mobile-backdrop {
     display: block;

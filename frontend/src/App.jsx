@@ -12,6 +12,7 @@ function App() {
   const [currentConversation, setCurrentConversation] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [openSettingsOnSidebarOpen, setOpenSettingsOnSidebarOpen] = useState(false);
   const [activeRunId, setActiveRunId] = useState(null);
   const [settings, setSettings] = useState(null);
 
@@ -232,6 +233,8 @@ function App() {
         settings={settings}
         onSaveSettings={handleSaveSettings}
         isOpen={isSidebarOpen}
+        openSettingsOnOpen={openSettingsOnSidebarOpen}
+        onSettingsOpened={() => setOpenSettingsOnSidebarOpen(false)}
       />
 
       {isSidebarOpen && <div className="mobile-backdrop" onClick={() => setIsSidebarOpen(false)} />}
@@ -264,14 +267,24 @@ function App() {
             <span className="mobile-title">LLM Council</span>
           </div>
 
-          {/* Quick new-chat button — saves a sidebar open/close cycle */}
+          {/* Settings gear — exact same SVG/styling as sidebar gear */}
           <button
-            className="mobile-new-btn"
-            onClick={handleNewConversation}
-            aria-label="New conversation"
+            className="mobile-settings-btn settings-icon-btn"
+            onClick={() => {
+              setOpenSettingsOnSidebarOpen(true);
+              setIsSidebarOpen(true);
+            }}
+            aria-label="Open settings"
+            title="Settings"
           >
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-              <path d="M10 3.5V16.5M3.5 10H16.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/>
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path
+                d="M8.07 2.63A1 1 0 0 1 9.06 2h1.88a1 1 0 0 1 .99.63l.37 1A6.12 6.12 0 0 1 13.4 4.6l1.01-.35a1 1 0 0 1 1.16.39l.94 1.63a1 1 0 0 1-.18 1.21l-.76.7c.04.28.06.57.06.86s-.02.58-.06.86l.76.7a1 1 0 0 1 .18 1.21l-.94 1.63a1 1 0 0 1-1.16.39l-1.01-.35a6.12 6.12 0 0 1-1.1.97l-.37 1A1 1 0 0 1 10.94 18H9.06a1 1 0 0 1-.99-.63l-.37-1A6.12 6.12 0 0 1 6.6 15.4l-1.01.35a1 1 0 0 1-1.16-.39l-.94-1.63a1 1 0 0 1 .18-1.21l.76-.7A6.17 6.17 0 0 1 4.37 11a6.17 6.17 0 0 1 .06-.86l-.76-.7a1 1 0 0 1-.18-1.21l.94-1.63a1 1 0 0 1 1.16-.39l1.01.35a6.12 6.12 0 0 1 1.1-.97l.37-1Z"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinejoin="round"
+              />
+              <circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.5"/>
             </svg>
           </button>
         </div>
