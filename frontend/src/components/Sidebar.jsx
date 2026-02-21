@@ -19,6 +19,15 @@ export default function Sidebar({
 
   const available = settings?.available_models || [];
 
+  const openSettings = () => {
+    setDraftCouncil(settings?.council_models || []);
+    setDraftChairman(settings?.chairman_model || '');
+    setDraftThemeMode(settings?.theme_mode || 'system');
+    setShowSettings(true);
+  };
+
+  const closeSettings = () => setShowSettings(false);
+
   const toggleModel = (model) => {
     setDraftCouncil((prev) =>
       prev.includes(model) ? prev.filter((m) => m !== model) : [...prev, model]
@@ -37,132 +46,170 @@ export default function Sidebar({
   };
 
   return (
-    <div className={`sidebar ${isOpen ? 'open' : ''}`}>
-      <div className="sidebar-header">
-        {/* Brand row: title + settings gear */}
-        <div className="sidebar-brand-row">
-          <h1>LLM Council</h1>
-          <button
-            className={`settings-icon-btn${showSettings ? ' active' : ''}`}
-            aria-label={showSettings ? 'Close settings' : 'Open settings'}
-            title="Settings"
-            onClick={() => {
-              setDraftCouncil(settings?.council_models || []);
-              setDraftChairman(settings?.chairman_model || '');
-              setDraftThemeMode(settings?.theme_mode || 'system');
-              setShowSettings((v) => !v);
-            }}
-          >
-            {/* Gear SVG */}
-            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-              <path
-                d="M8.07 2.63A1 1 0 0 1 9.06 2h1.88a1 1 0 0 1 .99.63l.37 1A6.12 6.12 0 0 1 13.4 4.6l1.01-.35a1 1 0 0 1 1.16.39l.94 1.63a1 1 0 0 1-.18 1.21l-.76.7c.04.28.06.57.06.86s-.02.58-.06.86l.76.7a1 1 0 0 1 .18 1.21l-.94 1.63a1 1 0 0 1-1.16.39l-1.01-.35a6.12 6.12 0 0 1-1.1.97l-.37 1A1 1 0 0 1 10.94 18H9.06a1 1 0 0 1-.99-.63l-.37-1A6.12 6.12 0 0 1 6.6 15.4l-1.01.35a1 1 0 0 1-1.16-.39l-.94-1.63a1 1 0 0 1 .18-1.21l.76-.7A6.17 6.17 0 0 1 4.37 11a6.17 6.17 0 0 1 .06-.86l-.76-.7a1 1 0 0 1-.18-1.21l.94-1.63a1 1 0 0 1 1.16-.39l1.01.35a6.12 6.12 0 0 1 1.1-.97l.37-1Z"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinejoin="round"
-              />
-              <circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.5"/>
-            </svg>
-          </button>
-        </div>
+    <div className={`sidebar ${isOpen ? 'open' : ''} ${showSettings ? 'settings-fullpanel' : ''}`}>
 
-        {/* New conversation button */}
-        <button className="new-conversation-btn" onClick={onNewConversation}>
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <path d="M8 2v12M2 8h12" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/>
-          </svg>
-          New Conversation
-        </button>
-      </div>
-
+      {/* ── Full-panel settings mode ── */}
       {showSettings && (
-        <div className="settings-panel">
-          <div className="settings-title">Model Picker</div>
-          <div className="settings-subtitle">Your Available Models</div>
-          {available.map((model) => (
-            <label key={model} className="settings-row">
-              <input
-                type="checkbox"
-                checked={draftCouncil.includes(model)}
-                onChange={() => toggleModel(model)}
-              />
-              <span>{model}</span>
-            </label>
-          ))}
+        <div className="settings-fullpanel-content">
+          {/* Settings header row */}
+          <div className="settings-fullpanel-header">
+            <button
+              className="settings-back-btn"
+              onClick={closeSettings}
+              aria-label="Back to conversations"
+            >
+              {/* Left arrow icon */}
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            <span className="settings-fullpanel-title">Settings</span>
+            {/* Spinning active gear indicator */}
+            <div className="settings-fullpanel-gear" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+                <path
+                  d="M8.07 2.63A1 1 0 0 1 9.06 2h1.88a1 1 0 0 1 .99.63l.37 1A6.12 6.12 0 0 1 13.4 4.6l1.01-.35a1 1 0 0 1 1.16.39l.94 1.63a1 1 0 0 1-.18 1.21l-.76.7c.04.28.06.57.06.86s-.02.58-.06.86l.76.7a1 1 0 0 1 .18 1.21l-.94 1.63a1 1 0 0 1-1.16.39l-1.01-.35a6.12 6.12 0 0 1-1.1.97l-.37 1A1 1 0 0 1 10.94 18H9.06a1 1 0 0 1-.99-.63l-.37-1A6.12 6.12 0 0 1 6.6 15.4l-1.01.35a1 1 0 0 1-1.16-.39l-.94-1.63a1 1 0 0 1 .18-1.21l.76-.7A6.17 6.17 0 0 1 4.37 11a6.17 6.17 0 0 1 .06-.86l-.76-.7a1 1 0 0 1-.18-1.21l.94-1.63a1 1 0 0 1 1.16-.39l1.01.35a6.12 6.12 0 0 1 1.1-.97l.37-1Z"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinejoin="round"
+                />
+                <circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.5"/>
+              </svg>
+            </div>
+          </div>
 
-          <div className="settings-subtitle">Chairman</div>
-          <select
-            className="settings-select"
-            value={draftChairman}
-            onChange={(e) => setDraftChairman(e.target.value)}
-          >
+          {/* Settings body — scrollable */}
+          <div className="settings-fullpanel-body">
+            <div className="settings-subtitle">Your Available Models</div>
+            {available.length === 0 && (
+              <p className="settings-empty-note">No models available. Check your OpenClaw model library.</p>
+            )}
             {available.map((model) => (
-              <option key={model} value={model}>
-                {model}
-              </option>
+              <label key={model} className="settings-row">
+                <input
+                  type="checkbox"
+                  checked={draftCouncil.includes(model)}
+                  onChange={() => toggleModel(model)}
+                />
+                <span>{model}</span>
+              </label>
             ))}
-          </select>
 
-          <div className="settings-subtitle">Appearance</div>
-          <select
-            className="settings-select"
-            value={draftThemeMode}
-            onChange={(e) => setDraftThemeMode(e.target.value)}
-          >
-            <option value="system">System</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-          </select>
+            <div className="settings-subtitle">Chairman</div>
+            <select
+              className="settings-select"
+              value={draftChairman}
+              onChange={(e) => setDraftChairman(e.target.value)}
+            >
+              {available.map((model) => (
+                <option key={model} value={model}>
+                  {model}
+                </option>
+              ))}
+            </select>
 
-          <button className="settings-save-btn" onClick={save}>Save Settings</button>
+            <div className="settings-subtitle">Appearance</div>
+            <select
+              className="settings-select"
+              value={draftThemeMode}
+              onChange={(e) => setDraftThemeMode(e.target.value)}
+            >
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </div>
+
+          {/* Sticky footer with actions */}
+          <div className="settings-fullpanel-footer">
+            <button className="settings-cancel-btn" onClick={closeSettings}>Cancel</button>
+            <button className="settings-save-btn" onClick={save}>Save Settings</button>
+          </div>
         </div>
       )}
 
-      <div className="conversation-list">
-        {conversations.length === 0 ? (
-          <div className="no-conversations">No conversations yet</div>
-        ) : (
-          conversations.map((conv) => (
-            <div
-              key={conv.id}
-              className={`conversation-item ${
-                conv.id === currentConversationId ? 'active' : ''
-              } ${conv.pinned ? 'pinned' : ''}`}
-              onClick={() => onSelectConversation(conv.id)}
-            >
-              <div className="conversation-row">
-                <div className="conversation-title">
-                  {conv.pinned ? '📌 ' : ''}
-                  {conv.title || 'New Conversation'}
-                </div>
-                <div className="conversation-actions">
-                  <button
-                    className="icon-btn"
-                    title={conv.pinned ? 'Unpin conversation' : 'Pin conversation'}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onTogglePin(conv.id, !conv.pinned);
-                    }}
-                  >
-                    {conv.pinned ? '📍' : '📌'}
-                  </button>
-                  <button
-                    className="icon-btn danger"
-                    title="Delete conversation"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteConversation(conv.id);
-                    }}
-                  >
-                    🗑️
-                  </button>
-                </div>
-              </div>
-              <div className="conversation-meta">{conv.message_count} messages</div>
+      {/* ── Normal sidebar content (hidden when settings open) ── */}
+      {!showSettings && (
+        <>
+          <div className="sidebar-header">
+            {/* Brand row: title + settings gear */}
+            <div className="sidebar-brand-row">
+              <h1>LLM Council</h1>
+              <button
+                className="settings-icon-btn"
+                aria-label="Open settings"
+                title="Settings"
+                onClick={openSettings}
+              >
+                {/* Gear SVG */}
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                  <path
+                    d="M8.07 2.63A1 1 0 0 1 9.06 2h1.88a1 1 0 0 1 .99.63l.37 1A6.12 6.12 0 0 1 13.4 4.6l1.01-.35a1 1 0 0 1 1.16.39l.94 1.63a1 1 0 0 1-.18 1.21l-.76.7c.04.28.06.57.06.86s-.02.58-.06.86l.76.7a1 1 0 0 1 .18 1.21l-.94 1.63a1 1 0 0 1-1.16.39l-1.01-.35a6.12 6.12 0 0 1-1.1.97l-.37 1A1 1 0 0 1 10.94 18H9.06a1 1 0 0 1-.99-.63l-.37-1A6.12 6.12 0 0 1 6.6 15.4l-1.01.35a1 1 0 0 1-1.16-.39l-.94-1.63a1 1 0 0 1 .18-1.21l.76-.7A6.17 6.17 0 0 1 4.37 11a6.17 6.17 0 0 1 .06-.86l-.76-.7a1 1 0 0 1-.18-1.21l.94-1.63a1 1 0 0 1 1.16-.39l1.01.35a6.12 6.12 0 0 1 1.1-.97l.37-1Z"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinejoin="round"
+                  />
+                  <circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.5"/>
+                </svg>
+              </button>
             </div>
-          ))
-        )}
-      </div>
+
+            {/* New conversation button */}
+            <button className="new-conversation-btn" onClick={onNewConversation}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M8 2v12M2 8h12" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/>
+              </svg>
+              New Conversation
+            </button>
+          </div>
+
+          <div className="conversation-list">
+            {conversations.length === 0 ? (
+              <div className="no-conversations">No conversations yet</div>
+            ) : (
+              conversations.map((conv) => (
+                <div
+                  key={conv.id}
+                  className={`conversation-item ${
+                    conv.id === currentConversationId ? 'active' : ''
+                  } ${conv.pinned ? 'pinned' : ''}`}
+                  onClick={() => onSelectConversation(conv.id)}
+                >
+                  <div className="conversation-row">
+                    <div className="conversation-title">
+                      {conv.pinned ? '📌 ' : ''}
+                      {conv.title || 'New Conversation'}
+                    </div>
+                    <div className="conversation-actions">
+                      <button
+                        className="icon-btn"
+                        title={conv.pinned ? 'Unpin conversation' : 'Pin conversation'}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onTogglePin(conv.id, !conv.pinned);
+                        }}
+                      >
+                        {conv.pinned ? '📍' : '📌'}
+                      </button>
+                      <button
+                        className="icon-btn danger"
+                        title="Delete conversation"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteConversation(conv.id);
+                        }}
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                  <div className="conversation-meta">{conv.message_count} messages</div>
+                </div>
+              ))
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
