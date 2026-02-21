@@ -2,7 +2,7 @@
 
 import httpx
 from typing import List, Dict, Any, Optional
-from .config import OPENROUTER_API_KEY, OPENROUTER_API_URL
+from .config import OPENROUTER_API_KEY, OPENROUTER_API_URL, PREMIER_MODELS
 
 
 async def query_model(
@@ -51,6 +51,28 @@ async def query_model(
     except Exception as e:
         print(f"Error querying model {model}: {e}")
         return None
+
+
+async def fetch_available_premier_models() -> List[str]:
+    """Fetch available models from OpenRouter and return supported premier models.
+
+    Falls back to configured PREMIER_MODELS if discovery fails.
+    """
+    headers = {"Content-Type": "application/json"}
+    if OPENROUTER_API_KEY:
+        headers["Authorization"] = f"Bearer {OPENROUTER_API_KEY}"
+
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            response = await client.get("https://openrouter.ai/api/v1/models", headers=headers)
+            response.raise_for_status()
+            data = response.json()
+            available_ids = {m.get("id") for m in data.get("data", []) if m.get("id")}
+            filtered = [m for m in PREMIER_MODELS if m in available_ids]
+            return filtered or PREMIER_MODELS
+    except Exception as e:
+        print(f"Error fetching available models: {e}")
+        return PREMIER_MODELS
 
 
 async def query_models_parallel(
