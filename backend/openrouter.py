@@ -53,8 +53,8 @@ async def query_model(
         return None
 
 
-async def fetch_available_premier_models() -> List[str]:
-    """Fetch available models from OpenRouter and return supported premier models.
+async def fetch_available_models() -> List[str]:
+    """Fetch all available model ids from OpenRouter for this account.
 
     Falls back to configured PREMIER_MODELS if discovery fails.
     """
@@ -67,9 +67,8 @@ async def fetch_available_premier_models() -> List[str]:
             response = await client.get("https://openrouter.ai/api/v1/models", headers=headers)
             response.raise_for_status()
             data = response.json()
-            available_ids = {m.get("id") for m in data.get("data", []) if m.get("id")}
-            filtered = [m for m in PREMIER_MODELS if m in available_ids]
-            return filtered or PREMIER_MODELS
+            available_ids = sorted({m.get("id") for m in data.get("data", []) if m.get("id")})
+            return available_ids or PREMIER_MODELS
     except Exception as e:
         print(f"Error fetching available models: {e}")
         return PREMIER_MODELS

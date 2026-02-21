@@ -18,7 +18,7 @@ from .council import (
     stage3_synthesize_final,
     calculate_aggregate_rankings,
 )
-from .openrouter import fetch_available_premier_models
+from .openrouter import fetch_available_models
 
 app = FastAPI(title="LLM Council API")
 
@@ -92,7 +92,7 @@ async def get_settings():
     settings = storage.get_settings()
 
     # Keep available model list aligned with this deployment's OpenRouter access.
-    discovered = await fetch_available_premier_models()
+    discovered = await fetch_available_models()
     if discovered != settings.get("available_models", []):
         settings = storage.save_settings({"available_models": discovered})
 
