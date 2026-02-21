@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import './Sidebar.css';
 
 export default function Sidebar({
@@ -6,6 +5,8 @@ export default function Sidebar({
   currentConversationId,
   onSelectConversation,
   onNewConversation,
+  onTogglePin,
+  onDeleteConversation,
   isOpen,
 }) {
   return (
@@ -26,11 +27,36 @@ export default function Sidebar({
               key={conv.id}
               className={`conversation-item ${
                 conv.id === currentConversationId ? 'active' : ''
-              }`}
+              } ${conv.pinned ? 'pinned' : ''}`}
               onClick={() => onSelectConversation(conv.id)}
             >
-              <div className="conversation-title">
-                {conv.title || 'New Conversation'}
+              <div className="conversation-row">
+                <div className="conversation-title">
+                  {conv.pinned ? '📌 ' : ''}
+                  {conv.title || 'New Conversation'}
+                </div>
+                <div className="conversation-actions">
+                  <button
+                    className="icon-btn"
+                    title={conv.pinned ? 'Unpin conversation' : 'Pin conversation'}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTogglePin(conv.id, !conv.pinned);
+                    }}
+                  >
+                    {conv.pinned ? '📍' : '📌'}
+                  </button>
+                  <button
+                    className="icon-btn danger"
+                    title="Delete conversation"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteConversation(conv.id);
+                    }}
+                  >
+                    🗑️
+                  </button>
+                </div>
               </div>
               <div className="conversation-meta">
                 {conv.message_count} messages

@@ -27,6 +27,24 @@ export const api = {
     return response.json();
   },
 
+  async pinConversation(conversationId, pinned) {
+    const response = await fetch(`${API_BASE}/api/conversations/${conversationId}/pin`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pinned }),
+    });
+    if (!response.ok) throw new Error('Failed to pin conversation');
+    return response.json();
+  },
+
+  async deleteConversation(conversationId) {
+    const response = await fetch(`${API_BASE}/api/conversations/${conversationId}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) throw new Error('Failed to delete conversation');
+    return response.json();
+  },
+
   async createRun(conversationId, content) {
     const response = await fetch(`${API_BASE}/api/conversations/${conversationId}/runs`, {
       method: 'POST',

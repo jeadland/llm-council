@@ -74,6 +74,38 @@
   transition: background 0.2s;
 }
 
+.conversation-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.conversation-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.icon-btn {
+  border: 1px solid #d8d8d8;
+  background: #fff;
+  border-radius: 6px;
+  font-size: 12px;
+  padding: 4px 6px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.icon-btn:hover {
+  background: #f4f4f4;
+}
+
+.icon-btn.danger:hover {
+  background: #ffecec;
+  border-color: #ffb9b9;
+}
+
 .conversation-item:hover {
   background: #f0f0f0;
 }

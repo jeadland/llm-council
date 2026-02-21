@@ -134,6 +134,33 @@ function App() {
     setIsSidebarOpen(false);
   };
 
+  const handleTogglePin = async (id, pinned) => {
+    try {
+      await api.pinConversation(id, pinned);
+      await loadConversations();
+      if (currentConversationId === id) {
+        await loadConversation(id);
+      }
+    } catch (error) {
+      console.error('Failed to pin conversation:', error);
+    }
+  };
+
+  const handleDeleteConversation = async (id) => {
+    if (!window.confirm('Delete this conversation? This cannot be undone.')) return;
+
+    try {
+      await api.deleteConversation(id);
+      if (currentConversationId === id) {
+        setCurrentConversationId(null);
+        setCurrentConversation(null);
+      }
+      await loadConversations();
+    } catch (error) {
+      console.error('Failed to delete conversation:', error);
+    }
+  };
+
   const handleSendMessage = async (content) => {
     if (!currentConversationId || isLoading) return;
 
@@ -159,6 +186,8 @@ function App() {
         currentConversationId={currentConversationId}
         onSelectConversation={handleSelectConversation}
         onNewConversation={handleNewConversation}
+        onTogglePin={handleTogglePin}
+        onDeleteConversation={handleDeleteConversation}
         isOpen={isSidebarOpen}
       />
 

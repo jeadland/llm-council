@@ -41,6 +41,7 @@ def create_conversation(conversation_id: str) -> Dict[str, Any]:
         "id": conversation_id,
         "created_at": datetime.utcnow().isoformat(),
         "title": "New Conversation",
+        "pinned": False,
         "messages": []
     }
 
@@ -105,11 +106,12 @@ def list_conversations() -> List[Dict[str, Any]]:
                     "id": data["id"],
                     "created_at": data["created_at"],
                     "title": data.get("title", "New Conversation"),
+                    "pinned": data.get("pinned", False),
                     "message_count": len(data["messages"])
                 })
 
-    # Sort by creation time, newest first
-    conversations.sort(key=lambda x: x["created_at"], reverse=True)
+    # Sort pinned first, then newest first
+    conversations.sort(key=lambda x: (not x.get("pinned", False), -int(datetime.fromisoformat(x["created_at"]).timestamp())))
 
     return conversations
 
@@ -177,6 +179,20 @@ def update_conversation_title(conversation_id: str, title: str):
 
     conversation["title"] = title
     save_conversation(conversation)
+
+
+def set_conversation_pinned(conversation_id: str, pinned: bool):
+    conversation = get_conversation(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+    conversation["pinned"] = pinned
+    save_conversation(conversation)
+
+
+def delete_conversation(conversation_id: str):
+    path = get_conversation_path(conversation_id)
+    if os.path.exists(path):
+        os.remove(path)
 
 
 def upsert_assistant_message_for_run(

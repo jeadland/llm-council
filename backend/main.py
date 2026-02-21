@@ -45,12 +45,17 @@ class CreateRunRequest(BaseModel):
     content: str
 
 
+class PinConversationRequest(BaseModel):
+    pinned: bool
+
+
 class ConversationMetadata(BaseModel):
     """Conversation metadata for list view."""
 
     id: str
     created_at: str
     title: str
+    pinned: bool = False
     message_count: int
 
 
@@ -90,6 +95,24 @@ async def get_conversation(conversation_id: str):
     if conversation is None:
         raise HTTPException(status_code=404, detail="Conversation not found")
     return conversation
+
+
+@app.patch("/api/conversations/{conversation_id}/pin")
+async def pin_conversation(conversation_id: str, request: PinConversationRequest):
+    conversation = storage.get_conversation(conversation_id)
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    storage.set_conversation_pinned(conversation_id, request.pinned)
+    return {"ok": True, "pinned": request.pinned}
+
+
+@app.delete("/api/conversations/{conversation_id}")
+async def delete_conversation(conversation_id: str):
+    conversation = storage.get_conversation(conversation_id)
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    storage.delete_conversation(conversation_id)
+    return {"ok": True}
 
 
 @app.get("/api/conversations/{conversation_id}/runs/active")
