@@ -28,6 +28,8 @@ export default function Sidebar({
   const [draftThemeMode, setDraftThemeMode] = useState(settings?.theme_mode || 'system');
   // Accordion state for chairman picker
   const [chairmanExpanded, setChairmanExpanded] = useState(false);
+  // Accordion state for council models (collapsed = only selected; expanded = all)
+  const [councilExpanded, setCouncilExpanded] = useState(false);
 
   const available = settings?.available_models || [];
 
@@ -36,11 +38,13 @@ export default function Sidebar({
     setDraftChairman(settings?.chairman_model || '');
     setDraftThemeMode(settings?.theme_mode || 'system');
     setChairmanExpanded(false);
+    setCouncilExpanded(false);
     setShowSettings(true);
   };
 
   const closeSettings = () => {
     setChairmanExpanded(false);
+    setCouncilExpanded(false);
     setShowSettings(false);
   };
 
@@ -109,29 +113,76 @@ export default function Sidebar({
             {available.length === 0 && (
               <p className="settings-empty-note">No models available. Check your OpenClaw model library.</p>
             )}
-            {available.map((model) => {
-              const checked = draftCouncil.includes(model);
-              const shortName = model.split('/').pop();
+
+            {/* ── Council models collapsible accordion ── */}
+            {available.length > 0 && (() => {
+              // Models to render: collapsed → only selected; expanded → all
+              const unselected = available.filter((m) => !draftCouncil.includes(m));
+              const modelsToShow = councilExpanded ? available : available.filter((m) => draftCouncil.includes(m));
+              const extraCount = unselected.length;
+
               return (
-                <button
-                  key={model}
-                  type="button"
-                  role="checkbox"
-                  aria-checked={checked}
-                  className={`council-model-row${checked ? ' checked' : ''}`}
-                  onClick={() => toggleModel(model)}
-                >
-                  <span className="council-model-checkbox" aria-hidden="true">
-                    {checked && (
-                      <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-                        <path d="M2 6L5 9L10 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
+                <div className="council-models-accordion">
+                  {/* Render rows */}
+                  <div className="council-models-list">
+                    {modelsToShow.length === 0 && !councilExpanded && (
+                      <p className="settings-empty-note council-models-empty">
+                        No models selected. Expand to add some.
+                      </p>
                     )}
-                  </span>
-                  <span className="council-model-name">{shortName}</span>
-                </button>
+                    {modelsToShow.map((model) => {
+                      const checked = draftCouncil.includes(model);
+                      const shortName = model.split('/').pop();
+                      return (
+                        <button
+                          key={model}
+                          type="button"
+                          role="checkbox"
+                          aria-checked={checked}
+                          className={`council-model-row${checked ? ' checked' : ''}`}
+                          onClick={() => toggleModel(model)}
+                        >
+                          <span className="council-model-checkbox" aria-hidden="true">
+                            {checked && (
+                              <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                                <path d="M2 6L5 9L10 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            )}
+                          </span>
+                          <span className="council-model-name">{shortName}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Toggle button */}
+                  <button
+                    type="button"
+                    className={`council-models-toggle-btn${councilExpanded ? ' expanded' : ''}`}
+                    onClick={() => setCouncilExpanded((v) => !v)}
+                    aria-expanded={councilExpanded}
+                    aria-label={councilExpanded ? 'Hide extra models' : `Show all ${available.length} models`}
+                  >
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 12 12"
+                      fill="none"
+                      aria-hidden="true"
+                      className="toggle-chevron"
+                    >
+                      <path d="M2 4L6 8L10 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    {councilExpanded
+                      ? 'Hide extras ▴'
+                      : `Show all ${available.length} models ▾`}
+                    {!councilExpanded && extraCount > 0 && (
+                      <span className="council-models-extra-badge">+{extraCount}</span>
+                    )}
+                  </button>
+                </div>
               );
-            })}
+            })()}
 
             {/* ── Chairman accordion ── */}
             <div className="settings-subtitle settings-chairman-subtitle">

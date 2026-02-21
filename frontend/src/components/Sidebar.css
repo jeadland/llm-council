@@ -713,6 +713,90 @@
   color: #1a3a72;
 }
 
+/* ── Council models collapsible accordion ── */
+
+.council-models-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 4px;
+}
+
+.council-models-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.council-models-empty {
+  margin: 2px 0 6px !important;
+}
+
+/* Toggle button: "Show all X models ▾" / "Hide extras ▴" */
+.council-models-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 10px;
+  margin-top: 4px;
+  border: 1.5px dashed #c8d0e0;
+  border-radius: 9px;
+  background: #f8f9fb;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #5a6888;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  text-align: left;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  /* Reset button defaults */
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #5a6888;
+}
+
+.council-models-toggle-btn:hover {
+  background: #eef2fb;
+  border-color: #9ab8e8;
+  color: #2a6fcc;
+}
+
+.council-models-toggle-btn:focus-visible {
+  outline: 2px solid #4a90e2;
+  outline-offset: 1px;
+}
+
+.council-models-toggle-btn.expanded {
+  background: #eef2fb;
+  border-color: #9ab8e8;
+  color: #2a6fcc;
+  border-style: solid;
+}
+
+/* Chevron flips on expand (reuses .toggle-chevron + transition from chairman styles) */
+.council-models-toggle-btn.expanded .toggle-chevron {
+  transform: rotate(180deg);
+}
+
+/* Badge showing count of hidden extra models */
+.council-models-extra-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #e8f0fe;
+  border: 1px solid #b8d0f8;
+  border-radius: 20px;
+  padding: 1px 7px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #4a90e2;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 /* Dark mode council checkboxes */
 :root[data-theme='dark'] .council-model-row {
   background: #11151d !important;
@@ -1216,4 +1300,25 @@
   background: #1e1010 !important;
   border-color: #7a2020 !important;
   color: #f87171 !important;
+}
+
+/* ── Dark mode: council models accordion ── */
+
+:root[data-theme='dark'] .council-models-toggle-btn {
+  background: #11151d !important;
+  border-color: #2d3848 !important;
+  color: #6a7898 !important;
+}
+
+:root[data-theme='dark'] .council-models-toggle-btn:hover,
+:root[data-theme='dark'] .council-models-toggle-btn.expanded {
+  background: #1a2a44 !important;
+  border-color: #2d4070 !important;
+  color: #7fb2ff !important;
+}
+
+:root[data-theme='dark'] .council-models-extra-badge {
+  background: #1a2a44 !important;
+  border-color: #2d4070 !important;
+  color: #7fb2ff !important;
 }
