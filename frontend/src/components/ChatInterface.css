@@ -634,57 +634,6 @@
   color: #7a5510;
 }
 
-.onboarding-hint-icon {
-  flex-shrink: 0;
-  opacity: 0.7;
-}
-
-/* Footer gear button — matches sidebar .settings-icon-btn styling */
-.onboarding-hint-gear-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  border: 1px solid #dde0e7;
-  background: #fff;
-  border-radius: 6px;
-  cursor: pointer;
-  color: #5a6478;
-  flex-shrink: 0;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.onboarding-hint-gear-btn:hover,
-.onboarding-hint-gear-btn:focus-visible {
-  background: #eef1f7;
-  color: #2a3550;
-  border-color: #c0c8d8;
-  outline: none;
-}
-
-.onboarding-hint-gear-btn:focus-visible {
-  outline: 2px solid #4a90e2;
-  outline-offset: 2px;
-}
-
-/* Warn state: inherit amber tint */
-.onboarding-hint--warn .onboarding-hint-gear-btn {
-  border-color: #e8d080;
-  background: #fffbe6;
-  color: #8a6a20;
-}
-
-.onboarding-hint--warn .onboarding-hint-gear-btn:hover,
-.onboarding-hint--warn .onboarding-hint-gear-btn:focus-visible {
-  background: #fff3c0;
-  color: #7a5510;
-  border-color: #d4a800;
-}
-
 /* Inline settings text-link inside hint */
 .onboarding-hint-settings-link {
   display: inline;
@@ -723,32 +672,6 @@
 }
 
 /* Dark mode */
-:root[data-theme='dark'] .onboarding-hint-gear-btn {
-  background: #11151d;
-  border-color: #2d3848;
-  color: #9ca3af;
-}
-
-:root[data-theme='dark'] .onboarding-hint-gear-btn:hover,
-:root[data-theme='dark'] .onboarding-hint-gear-btn:focus-visible {
-  background: #1a2030;
-  color: #c8d0e0;
-  border-color: #3d4d60;
-}
-
-:root[data-theme='dark'] .onboarding-hint--warn .onboarding-hint-gear-btn {
-  background: #1a1500;
-  border-color: #4a3800;
-  color: #b08a3a;
-}
-
-:root[data-theme='dark'] .onboarding-hint--warn .onboarding-hint-gear-btn:hover,
-:root[data-theme='dark'] .onboarding-hint--warn .onboarding-hint-gear-btn:focus-visible {
-  background: #241c00;
-  color: #d4aa50;
-  border-color: #6a5000;
-}
-
 :root[data-theme='dark'] .onboarding-hint-settings-link {
   color: #6880aa;
 }

@@ -3,7 +3,6 @@ import ReactMarkdown from 'react-markdown';
 import Stage1 from './Stage1';
 import Stage2 from './Stage2';
 import Stage3 from './Stage3';
-import GearIcon from './GearIcon';
 import './ChatInterface.css';
 
 function StageStepper({ msg }) {
@@ -306,19 +305,6 @@ export default function ChatInterface({
           <div className={`onboarding-hint${isUnconfigured ? ' onboarding-hint--warn' : ''}`}>
             {isUnconfigured ? (
               <>
-                {onOpenSettings ? (
-                  <button
-                    type="button"
-                    className="onboarding-hint-gear-btn"
-                    onClick={onOpenSettings}
-                    aria-label="Open settings"
-                    title="Open settings"
-                  >
-                    <GearIcon size={16} aria-hidden="true" />
-                  </button>
-                ) : (
-                  <GearIcon size={16} aria-hidden="true" className="onboarding-hint-icon" />
-                )}
                 Select council models and chairman in{' '}
                 {onOpenSettings ? (
                   <button
@@ -335,19 +321,6 @@ export default function ChatInterface({
               </>
             ) : (
               <>
-                {onOpenSettings ? (
-                  <button
-                    type="button"
-                    className="onboarding-hint-gear-btn"
-                    onClick={onOpenSettings}
-                    aria-label="Open settings"
-                    title="Open settings"
-                  >
-                    <GearIcon size={16} aria-hidden="true" />
-                  </button>
-                ) : (
-                  <GearIcon size={16} aria-hidden="true" className="onboarding-hint-icon" />
-                )}
                 {settings.council_models.length} council model{settings.council_models.length !== 1 ? 's' : ''} active · Chairman:{' '}
                 <strong>{settings.chairman_model.split('/').pop()}</strong>
                 {' · '}
@@ -360,7 +333,7 @@ export default function ChatInterface({
                     Adjust in Settings
                   </button>
                 ) : (
-                  <>Adjust in ⚙️ Settings</>
+                  <>Adjust in Settings</>
                 )}
               </>
             )}
