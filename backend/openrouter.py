@@ -7,6 +7,13 @@ from typing import List, Dict, Any, Optional
 from .config import OPENROUTER_API_KEY, OPENROUTER_API_URL, PREMIER_MODELS
 
 
+def _normalize_openrouter_model_id(model: str) -> str:
+    """Normalize model ids from OpenClaw-style ids to OpenRouter ids."""
+    if model.startswith("openrouter/"):
+        return model[len("openrouter/"):]
+    return model
+
+
 async def query_model(
     model: str,
     messages: List[Dict[str, str]],
@@ -28,8 +35,10 @@ async def query_model(
         "Content-Type": "application/json",
     }
 
+    normalized_model = _normalize_openrouter_model_id(model)
+
     payload = {
-        "model": model,
+        "model": normalized_model,
         "messages": messages,
     }
 
