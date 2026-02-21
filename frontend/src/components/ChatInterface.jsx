@@ -8,8 +8,10 @@ import './ChatInterface.css';
 export default function ChatInterface({
   conversation,
   onSendMessage,
+  onStopRun,
   onCreateConversation,
   isLoading,
+  activeRunId,
 }) {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef(null);
@@ -142,6 +144,15 @@ export default function ChatInterface({
         >
           Send
         </button>
+        {isLoading && activeRunId && (
+          <button
+            type="button"
+            className="stop-button"
+            onClick={onStopRun}
+          >
+            Stop
+          </button>
+        )}
       </form>
     </div>
   );

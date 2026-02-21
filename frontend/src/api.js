@@ -83,12 +83,20 @@ export const api = {
     return response.json();
   },
 
+  async stopRun(conversationId, runId) {
+    const response = await fetch(`${API_BASE}/api/conversations/${conversationId}/runs/${runId}/stop`, {
+      method: 'POST',
+    });
+    if (!response.ok) throw new Error('Failed to stop run');
+    return response.json();
+  },
+
   async waitForRun(conversationId, runId, onUpdate, intervalMs = 700) {
     let done = false;
     while (!done) {
       const run = await this.getRun(conversationId, runId);
       onUpdate(run);
-      done = run.status === 'complete' || run.status === 'failed';
+      done = run.status === 'complete' || run.status === 'failed' || run.status === 'canceled';
       if (!done) {
         await new Promise((resolve) => setTimeout(resolve, intervalMs));
       }

@@ -184,6 +184,24 @@
   border-color: #ccc;
 }
 
+.stop-button {
+  padding: 14px 18px;
+  background: #ef4444;
+  border: 1px solid #ef4444;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  align-self: flex-end;
+}
+
+.stop-button:hover {
+  background: #dc2626;
+  border-color: #dc2626;
+}
+
 .message-content,
 .stage,
 .tab-content,

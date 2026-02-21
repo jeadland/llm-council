@@ -21,6 +21,7 @@ from .council import (
 from .openrouter import fetch_available_models
 
 app = FastAPI(title="LLM Council API")
+RUN_TASKS: Dict[str, asyncio.Task] = {}
 
 # Enable CORS for local development
 app.add_middleware(
@@ -165,6 +166,28 @@ async def get_run(conversation_id: str, run_id: str):
     return run
 
 
+@app.post("/api/conversations/{conversation_id}/runs/{run_id}/stop")
+async def stop_run(conversation_id: str, run_id: str):
+    run = storage.get_run(run_id)
+    if run is None or run.get("conversation_id") != conversation_id:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    if run.get("status") in {"complete", "failed", "canceled"}:
+        return {"ok": True, "status": run.get("status")}
+
+    task = RUN_TASKS.get(run_id)
+    if task and not task.done():
+        task.cancel()
+
+    storage.update_run(run_id, {"status": "canceled", "error": "Stopped by user"})
+    storage.upsert_assistant_message_for_run(
+        conversation_id,
+        run_id,
+        loading={"stage1": False, "stage2": False, "stage3": False},
+    )
+    return {"ok": True, "status": "canceled"}
+
+
 async def _execute_run(run_id: str):
     run = storage.get_run(run_id)
     if run is None:
@@ -246,6 +269,14 @@ async def _execute_run(run_id: str):
             loading={"stage1": False, "stage2": False, "stage3": False},
         )
 
+    except asyncio.CancelledError:
+        storage.update_run(run_id, {"status": "canceled", "error": "Stopped by user"})
+        storage.upsert_assistant_message_for_run(
+            conversation_id,
+            run_id,
+            loading={"stage1": False, "stage2": False, "stage3": False},
+        )
+        raise
     except Exception as e:
         storage.update_run(
             run_id,
@@ -262,6 +293,8 @@ async def _execute_run(run_id: str):
             run_id,
             loading={"stage1": False, "stage2": False, "stage3": False},
         )
+    finally:
+        RUN_TASKS.pop(run_id, None)
 
 
 @app.post("/api/conversations/{conversation_id}/runs")
@@ -282,7 +315,8 @@ async def create_run(conversation_id: str, request: CreateRunRequest):
     run = storage.create_run(run_id, conversation_id, request.content)
     storage.upsert_assistant_message_for_run(conversation_id, run_id)
 
-    asyncio.create_task(_execute_run(run_id))
+    task = asyncio.create_task(_execute_run(run_id))
+    RUN_TASKS[run_id] = task
 
     return {"run_id": run_id, "status": run["status"]}
 
@@ -305,7 +339,7 @@ async def run_events(conversation_id: str, run_id: str):
                 last_snapshot = payload
                 yield f"data: {payload}\n\n"
 
-            if current.get("status") in {"complete", "failed"}:
+            if current.get("status") in {"complete", "failed", "canceled"}:
                 break
 
             await asyncio.sleep(0.5)

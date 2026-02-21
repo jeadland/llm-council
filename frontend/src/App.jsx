@@ -122,7 +122,7 @@ function App() {
 
     await api.waitForRun(conversationId, runId, (run) => {
       syncConversationWithRun(run);
-      if (run.status === 'complete' || run.status === 'failed') {
+      if (run.status === 'complete' || run.status === 'failed' || run.status === 'canceled') {
         setIsLoading(false);
         setActiveRunId(null);
       }
@@ -189,6 +189,19 @@ function App() {
     }
   };
 
+  const handleStopRun = async () => {
+    if (!currentConversationId || !activeRunId) return;
+    try {
+      await api.stopRun(currentConversationId, activeRunId);
+      setIsLoading(false);
+      setActiveRunId(null);
+      await loadConversation(currentConversationId);
+      await loadConversations();
+    } catch (error) {
+      console.error('Failed to stop run:', error);
+    }
+  };
+
   const handleSendMessage = async (content) => {
     if (!currentConversationId || isLoading) return;
 
@@ -238,8 +251,10 @@ function App() {
         <ChatInterface
           conversation={currentConversation}
           onSendMessage={handleSendMessage}
+          onStopRun={handleStopRun}
           onCreateConversation={handleNewConversation}
           isLoading={isLoading}
+          activeRunId={activeRunId}
         />
       </div>
     </div>
