@@ -39,20 +39,39 @@ export default function Sidebar({
   return (
     <div className={`sidebar ${isOpen ? 'open' : ''}`}>
       <div className="sidebar-header">
-        <h1>LLM Council</h1>
+        {/* Brand row: title + settings gear */}
+        <div className="sidebar-brand-row">
+          <h1>LLM Council</h1>
+          <button
+            className={`settings-icon-btn${showSettings ? ' active' : ''}`}
+            aria-label={showSettings ? 'Close settings' : 'Open settings'}
+            title="Settings"
+            onClick={() => {
+              setDraftCouncil(settings?.council_models || []);
+              setDraftChairman(settings?.chairman_model || '');
+              setDraftThemeMode(settings?.theme_mode || 'system');
+              setShowSettings((v) => !v);
+            }}
+          >
+            {/* Gear SVG */}
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path
+                d="M8.07 2.63A1 1 0 0 1 9.06 2h1.88a1 1 0 0 1 .99.63l.37 1A6.12 6.12 0 0 1 13.4 4.6l1.01-.35a1 1 0 0 1 1.16.39l.94 1.63a1 1 0 0 1-.18 1.21l-.76.7c.04.28.06.57.06.86s-.02.58-.06.86l.76.7a1 1 0 0 1 .18 1.21l-.94 1.63a1 1 0 0 1-1.16.39l-1.01-.35a6.12 6.12 0 0 1-1.1.97l-.37 1A1 1 0 0 1 10.94 18H9.06a1 1 0 0 1-.99-.63l-.37-1A6.12 6.12 0 0 1 6.6 15.4l-1.01.35a1 1 0 0 1-1.16-.39l-.94-1.63a1 1 0 0 1 .18-1.21l.76-.7A6.17 6.17 0 0 1 4.37 11a6.17 6.17 0 0 1 .06-.86l-.76-.7a1 1 0 0 1-.18-1.21l.94-1.63a1 1 0 0 1 1.16-.39l1.01.35a6.12 6.12 0 0 1 1.1-.97l.37-1Z"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinejoin="round"
+              />
+              <circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.5"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* New conversation button */}
         <button className="new-conversation-btn" onClick={onNewConversation}>
-          + New Conversation
-        </button>
-        <button
-          className="settings-btn"
-          onClick={() => {
-            setDraftCouncil(settings?.council_models || []);
-            setDraftChairman(settings?.chairman_model || '');
-            setDraftThemeMode(settings?.theme_mode || 'system');
-            setShowSettings((v) => !v);
-          }}
-        >
-          ⚙ Settings
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M8 2v12M2 8h12" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/>
+          </svg>
+          New Conversation
         </button>
       </div>
 
