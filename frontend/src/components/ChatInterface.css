@@ -193,6 +193,25 @@ button,
   touch-action: manipulation;
 }
 
+:root[data-theme='dark'] .user-message .message-content {
+  background: #11151d;
+  border-color: #2d3545;
+  color: #e8eaf0;
+}
+
+:root[data-theme='dark'] .user-message .message-content .markdown-content,
+:root[data-theme='dark'] .user-message .message-content .markdown-content p {
+  color: #e8eaf0 !important;
+}
+
+:root[data-theme='dark'] .message-label {
+  color: #c0c7d8;
+}
+
+:root[data-theme='dark'] .message-input::placeholder {
+  color: #8f98ad;
+}
+
 @media (max-width: 900px) {
   .messages-container {
     padding: 14px;
