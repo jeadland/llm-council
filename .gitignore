@@ -11,6 +11,10 @@ wheels/
 
 # Keys and secrets
 .env
+.env.*
+*.pem
+*.key
+*.p12
 
 # Data files
 data/
