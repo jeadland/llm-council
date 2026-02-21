@@ -52,6 +52,7 @@ class PinConversationRequest(BaseModel):
 class UpdateSettingsRequest(BaseModel):
     council_models: Optional[List[str]] = None
     chairman_model: Optional[str] = None
+    theme_mode: Optional[str] = None
 
 
 class ConversationMetadata(BaseModel):
@@ -97,6 +98,8 @@ async def update_settings(request: UpdateSettingsRequest):
         patch["council_models"] = request.council_models
     if request.chairman_model is not None:
         patch["chairman_model"] = request.chairman_model
+    if request.theme_mode is not None:
+        patch["theme_mode"] = request.theme_mode
     updated = storage.save_settings(patch)
     return updated
 

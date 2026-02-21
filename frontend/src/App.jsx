@@ -16,6 +16,14 @@ function App() {
   const [settings, setSettings] = useState(null);
 
   useEffect(() => {
+    const mode = settings?.theme_mode || 'system';
+    const isDark =
+      mode === 'dark' ||
+      (mode === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  }, [settings?.theme_mode]);
+
+  useEffect(() => {
     loadConversations();
     loadSettings();
     try {

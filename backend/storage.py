@@ -321,6 +321,7 @@ def get_settings() -> Dict[str, Any]:
         "available_models": PREMIER_MODELS,
         "council_models": COUNCIL_MODELS,
         "chairman_model": CHAIRMAN_MODEL,
+        "theme_mode": "system",
     }
     if not os.path.exists(SETTINGS_PATH):
         return default
@@ -357,10 +358,15 @@ def save_settings(settings: Dict[str, Any]) -> Dict[str, Any]:
     if chairman not in available:
         chairman = current.get("chairman_model", CHAIRMAN_MODEL)
 
+    theme_mode = merged.get("theme_mode", current.get("theme_mode", "system"))
+    if theme_mode not in {"light", "dark", "system"}:
+        theme_mode = current.get("theme_mode", "system")
+
     final = {
         "available_models": available,
         "council_models": council,
         "chairman_model": chairman,
+        "theme_mode": theme_mode,
     }
 
     with open(SETTINGS_PATH, "w") as f:

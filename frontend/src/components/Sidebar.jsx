@@ -15,6 +15,7 @@ export default function Sidebar({
   const [showSettings, setShowSettings] = useState(false);
   const [draftCouncil, setDraftCouncil] = useState(settings?.council_models || []);
   const [draftChairman, setDraftChairman] = useState(settings?.chairman_model || '');
+  const [draftThemeMode, setDraftThemeMode] = useState(settings?.theme_mode || 'system');
 
   const available = settings?.available_models || [];
 
@@ -27,7 +28,11 @@ export default function Sidebar({
   const save = async () => {
     const safeCouncil = draftCouncil.length ? draftCouncil : settings?.council_models || [];
     const safeChairman = draftChairman || settings?.chairman_model;
-    await onSaveSettings({ council_models: safeCouncil, chairman_model: safeChairman });
+    await onSaveSettings({
+      council_models: safeCouncil,
+      chairman_model: safeChairman,
+      theme_mode: draftThemeMode,
+    });
     setShowSettings(false);
   };
 
@@ -43,6 +48,7 @@ export default function Sidebar({
           onClick={() => {
             setDraftCouncil(settings?.council_models || []);
             setDraftChairman(settings?.chairman_model || '');
+            setDraftThemeMode(settings?.theme_mode || 'system');
             setShowSettings((v) => !v);
           }}
         >
@@ -76,6 +82,17 @@ export default function Sidebar({
                 {model}
               </option>
             ))}
+          </select>
+
+          <div className="settings-subtitle">Appearance</div>
+          <select
+            className="settings-select"
+            value={draftThemeMode}
+            onChange={(e) => setDraftThemeMode(e.target.value)}
+          >
+            <option value="system">System</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
           </select>
 
           <button className="settings-save-btn" onClick={save}>Save Settings</button>
