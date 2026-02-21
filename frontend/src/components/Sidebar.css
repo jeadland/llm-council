@@ -175,6 +175,33 @@
   border: 1px solid #4a90e2;
 }
 
+:root[data-theme='dark'] .sidebar-header h1,
+:root[data-theme='dark'] .conversation-title,
+:root[data-theme='dark'] .conversation-meta,
+:root[data-theme='dark'] .no-conversations {
+  color: #e8eaf0 !important;
+}
+
+:root[data-theme='dark'] .conversation-item:hover {
+  background: #1a2030;
+}
+
+:root[data-theme='dark'] .conversation-item.active {
+  background: #1f2a44;
+  border: 1px solid #4a90e2;
+}
+
+:root[data-theme='dark'] .conversation-item.active .conversation-title,
+:root[data-theme='dark'] .conversation-item.active .conversation-meta {
+  color: #f3f6ff !important;
+}
+
+:root[data-theme='dark'] .settings-btn,
+:root[data-theme='dark'] .new-conversation-btn,
+:root[data-theme='dark'] .icon-btn {
+  color: #e8eaf0;
+}
+
 .conversation-title {
   color: #333;
   font-size: 14px;
