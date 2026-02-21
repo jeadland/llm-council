@@ -2,6 +2,11 @@ import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import './Stage1.css';
 
+function formatModelLabel(model) {
+  if (!model) return 'unknown';
+  return model.startsWith('openrouter/') ? model.replace('openrouter/', '') : model;
+}
+
 export default function Stage1({ responses, defaultCollapsed = false }) {
   const [activeTab, setActiveTab] = useState(0);
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
@@ -25,13 +30,13 @@ export default function Stage1({ responses, defaultCollapsed = false }) {
                 className={`tab ${activeTab === index ? 'active' : ''}`}
                 onClick={() => setActiveTab(index)}
               >
-                {resp.model.split('/')[1] || resp.model}
+                {formatModelLabel(resp.model)}
               </button>
             ))}
           </div>
 
           <div className="tab-content">
-            <div className="model-name">{responses[activeTab].model}</div>
+            <div className="model-name">{formatModelLabel(responses[activeTab].model)}</div>
             <div className="response-text markdown-content">
               <ReactMarkdown>{responses[activeTab].response}</ReactMarkdown>
             </div>
