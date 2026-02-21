@@ -59,7 +59,7 @@ export default function Sidebar({
       {showSettings && (
         <div className="settings-panel">
           <div className="settings-title">Model Picker</div>
-          <div className="settings-subtitle">Council Models</div>
+          <div className="settings-subtitle">Your Available Models</div>
           {available.map((model) => (
             <label key={model} className="settings-row">
               <input
