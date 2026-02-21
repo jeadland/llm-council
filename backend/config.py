@@ -32,4 +32,4 @@ PREMIER_MODELS = [
 OPENROUTER_API_URL = os.getenv("OPENROUTER_API_URL", "https://openrouter.ai/api/v1/chat/completions")
 
 # Data directory for conversation storage (relative to backend/)
-DATA_DIR = "../data/conversations"
+DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'conversations'))
