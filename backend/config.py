@@ -31,5 +31,5 @@ PREMIER_MODELS = [
 # OpenRouter API endpoint (override via env for local proxy mode)
 OPENROUTER_API_URL = os.getenv("OPENROUTER_API_URL", "https://openrouter.ai/api/v1/chat/completions")
 
-# Data directory for conversation storage
-DATA_DIR = "data/conversations"
+# Data directory for conversation storage (relative to backend/)
+DATA_DIR = "../data/conversations"
