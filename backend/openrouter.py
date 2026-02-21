@@ -102,38 +102,11 @@ def _read_openclaw_installed_models() -> List[str]:
 
 
 async def fetch_available_models() -> List[str]:
-    """Return OpenClaw-configured models that are also valid OpenRouter ids."""
+    """Return models from this OpenClaw deployment's configured model library."""
     installed = _read_openclaw_installed_models()
+    if installed:
+        return installed
 
-    # Build normalized map: wire-id -> display-id kept in settings
-    normalized_to_display = {}
-    for m in installed:
-        normalized = _normalize_openrouter_model_id(m)
-        normalized_to_display[normalized] = m
-
-    headers = {"Content-Type": "application/json"}
-    if OPENROUTER_API_KEY:
-        headers["Authorization"] = f"Bearer {OPENROUTER_API_KEY}"
-
-    try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            response = await client.get("https://openrouter.ai/api/v1/models", headers=headers)
-            response.raise_for_status()
-            data = response.json()
-            valid_openrouter_ids = {m.get("id") for m in data.get("data", []) if m.get("id")}
-
-        filtered = [
-            normalized_to_display[mid]
-            for mid in sorted(normalized_to_display.keys())
-            if mid in valid_openrouter_ids
-        ]
-
-        if filtered:
-            return filtered
-    except Exception as e:
-        print(f"Error validating models against OpenRouter catalog: {e}")
-
-    # Safe fallback
     return [f"openrouter/{m}" for m in PREMIER_MODELS]
 
 
