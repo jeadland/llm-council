@@ -1,13 +1,48 @@
 /* ── Sidebar shell ── */
 
 .sidebar {
-  width: 268px;
+  width: 300px;
   background: #f5f6f8;
   border-right: 1px solid #e2e4e8;
   display: flex;
   flex-direction: column;
   height: 100vh;
   flex-shrink: 0;
+  position: relative; /* needed for absolute resize handle */
+}
+
+@media (min-width: 1200px) {
+  .sidebar {
+    width: 340px;
+  }
+}
+
+/* ── Drag resize handle ── */
+.sidebar-resize-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  cursor: col-resize;
+  z-index: 10;
+  transition: background 0.15s;
+}
+
+.sidebar-resize-handle:hover,
+.sidebar-resize-handle.dragging {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+:root[data-theme='dark'] .sidebar-resize-handle:hover,
+:root[data-theme='dark'] .sidebar-resize-handle.dragging {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+@media (max-width: 900px) {
+  .sidebar-resize-handle {
+    display: none;
+  }
 }
 
 @media (max-width: 900px) {

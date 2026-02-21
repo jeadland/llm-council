@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
 import { api } from './api';
 import './App.css';
 
 const STORAGE_KEY = 'llm-council-ui-v1';
+const SIDEBAR_WIDTH_KEY = 'llm-council-sidebar-width';
+const SIDEBAR_MIN = 240;
+const SIDEBAR_MAX = 480;
 
 function App() {
   const [conversations, setConversations] = useState([]);
@@ -15,6 +18,55 @@ function App() {
   const [openSettingsOnSidebarOpen, setOpenSettingsOnSidebarOpen] = useState(false);
   const [activeRunId, setActiveRunId] = useState(null);
   const [settings, setSettings] = useState(null);
+
+  // Sidebar resize state
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    try {
+      const saved = localStorage.getItem(SIDEBAR_WIDTH_KEY);
+      if (saved) {
+        const w = parseInt(saved, 10);
+        if (!isNaN(w) && w >= SIDEBAR_MIN && w <= SIDEBAR_MAX) return w;
+      }
+    } catch { /* ignore */ }
+    return null; // null = use CSS default
+  });
+  const dragStartX = useRef(null);
+  const dragStartWidth = useRef(null);
+  const sidebarRef = useRef(null);
+
+  const handleResizeStart = useCallback((e) => {
+    dragStartX.current = e.clientX;
+    // Read current sidebar width from DOM at drag start
+    const sidebarEl = document.querySelector('.sidebar');
+    dragStartWidth.current = sidebarEl ? sidebarEl.getBoundingClientRect().width : (sidebarWidth || 300);
+
+    const onMove = (ev) => {
+      const delta = ev.clientX - dragStartX.current;
+      const newWidth = Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, dragStartWidth.current + delta));
+      setSidebarWidth(newWidth);
+    };
+
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      // Persist to localStorage
+      setSidebarWidth((w) => {
+        if (w !== null) {
+          try { localStorage.setItem(SIDEBAR_WIDTH_KEY, String(w)); } catch { /* ignore */ }
+        }
+        return w;
+      });
+      // Remove resize cursor from body
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    // Prevent text selection and set global resize cursor during drag
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, [sidebarWidth]);
 
   useEffect(() => {
     const mode = settings?.theme_mode || 'system';
@@ -236,6 +288,8 @@ function App() {
         isOpen={isSidebarOpen}
         openSettingsOnOpen={openSettingsOnSidebarOpen}
         onSettingsOpened={() => setOpenSettingsOnSidebarOpen(false)}
+        sidebarWidth={sidebarWidth}
+        onResizeStart={handleResizeStart}
       />
 
       {isSidebarOpen && <div className="mobile-backdrop" onClick={() => setIsSidebarOpen(false)} />}

@@ -1,5 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import './Sidebar.css';
+
+const SIDEBAR_WIDTH_KEY = 'llm-council-sidebar-width';
+const SIDEBAR_MIN = 240;
+const SIDEBAR_MAX = 480;
 
 export default function Sidebar({
   conversations,
@@ -13,8 +17,24 @@ export default function Sidebar({
   isOpen,
   openSettingsOnOpen,
   onSettingsOpened,
+  sidebarWidth,
+  onResizeStart,
 }) {
   const [showSettings, setShowSettings] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleResizeMouseDown = useCallback((e) => {
+    e.preventDefault();
+    setIsDragging(true);
+    onResizeStart?.(e);
+  }, [onResizeStart]);
+
+  useEffect(() => {
+    if (!isDragging) return;
+    const onUp = () => setIsDragging(false);
+    window.addEventListener('mouseup', onUp);
+    return () => window.removeEventListener('mouseup', onUp);
+  }, [isDragging]);
 
   // When mobile topbar gear is tapped: sidebar opens + settings should auto-open
   useEffect(() => {
@@ -76,7 +96,16 @@ export default function Sidebar({
   const draftChairmanShort = draftChairman ? draftChairman.split('/').pop() : '';
 
   return (
-    <div className={`sidebar ${isOpen ? 'open' : ''} ${showSettings ? 'settings-fullpanel' : ''}`}>
+    <div
+      className={`sidebar ${isOpen ? 'open' : ''} ${showSettings ? 'settings-fullpanel' : ''}`}
+      style={sidebarWidth ? { width: sidebarWidth } : undefined}
+    >
+      {/* Drag resize handle — desktop only, hidden on mobile via CSS */}
+      <div
+        className={`sidebar-resize-handle${isDragging ? ' dragging' : ''}`}
+        onMouseDown={handleResizeMouseDown}
+        aria-hidden="true"
+      />
 
       {/* ── Full-panel settings mode ── */}
       {showSettings && (
