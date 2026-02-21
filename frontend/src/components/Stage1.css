@@ -14,14 +14,31 @@
 }
 
 .collapse-toggle {
-  background: transparent;
-  border: none;
-  color: inherit;
-  font-size: 16px;
-  font-weight: 600;
+  width: 100%;
+  text-align: left;
+  background: #eef4ff;
+  border: 1px solid #c7dafc;
+  color: #1e3a8a;
+  font-size: 15px;
+  font-weight: 700;
   cursor: pointer;
-  padding: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
   margin: 0 0 12px 0;
+}
+
+.collapse-toggle:hover {
+  background: #e3eeff;
+}
+
+:root[data-theme='dark'] .collapse-toggle {
+  background: #1f2a44;
+  border-color: #355089;
+  color: #dbe8ff;
+}
+
+:root[data-theme='dark'] .collapse-toggle:hover {
+  background: #25345a;
 }
 
 .tabs {
