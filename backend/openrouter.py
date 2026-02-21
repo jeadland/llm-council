@@ -1,5 +1,7 @@
 """OpenRouter API client for making LLM requests."""
 
+import json
+import os
 import httpx
 from typing import List, Dict, Any, Optional
 from .config import OPENROUTER_API_KEY, OPENROUTER_API_URL, PREMIER_MODELS
@@ -53,25 +55,53 @@ async def query_model(
         return None
 
 
-async def fetch_available_models() -> List[str]:
-    """Fetch all available model ids from OpenRouter for this account.
+def _read_openclaw_installed_models() -> List[str]:
+    """Read model ids configured in local OpenClaw config.
 
-    Falls back to configured PREMIER_MODELS if discovery fails.
+    This represents models installed/known to that OpenClaw deployment.
     """
-    headers = {"Content-Type": "application/json"}
-    if OPENROUTER_API_KEY:
-        headers["Authorization"] = f"Bearer {OPENROUTER_API_KEY}"
+    config_path = os.getenv("OPENCLAW_CONFIG_PATH") or os.path.expanduser("~/.openclaw/openclaw.json")
+    if not os.path.exists(config_path):
+        return []
 
     try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            response = await client.get("https://openrouter.ai/api/v1/models", headers=headers)
-            response.raise_for_status()
-            data = response.json()
-            available_ids = sorted({m.get("id") for m in data.get("data", []) if m.get("id")})
-            return available_ids or PREMIER_MODELS
+        with open(config_path, "r") as f:
+            cfg = json.load(f)
+
+        models = set()
+
+        defaults = (cfg.get("agents") or {}).get("defaults") or {}
+        default_models = defaults.get("models") or {}
+        models.update(default_models.keys())
+
+        default_primary = ((defaults.get("model") or {}).get("primary"))
+        if default_primary:
+            models.add(default_primary)
+
+        for agent in (cfg.get("agents") or {}).get("list") or []:
+            primary = ((agent.get("model") or {}).get("primary"))
+            if primary:
+                models.add(primary)
+            for fb in ((agent.get("model") or {}).get("fallbacks") or []):
+                if fb:
+                    models.add(fb)
+
+        return sorted(m for m in models if isinstance(m, str) and m.strip())
     except Exception as e:
-        print(f"Error fetching available models: {e}")
-        return PREMIER_MODELS
+        print(f"Error reading OpenClaw model config: {e}")
+        return []
+
+
+async def fetch_available_models() -> List[str]:
+    """Return models configured for this OpenClaw deployment.
+
+    If unavailable, fall back to configured premier defaults.
+    """
+    installed = _read_openclaw_installed_models()
+    if installed:
+        return installed
+
+    return PREMIER_MODELS
 
 
 async def query_models_parallel(
