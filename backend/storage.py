@@ -97,12 +97,13 @@ def list_conversations() -> List[Dict[str, Any]]:
     ensure_data_dir()
 
     conversations = []
+    import json  # Ensure available
     for filename in os.listdir(DATA_DIR):
         if filename.endswith('.json'):
-            path = os.path.join(DATA_DIR, filename)
-            with open(path, 'r') as f:
-                data = json.load(f)
-                # Return metadata only
+            try:
+                path = os.path.join(DATA_DIR, filename)
+                with open(path, 'r') as f:
+                    data = json.load(f)
                 conversations.append({
                     "id": data["id"],
                     "created_at": data["created_at"],
@@ -110,6 +111,9 @@ def list_conversations() -> List[Dict[str, Any]]:
                     "pinned": data.get("pinned", False),
                     "message_count": len(data["messages"])
                 })
+            except (json.JSONDecodeError, KeyError, Exception) as e:
+                print(f"Skipping invalid conversation {filename}: {e}")
+                continue
 
     # Sort pinned first, then newest first
     conversations.sort(key=lambda x: (not x.get("pinned", False), -int(datetime.fromisoformat(x["created_at"]).timestamp())))
