@@ -151,3 +151,26 @@
   color: #999;
   font-size: 12px;
 }
+
+:root[data-theme='dark'] .stage2,
+:root[data-theme='dark'] .stage2 .tab-content,
+:root[data-theme='dark'] .aggregate-rankings,
+:root[data-theme='dark'] .aggregate-item,
+:root[data-theme='dark'] .parsed-ranking {
+  background: #11151d !important;
+  border-color: #2d3545 !important;
+}
+
+:root[data-theme='dark'] .aggregate-rankings h4,
+:root[data-theme='dark'] .stage-description,
+:root[data-theme='dark'] .rank-model,
+:root[data-theme='dark'] .rank-score,
+:root[data-theme='dark'] .rank-count,
+:root[data-theme='dark'] .parsed-ranking strong,
+:root[data-theme='dark'] .parsed-ranking li {
+  color: #e8eaf0 !important;
+}
+
+:root[data-theme='dark'] .rank-position {
+  color: #7fb2ff !important;
+}
