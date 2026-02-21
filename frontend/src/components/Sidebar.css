@@ -929,6 +929,50 @@
   box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.12);
 }
 
+/* ── Appearance icon toggles ── */
+.appearance-icon-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.appearance-icon-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 6px 6px;
+  border: 1px solid #d4d8e2;
+  border-radius: 8px;
+  background: #f8f9fb;
+  color: #8892a4;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s, box-shadow 0.15s;
+  user-select: none;
+}
+
+.appearance-icon-btn:hover {
+  border-color: #b0b8cc;
+  background: #f0f2f7;
+  color: #4a90e2;
+}
+
+.appearance-icon-btn.selected {
+  border-color: #4a90e2;
+  background: linear-gradient(135deg, #eaf2ff 0%, #dceeff 100%);
+  color: #2970c8;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.12);
+  font-weight: 600;
+}
+
+.appearance-icon-btn:focus-visible {
+  outline: 2px solid #4a90e2;
+  outline-offset: 1px;
+}
+
 .settings-save-btn {
   flex: 1;
   padding: 9px 12px;
@@ -1328,6 +1372,25 @@
   background: #0f1115 !important;
   color: #c8d0e0 !important;
   border-color: #2d3848 !important;
+}
+
+:root[data-theme='dark'] .appearance-icon-btn {
+  background: #11151d !important;
+  border-color: #2d3848 !important;
+  color: #6b7a94 !important;
+}
+
+:root[data-theme='dark'] .appearance-icon-btn:hover {
+  background: #1a2030 !important;
+  border-color: #3a4560 !important;
+  color: #7fb2ff !important;
+}
+
+:root[data-theme='dark'] .appearance-icon-btn.selected {
+  background: linear-gradient(135deg, #0e1a30 0%, #142040 100%) !important;
+  border-color: #4a90e2 !important;
+  color: #7fb2ff !important;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.15) !important;
 }
 
 :root[data-theme='dark'] .conversation-list {
