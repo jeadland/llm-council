@@ -1,9 +1,50 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import Stage1 from './Stage1';
 import Stage2 from './Stage2';
 import Stage3 from './Stage3';
 import './ChatInterface.css';
+
+function StageStepper({ msg }) {
+  const stages = [
+    { key: 'stage1', label: 'Responses', num: 1 },
+    { key: 'stage2', label: 'Rankings', num: 2 },
+    { key: 'stage3', label: 'Synthesis', num: 3 },
+  ];
+
+  const getStatus = (key) => {
+    if (msg[key]) return 'complete';
+    if (msg.loading?.[key]) return 'active';
+    return 'pending';
+  };
+
+  return (
+    <div className="stage-stepper">
+      {stages.map((stage, i) => {
+        const status = getStatus(stage.key);
+        return (
+          <div key={stage.key} className="stepper-segment">
+            <div className={`stepper-node ${status}`}>
+              {status === 'complete' ? (
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M3 8.5L6.5 12L13 4" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              ) : status === 'active' ? (
+                <div className="stepper-pulse" />
+              ) : (
+                <span>{stage.num}</span>
+              )}
+            </div>
+            <span className={`stepper-label ${status}`}>{stage.label}</span>
+            {i < stages.length - 1 && (
+              <div className={`stepper-connector ${status === 'complete' ? 'complete' : ''}`} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function ChatInterface({
   conversation,
@@ -16,6 +57,7 @@ export default function ChatInterface({
   const [input, setInput] = useState('');
   const messagesEndRef = useRef(null);
   const containerRef = useRef(null);
+  const textareaRef = useRef(null);
   const shouldAutoScrollRef = useRef(true);
 
   const scrollToBottom = () => {
@@ -35,11 +77,25 @@ export default function ChatInterface({
     }
   }, [conversation]);
 
+  const autoResize = useCallback(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    ta.style.height = 'auto';
+    ta.style.height = Math.min(ta.scrollHeight, 200) + 'px';
+  }, []);
+
+  useEffect(() => {
+    autoResize();
+  }, [input, autoResize]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (input.trim() && !isLoading) {
       onSendMessage(input);
       setInput('');
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+      }
     }
   };
 
@@ -89,11 +145,16 @@ export default function ChatInterface({
                 <div className="assistant-message">
                   <div className="message-label">LLM Council</div>
 
+                  {/* Progress Stepper — show while any stage is loading */}
+                  {(msg.loading?.stage1 || msg.loading?.stage2 || msg.loading?.stage3) && (
+                    <StageStepper msg={msg} />
+                  )}
+
                   {/* Stage 1 */}
                   {msg.loading?.stage1 && (
                     <div className="stage-loading">
                       <div className="spinner"></div>
-                      <span>Running Stage 1: Collecting individual responses...</span>
+                      <span>Collecting individual responses…</span>
                     </div>
                   )}
                   {msg.stage1 && <Stage1 responses={msg.stage1} defaultCollapsed />}
@@ -102,7 +163,7 @@ export default function ChatInterface({
                   {msg.loading?.stage2 && (
                     <div className="stage-loading">
                       <div className="spinner"></div>
-                      <span>Running Stage 2: Peer rankings...</span>
+                      <span>Peer rankings in progress…</span>
                     </div>
                   )}
                   {msg.stage2 && (
@@ -118,7 +179,7 @@ export default function ChatInterface({
                   {msg.loading?.stage3 && (
                     <div className="stage-loading">
                       <div className="spinner"></div>
-                      <span>Running Stage 3: Final synthesis...</span>
+                      <span>Synthesizing final answer…</span>
                     </div>
                   )}
                   {msg.stage3 && <Stage3 finalResponse={msg.stage3} />}
@@ -139,31 +200,42 @@ export default function ChatInterface({
       </div>
 
       <form className="input-form" onSubmit={handleSubmit}>
-        <textarea
-          className="message-input"
-          placeholder="Type your prompt here…"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={isLoading}
-          rows={3}
-        />
-        <button
-          type="submit"
-          className="send-button"
-          disabled={!input.trim() || isLoading}
-        >
-          Send
-        </button>
-        {isLoading && activeRunId && (
+        <div className="input-wrapper">
+          <textarea
+            ref={textareaRef}
+            className="message-input"
+            placeholder="Ask the council anything…"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={isLoading}
+            rows={1}
+          />
+          <span className="input-hint">
+            <kbd>Enter</kbd> send · <kbd>Shift+Enter</kbd> newline
+          </span>
+        </div>
+        <div className="input-actions">
           <button
-            type="button"
-            className="stop-button"
-            onClick={onStopRun}
+            type="submit"
+            className="send-button"
+            disabled={!input.trim() || isLoading}
           >
-            Stop
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 2L11 13" /><path d="M22 2L15 22L11 13L2 9L22 2Z" />
+            </svg>
+            <span>Send</span>
           </button>
-        )}
+          {isLoading && activeRunId && (
+            <button
+              type="button"
+              className="stop-button"
+              onClick={onStopRun}
+            >
+              Stop
+            </button>
+          )}
+        </div>
       </form>
     </div>
   );

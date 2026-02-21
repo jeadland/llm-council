@@ -26,11 +26,20 @@ export default function Stage3({ finalResponse }) {
 
   return (
     <div className="stage stage3">
-      <h3 className="stage-title">Stage 3: Final Council Answer</h3>
-      <div className="final-response">
-        <div className="chairman-label">
-          Chairman: {formatModelLabel(finalResponse.model)}
+      <div className="stage3-header">
+        <div className="stage3-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+          </svg>
         </div>
+        <div>
+          <h3 className="stage-title">Council Verdict</h3>
+          <div className="chairman-label">
+            Synthesized by {formatModelLabel(finalResponse.model)}
+          </div>
+        </div>
+      </div>
+      <div className="final-response">
         <div className="final-text markdown-content">
           <ReactMarkdown>{finalResponse.response}</ReactMarkdown>
         </div>

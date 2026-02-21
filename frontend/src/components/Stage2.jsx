@@ -93,30 +93,51 @@ export default function Stage2({ rankings, labelToModel, aggregateRankings, defa
             )}
           </div>
 
-          {aggregateRankings && aggregateRankings.length > 0 && (
-            <div className="aggregate-rankings">
-              <h4>Aggregate Rankings (Street Cred)</h4>
-              <p className="stage-description">
-                Combined results across all peer evaluations (lower score is better):
-              </p>
-              <div className="aggregate-list">
-                {aggregateRankings.map((agg, index) => (
-                  <div key={index} className="aggregate-item">
-                    <span className="rank-position">#{index + 1}</span>
-                    <span className="rank-model">
-                      {formatModelLabel(agg.model)}
-                    </span>
-                    <span className="rank-score">
-                      Avg: {agg.average_rank.toFixed(2)}
-                    </span>
-                    <span className="rank-count">
-                      ({agg.rankings_count} votes)
-                    </span>
-                  </div>
-                ))}
+          {aggregateRankings && aggregateRankings.length > 0 && (() => {
+            const medals = ['🥇', '🥈', '🥉'];
+            const worst = Math.max(...aggregateRankings.map((a) => a.average_rank));
+            const best = Math.min(...aggregateRankings.map((a) => a.average_rank));
+            const range = worst - best || 1;
+            return (
+              <div className="aggregate-rankings">
+                <h4>Aggregate Rankings</h4>
+                <p className="stage-description">
+                  Combined results across all peer evaluations — lower average rank is better.
+                </p>
+                <div className="aggregate-list">
+                  {aggregateRankings.map((agg, index) => {
+                    const pct = ((worst - agg.average_rank) / range) * 100;
+                    return (
+                      <div key={index} className={`aggregate-item ${index < 3 ? 'top-three' : ''}`}>
+                        <span className="rank-medal">
+                          {index < 3 ? medals[index] : <span className="rank-num">#{index + 1}</span>}
+                        </span>
+                        <div className="rank-info">
+                          <div className="rank-model-row">
+                            <span className="rank-model">
+                              {formatModelLabel(agg.model)}
+                            </span>
+                            <span className="rank-score-badge">
+                              {agg.average_rank.toFixed(2)}
+                            </span>
+                          </div>
+                          <div className="rank-bar-track">
+                            <div
+                              className={`rank-bar-fill rank-bar-${index < 3 ? index : 'rest'}`}
+                              style={{ width: `${Math.max(pct, 6)}%` }}
+                            />
+                          </div>
+                          <span className="rank-count">
+                            {agg.rankings_count} vote{agg.rankings_count !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </>
       )}
     </div>

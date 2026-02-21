@@ -1,25 +1,79 @@
 .stage3 {
-  background: #f0fff0;
+  background: linear-gradient(135deg, #f0fff0 0%, #f5fff5 100%);
   border-color: #c8e6c8;
+  border-radius: 12px;
+}
+
+.stage3-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.stage3-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.stage3 .stage-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #1a7a1a;
+}
+
+.chairman-label {
+  color: #4a9a4a;
+  font-size: 12px;
+  font-family: monospace;
+  font-weight: 500;
+  margin-top: 2px;
 }
 
 .final-response {
   background: #ffffff;
   padding: 20px;
-  border-radius: 6px;
+  border-radius: 10px;
   border: 1px solid #c8e6c8;
-}
-
-.chairman-label {
-  color: #2d8a2d;
-  font-size: 12px;
-  font-family: monospace;
-  margin-bottom: 12px;
-  font-weight: 600;
 }
 
 .final-text {
   color: #333;
   line-height: 1.7;
   font-size: 15px;
+}
+
+/* Dark mode for Stage 3 */
+:root[data-theme='dark'] .stage3 {
+  background: linear-gradient(135deg, #0f1a14 0%, #111d16 100%) !important;
+  border-color: #1e3a2a !important;
+}
+
+:root[data-theme='dark'] .stage3-icon {
+  background: linear-gradient(135deg, #16a34a, #15803d);
+}
+
+:root[data-theme='dark'] .stage3 .stage-title {
+  color: #4ade80 !important;
+}
+
+:root[data-theme='dark'] .chairman-label {
+  color: #6ee7a0 !important;
+}
+
+:root[data-theme='dark'] .final-response {
+  background: #11151d !important;
+  border-color: #1e3a2a !important;
+}
+
+:root[data-theme='dark'] .final-text {
+  color: #e8eaf0 !important;
 }
