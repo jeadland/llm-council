@@ -132,7 +132,7 @@
   opacity: 1;
 }
 
-/* Settings toggle icon button — sits in brand row */
+/* Settings toggle icon button — sits in brand row (static, no rotation) */
 .settings-icon-btn {
   display: flex;
   align-items: center;
@@ -144,7 +144,7 @@
   border-radius: 8px;
   cursor: pointer;
   color: #5a6478;
-  transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
   flex-shrink: 0;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
@@ -155,14 +155,12 @@
   background: #eef1f7;
   color: #2a3550;
   border-color: #c0c8d8;
-  transform: rotate(30deg);
 }
 
 .settings-icon-btn.active {
   background: #e8f0fe;
   color: #4a90e2;
   border-color: #b8d0f8;
-  transform: rotate(60deg);
 }
 
 /* New conversation button — spans full width under brand row */
@@ -264,18 +262,13 @@
   letter-spacing: -0.2px;
 }
 
-/* Rotating gear accent in header */
-.settings-fullpanel-gear {
+/* Static pencil/edit icon accent in settings header */
+.settings-fullpanel-editicon {
   color: #4a90e2;
   display: flex;
   align-items: center;
-  animation: gearSpin 8s linear infinite;
   opacity: 0.7;
-}
-
-@keyframes gearSpin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
+  flex-shrink: 0;
 }
 
 /* Scrollable body */
@@ -342,6 +335,147 @@
   color: #b0b8c8;
 }
 
+/* ── Chairman accordion (new expandable pattern) ── */
+.settings-chairman-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 4px;
+  border: 1px solid #e0e4ec;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+}
+
+/* Row showing selected chairman chip + Change button */
+.settings-chairman-selected-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  min-height: 44px;
+}
+
+/* Selected chairman chip */
+.settings-chairman-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #fffbe6 0%, #fef3c7 100%);
+  border: 1px solid #f5a623;
+  border-radius: 20px;
+  padding: 4px 10px 4px 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #a05400;
+  box-shadow: 0 0 0 2px rgba(245,166,35,0.1);
+}
+
+.settings-chairman-chip-bubble {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #fef3c7, #f5a623);
+  color: #7a3d00;
+  flex-shrink: 0;
+}
+
+.settings-chairman-chip-name {
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-chairman-none {
+  font-size: 12.5px;
+  color: #a0aab8;
+  font-style: italic;
+}
+
+/* Toggle button: "Change" / "Collapse" */
+.settings-chairman-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border: 1px solid #c8d0e0;
+  background: #f5f7fb;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #4a5568;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.settings-chairman-toggle-btn:hover {
+  background: #e8f0fe;
+  border-color: #b8d0f8;
+  color: #2a6fcc;
+}
+
+.settings-chairman-toggle-btn.expanded {
+  background: #e8f0fe;
+  border-color: #b8d0f8;
+  color: #2a6fcc;
+}
+
+/* Chevron rotates when expanded */
+.toggle-chevron {
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  flex-shrink: 0;
+}
+
+.settings-chairman-toggle-btn.expanded .toggle-chevron {
+  transform: rotate(180deg);
+}
+
+/* Expandable picker list */
+.settings-chairman-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-top: 1px solid #e8ecf4;
+  background: #f8f9fb;
+  animation: chairmanPickerIn 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+  max-height: 260px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+@keyframes chairmanPickerIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.settings-chairman-picker::-webkit-scrollbar {
+  width: 4px;
+}
+.settings-chairman-picker::-webkit-scrollbar-track {
+  background: transparent;
+}
+.settings-chairman-picker::-webkit-scrollbar-thumb {
+  background: #d0d5e0;
+  border-radius: 2px;
+}
+
+/* Legacy section (kept for compat) */
 .settings-chairman-section {
   display: flex;
   flex-direction: column;
@@ -353,23 +487,24 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  padding: 8px 10px;
-  border: 1px solid #e0e4ec;
-  border-radius: 9px;
+  padding: 9px 10px;
+  border: none;
+  border-bottom: 1px solid #eceef4;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
-  background: #fff;
+  transition: background 0.15s;
+  background: transparent;
+}
+
+.settings-chairman-option:last-child {
+  border-bottom: none;
 }
 
 .settings-chairman-option:hover {
-  background: #f5f7fb;
-  border-color: #c8d0e0;
+  background: #eef2fb;
 }
 
 .settings-chairman-option.selected {
   background: linear-gradient(135deg, #fffbe6 0%, #fef3c7 100%);
-  border-color: #f5a623;
-  box-shadow: 0 0 0 2px rgba(245, 166, 35, 0.15);
 }
 
 .settings-chairman-bubble {
@@ -747,6 +882,66 @@
 
 :root[data-theme='dark'] .settings-chairman-hint {
   color: #3a4258 !important;
+}
+
+/* Dark mode: accordion */
+:root[data-theme='dark'] .settings-chairman-accordion {
+  background: #11151d !important;
+  border-color: #2d3848 !important;
+}
+
+:root[data-theme='dark'] .settings-chairman-selected-row {
+  background: transparent !important;
+}
+
+:root[data-theme='dark'] .settings-chairman-chip {
+  background: linear-gradient(135deg, #1e1a0a 0%, #2a2010 100%) !important;
+  border-color: #c07830 !important;
+  color: #f5c060 !important;
+  box-shadow: 0 0 0 2px rgba(245,166,35,0.08) !important;
+}
+
+:root[data-theme='dark'] .settings-chairman-chip-bubble {
+  background: linear-gradient(135deg, #2a2010, #c07830) !important;
+  color: #fef3c7 !important;
+}
+
+:root[data-theme='dark'] .settings-chairman-none {
+  color: #3a4258 !important;
+}
+
+:root[data-theme='dark'] .settings-chairman-toggle-btn {
+  background: #1a2030 !important;
+  border-color: #2d3848 !important;
+  color: #8899b8 !important;
+}
+
+:root[data-theme='dark'] .settings-chairman-toggle-btn:hover,
+:root[data-theme='dark'] .settings-chairman-toggle-btn.expanded {
+  background: #1a2a44 !important;
+  border-color: #2d4070 !important;
+  color: #7fb2ff !important;
+}
+
+:root[data-theme='dark'] .settings-chairman-picker {
+  background: #0f1115 !important;
+  border-top-color: #2d3545 !important;
+}
+
+:root[data-theme='dark'] .settings-chairman-option {
+  border-bottom-color: #1e2535 !important;
+}
+
+:root[data-theme='dark'] .settings-chairman-option:hover {
+  background: rgba(255,255,255,0.04) !important;
+}
+
+:root[data-theme='dark'] .settings-chairman-option.selected {
+  background: linear-gradient(135deg, #1e1a0a 0%, #2a2010 100%) !important;
+}
+
+:root[data-theme='dark'] .settings-fullpanel-editicon {
+  color: #7fb2ff !important;
 }
 
 :root[data-theme='dark'] .settings-fullpanel-header {

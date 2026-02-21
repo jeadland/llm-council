@@ -16,6 +16,8 @@ export default function Sidebar({
   const [draftCouncil, setDraftCouncil] = useState(settings?.council_models || []);
   const [draftChairman, setDraftChairman] = useState(settings?.chairman_model || '');
   const [draftThemeMode, setDraftThemeMode] = useState(settings?.theme_mode || 'system');
+  // Accordion state for chairman picker
+  const [chairmanExpanded, setChairmanExpanded] = useState(false);
 
   const available = settings?.available_models || [];
 
@@ -23,15 +25,24 @@ export default function Sidebar({
     setDraftCouncil(settings?.council_models || []);
     setDraftChairman(settings?.chairman_model || '');
     setDraftThemeMode(settings?.theme_mode || 'system');
+    setChairmanExpanded(false);
     setShowSettings(true);
   };
 
-  const closeSettings = () => setShowSettings(false);
+  const closeSettings = () => {
+    setChairmanExpanded(false);
+    setShowSettings(false);
+  };
 
   const toggleModel = (model) => {
     setDraftCouncil((prev) =>
       prev.includes(model) ? prev.filter((m) => m !== model) : [...prev, model]
     );
+  };
+
+  const selectChairman = (model) => {
+    setDraftChairman(model);
+    setChairmanExpanded(false); // collapse after selection
   };
 
   const save = async () => {
@@ -43,10 +54,12 @@ export default function Sidebar({
       theme_mode: draftThemeMode,
     });
     setShowSettings(false);
+    setChairmanExpanded(false);
   };
 
   const currentChairman = settings?.chairman_model || '';
   const chairmanShort = currentChairman ? currentChairman.split('/').pop() : '';
+  const draftChairmanShort = draftChairman ? draftChairman.split('/').pop() : '';
 
   return (
     <div className={`sidebar ${isOpen ? 'open' : ''} ${showSettings ? 'settings-fullpanel' : ''}`}>
@@ -66,15 +79,16 @@ export default function Sidebar({
               </svg>
             </button>
             <span className="settings-fullpanel-title">Settings</span>
-            <div className="settings-fullpanel-gear" aria-hidden="true">
-              <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+            {/* Static pencil/edit icon — replaces spinning gear */}
+            <div className="settings-fullpanel-editicon" aria-hidden="true">
+              <svg width="17" height="17" viewBox="0 0 20 20" fill="none">
                 <path
-                  d="M8.07 2.63A1 1 0 0 1 9.06 2h1.88a1 1 0 0 1 .99.63l.37 1A6.12 6.12 0 0 1 13.4 4.6l1.01-.35a1 1 0 0 1 1.16.39l.94 1.63a1 1 0 0 1-.18 1.21l-.76.7c.04.28.06.57.06.86s-.02.58-.06.86l.76.7a1 1 0 0 1 .18 1.21l-.94 1.63a1 1 0 0 1-1.16.39l-1.01-.35a6.12 6.12 0 0 1-1.1.97l-.37 1A1 1 0 0 1 10.94 18H9.06a1 1 0 0 1-.99-.63l-.37-1A6.12 6.12 0 0 1 6.6 15.4l-1.01.35a1 1 0 0 1-1.16-.39l-.94-1.63a1 1 0 0 1 .18-1.21l.76-.7A6.17 6.17 0 0 1 4.37 11a6.17 6.17 0 0 1 .06-.86l-.76-.7a1 1 0 0 1-.18-1.21l.94-1.63a1 1 0 0 1 1.16-.39l1.01.35a6.12 6.12 0 0 1 1.1-.97l.37-1Z"
+                  d="M14.5 2.5a2.121 2.121 0 0 1 3 3L6.5 16.5l-4 1 1-4L14.5 2.5Z"
                   stroke="currentColor"
-                  strokeWidth="1.5"
+                  strokeWidth="1.6"
                   strokeLinejoin="round"
+                  strokeLinecap="round"
                 />
-                <circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.5"/>
               </svg>
             </div>
           </div>
@@ -96,41 +110,77 @@ export default function Sidebar({
               </label>
             ))}
 
+            {/* ── Chairman accordion ── */}
             <div className="settings-subtitle settings-chairman-subtitle">
               <span>Chairman</span>
               <span className="settings-chairman-hint">Synthesizes the final verdict</span>
             </div>
-            {/* Chairman selector — visually highlighted */}
-            <div className="settings-chairman-section">
-              {available.map((model) => {
-                const isChairman = draftChairman === model;
-                const shortName = model.split('/').pop();
-                return (
-                  <div
-                    key={model}
-                    className={`settings-chairman-option${isChairman ? ' selected' : ''}`}
-                    onClick={() => setDraftChairman(model)}
-                    role="radio"
-                    aria-checked={isChairman}
-                    tabIndex={0}
-                    onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setDraftChairman(model)}
-                  >
-                    <div className="settings-chairman-bubble">
-                      {isChairman ? (
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                          <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
-                        </svg>
-                      ) : (
-                        <span className="settings-chairman-initial">{shortName[0]?.toUpperCase()}</span>
-                      )}
+
+            <div className="settings-chairman-accordion">
+              {/* Selected chairman chip (always visible) */}
+              <div className="settings-chairman-selected-row">
+                {draftChairmanShort ? (
+                  <div className="settings-chairman-chip">
+                    <div className="settings-chairman-chip-bubble">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+                      </svg>
                     </div>
-                    <span className="settings-chairman-name">{shortName}</span>
-                    {isChairman && (
-                      <span className="settings-chairman-badge">Chairman</span>
-                    )}
+                    <span className="settings-chairman-chip-name">{draftChairmanShort}</span>
                   </div>
-                );
-              })}
+                ) : (
+                  <span className="settings-chairman-none">None selected</span>
+                )}
+                <button
+                  className={`settings-chairman-toggle-btn${chairmanExpanded ? ' expanded' : ''}`}
+                  onClick={() => setChairmanExpanded((v) => !v)}
+                  aria-expanded={chairmanExpanded}
+                  aria-label={chairmanExpanded ? 'Collapse chairman picker' : 'Change chairman'}
+                >
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" className="toggle-chevron">
+                    <path d="M2 4L6 8L10 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  {chairmanExpanded ? 'Collapse' : 'Change'}
+                </button>
+              </div>
+
+              {/* Expandable picker */}
+              {chairmanExpanded && (
+                <div className="settings-chairman-picker" role="radiogroup" aria-label="Select chairman model">
+                  {available.length === 0 && (
+                    <p className="settings-empty-note">No models available.</p>
+                  )}
+                  {available.map((model) => {
+                    const isChairman = draftChairman === model;
+                    const shortName = model.split('/').pop();
+                    return (
+                      <div
+                        key={model}
+                        className={`settings-chairman-option${isChairman ? ' selected' : ''}`}
+                        onClick={() => selectChairman(model)}
+                        role="radio"
+                        aria-checked={isChairman}
+                        tabIndex={0}
+                        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && selectChairman(model)}
+                      >
+                        <div className="settings-chairman-bubble">
+                          {isChairman ? (
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+                            </svg>
+                          ) : (
+                            <span className="settings-chairman-initial">{shortName[0]?.toUpperCase()}</span>
+                          )}
+                        </div>
+                        <span className="settings-chairman-name">{shortName}</span>
+                        {isChairman && (
+                          <span className="settings-chairman-badge">✓</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="settings-subtitle">Appearance</div>
@@ -171,6 +221,7 @@ export default function Sidebar({
                 />
                 <h1>LLM Council</h1>
               </div>
+              {/* Static settings gear button — no rotation animation */}
               <button
                 className="settings-icon-btn"
                 aria-label="Open settings"
@@ -198,8 +249,8 @@ export default function Sidebar({
                     <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
                   </svg>
                   <span>{chairmanShort}</span>
-                  <svg width="10" height="10" viewBox="0 0 16 16" fill="none" className="chairman-edit-icon" aria-hidden="true">
-                    <path d="M11.5 2.5a1.5 1.5 0 0 1 2.12 2.12L4.5 13.73l-3 .88.88-3L11.5 2.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
+                  <svg width="10" height="10" viewBox="0 0 20 20" fill="none" className="chairman-edit-icon" aria-hidden="true">
+                    <path d="M14.5 2.5a2.121 2.121 0 0 1 3 3L6.5 16.5l-4 1 1-4L14.5 2.5Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round"/>
                   </svg>
                 </div>
               </div>
