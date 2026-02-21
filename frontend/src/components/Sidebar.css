@@ -975,6 +975,29 @@
   color: #5a80c0;
 }
 
+/* Pinned conversation row — subtle left accent + warm tint */
+.conversation-item.pinned {
+  border-left: 3px solid #f5a623;
+  padding-left: 7px; /* compensate for border so text doesn't shift much */
+  background: rgba(245, 166, 35, 0.04);
+}
+
+.conversation-item.pinned:hover {
+  background: rgba(245, 166, 35, 0.09);
+}
+
+.conversation-item.pinned.active {
+  background: #e8f0fe;
+  border-left-color: #4a90e2;
+  padding-left: 7px;
+}
+
+/* Pin button: filled/accented when pinned */
+.icon-btn.pin-btn.pinned {
+  color: #f5a623;
+  opacity: 1 !important;
+}
+
 .conversation-actions {
   display: flex;
   align-items: center;
@@ -988,6 +1011,11 @@
 .conversation-item:hover .conversation-actions,
 .conversation-item:focus-within .conversation-actions,
 .conversation-item.active .conversation-actions {
+  opacity: 1;
+}
+
+/* Always show pin button when conversation is pinned (it's a persistent state indicator) */
+.conversation-item.pinned .pin-btn {
   opacity: 1;
 }
 
@@ -1321,4 +1349,24 @@
   background: #1a2a44 !important;
   border-color: #2d4070 !important;
   color: #7fb2ff !important;
+}
+
+/* ── Dark mode: pinned conversations ── */
+
+:root[data-theme='dark'] .conversation-item.pinned {
+  border-left-color: #c07830 !important;
+  background: rgba(245, 166, 35, 0.06) !important;
+}
+
+:root[data-theme='dark'] .conversation-item.pinned:hover {
+  background: rgba(245, 166, 35, 0.10) !important;
+}
+
+:root[data-theme='dark'] .conversation-item.pinned.active {
+  border-left-color: #5a92e0 !important;
+  background: #1a2a44 !important;
+}
+
+:root[data-theme='dark'] .icon-btn.pin-btn.pinned {
+  color: #f5c060 !important;
 }

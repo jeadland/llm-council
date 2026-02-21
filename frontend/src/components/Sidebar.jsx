@@ -302,14 +302,10 @@ export default function Sidebar({
                 title="Settings"
                 onClick={openSettings}
               >
-                <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                  <path
-                    d="M8.07 2.63A1 1 0 0 1 9.06 2h1.88a1 1 0 0 1 .99.63l.37 1A6.12 6.12 0 0 1 13.4 4.6l1.01-.35a1 1 0 0 1 1.16.39l.94 1.63a1 1 0 0 1-.18 1.21l-.76.7c.04.28.06.57.06.86s-.02.58-.06.86l.76.7a1 1 0 0 1 .18 1.21l-.94 1.63a1 1 0 0 1-1.16.39l-1.01-.35a6.12 6.12 0 0 1-1.1.97l-.37 1A1 1 0 0 1 10.94 18H9.06a1 1 0 0 1-.99-.63l-.37-1A6.12 6.12 0 0 1 6.6 15.4l-1.01.35a1 1 0 0 1-1.16-.39l-.94-1.63a1 1 0 0 1 .18-1.21l.76-.7A6.17 6.17 0 0 1 4.37 11a6.17 6.17 0 0 1 .06-.86l-.76-.7a1 1 0 0 1-.18-1.21l.94-1.63a1 1 0 0 1 1.16-.39l1.01.35a6.12 6.12 0 0 1 1.1-.97l.37-1Z"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinejoin="round"
-                  />
-                  <circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.5"/>
+                {/* Lucide-style settings gear: 16×16, stroke-based, clean teeth + center circle */}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+                  <circle cx="12" cy="12" r="3"/>
                 </svg>
               </button>
             </div>
@@ -353,19 +349,29 @@ export default function Sidebar({
                 >
                   <div className="conversation-row">
                     <div className="conversation-title">
-                      {conv.pinned ? '📌 ' : ''}
                       {conv.title || 'New Conversation'}
                     </div>
                     <div className="conversation-actions">
                       <button
-                        className="icon-btn"
+                        className={`icon-btn pin-btn${conv.pinned ? ' pinned' : ''}`}
                         title={conv.pinned ? 'Unpin conversation' : 'Pin conversation'}
                         onClick={(e) => {
                           e.stopPropagation();
                           onTogglePin(conv.id, !conv.pinned);
                         }}
                       >
-                        {conv.pinned ? '📍' : '📌'}
+                        {conv.pinned ? (
+                          /* Filled pushpin — conversation IS pinned */
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M21.44 11.05L12.95 2.56a1.5 1.5 0 0 0-2.12 0l-1.06 1.06a1.5 1.5 0 0 0-.36 1.49L8.34 6.14a3 3 0 0 1-.76 3.06L5.5 11.27a1 1 0 0 0 0 1.42l1.06 1.06-3.18 3.18a1 1 0 1 0 1.42 1.42l3.18-3.18 1.06 1.06a1 1 0 0 0 1.42 0l2.07-2.07a3 3 0 0 1 3.06-.77l1.03-1.07a1.5 1.5 0 0 0 1.49-.36l1.06-1.06a1.5 1.5 0 0 0 0-2.12z"/>
+                          </svg>
+                        ) : (
+                          /* Outline pushpin — conversation is NOT pinned */
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <line x1="12" y1="17" x2="12" y2="22"/>
+                            <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/>
+                          </svg>
+                        )}
                       </button>
                       <button
                         className="icon-btn danger"
@@ -375,7 +381,12 @@ export default function Sidebar({
                           onDeleteConversation(conv.id);
                         }}
                       >
-                        🗑️
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <polyline points="3 6 5 6 21 6"/>
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                          <line x1="10" y1="11" x2="10" y2="17"/>
+                          <line x1="14" y1="11" x2="14" y2="17"/>
+                        </svg>
                       </button>
                     </div>
                   </div>
