@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
+import GearIcon from './components/GearIcon';
 import { api } from './api';
 import './App.css';
 
@@ -19,7 +20,7 @@ function App() {
   const [activeRunId, setActiveRunId] = useState(null);
   const [settings, setSettings] = useState(null);
 
-  // Sidebar resize state
+  // Sidebar resize state — default 300px, restored from localStorage if valid
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     try {
       const saved = localStorage.getItem(SIDEBAR_WIDTH_KEY);
@@ -28,7 +29,7 @@ function App() {
         if (!isNaN(w) && w >= SIDEBAR_MIN && w <= SIDEBAR_MAX) return w;
       }
     } catch { /* ignore */ }
-    return null; // null = use CSS default
+    return 300; // default width
   });
   const dragStartX = useRef(null);
   const dragStartWidth = useRef(null);
@@ -322,7 +323,7 @@ function App() {
             <span className="mobile-title">LLM Council</span>
           </div>
 
-          {/* Settings gear — exact same SVG/styling as sidebar gear */}
+          {/* Settings gear — shared GearIcon component (16×16, Lucide stroke) */}
           <button
             className="mobile-settings-btn settings-icon-btn"
             onClick={() => {
@@ -332,15 +333,7 @@ function App() {
             aria-label="Open settings"
             title="Settings"
           >
-            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-              <path
-                d="M8.07 2.63A1 1 0 0 1 9.06 2h1.88a1 1 0 0 1 .99.63l.37 1A6.12 6.12 0 0 1 13.4 4.6l1.01-.35a1 1 0 0 1 1.16.39l.94 1.63a1 1 0 0 1-.18 1.21l-.76.7c.04.28.06.57.06.86s-.02.58-.06.86l.76.7a1 1 0 0 1 .18 1.21l-.94 1.63a1 1 0 0 1-1.16.39l-1.01-.35a6.12 6.12 0 0 1-1.1.97l-.37 1A1 1 0 0 1 10.94 18H9.06a1 1 0 0 1-.99-.63l-.37-1A6.12 6.12 0 0 1 6.6 15.4l-1.01.35a1 1 0 0 1-1.16-.39l-.94-1.63a1 1 0 0 1 .18-1.21l.76-.7A6.17 6.17 0 0 1 4.37 11a6.17 6.17 0 0 1 .06-.86l-.76-.7a1 1 0 0 1-.18-1.21l.94-1.63a1 1 0 0 1 1.16-.39l1.01.35a6.12 6.12 0 0 1 1.1-.97l.37-1Z"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinejoin="round"
-              />
-              <circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.5"/>
-            </svg>
+            <GearIcon aria-hidden="true" />
           </button>
         </div>
 
@@ -352,6 +345,10 @@ function App() {
           isLoading={isLoading}
           activeRunId={activeRunId}
           settings={settings}
+          onOpenSettings={() => {
+            setOpenSettingsOnSidebarOpen(true);
+            setIsSidebarOpen(true);
+          }}
         />
       </div>
     </div>

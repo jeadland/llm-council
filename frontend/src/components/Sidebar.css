@@ -1,7 +1,7 @@
 /* ── Sidebar shell ── */
 
 .sidebar {
-  width: 300px;
+  width: 300px; /* JS overrides via inline style on desktop; kept as CSS fallback */
   background: #f5f6f8;
   border-right: 1px solid #e2e4e8;
   display: flex;
@@ -9,12 +9,6 @@
   height: 100vh;
   flex-shrink: 0;
   position: relative; /* needed for absolute resize handle */
-}
-
-@media (min-width: 1200px) {
-  .sidebar {
-    width: 340px;
-  }
 }
 
 /* ── Drag resize handle ── */
@@ -37,6 +31,45 @@
 :root[data-theme='dark'] .sidebar-resize-handle:hover,
 :root[data-theme='dark'] .sidebar-resize-handle.dragging {
   background: rgba(255, 255, 255, 0.08);
+}
+
+/* ── Resize handle tooltip (desktop-only) ── */
+.sidebar-resize-tooltip {
+  display: none; /* hidden by default; shown on desktop via media query below */
+  position: absolute;
+  /* Offset tooltip to the right of the handle edge */
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(30, 36, 50, 0.88);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
+  white-space: nowrap;
+  padding: 4px 9px;
+  border-radius: 6px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  z-index: 20;
+}
+
+/* Show tooltip on hover (desktop only) */
+@media (min-width: 901px) {
+  .sidebar-resize-tooltip {
+    display: block;
+  }
+
+  .sidebar-resize-handle:hover .sidebar-resize-tooltip {
+    opacity: 1;
+  }
+
+  /* Hide tooltip while actively dragging */
+  .sidebar-resize-handle.dragging .sidebar-resize-tooltip {
+    opacity: 0;
+  }
 }
 
 @media (max-width: 900px) {

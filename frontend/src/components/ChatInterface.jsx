@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import Stage1 from './Stage1';
 import Stage2 from './Stage2';
 import Stage3 from './Stage3';
+import GearIcon from './GearIcon';
 import './ChatInterface.css';
 
 function StageStepper({ msg }) {
@@ -54,6 +55,7 @@ export default function ChatInterface({
   isLoading,
   activeRunId,
   settings,
+  onOpenSettings,
 }) {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef(null);
@@ -304,19 +306,62 @@ export default function ChatInterface({
           <div className={`onboarding-hint${isUnconfigured ? ' onboarding-hint--warn' : ''}`}>
             {isUnconfigured ? (
               <>
-                <svg width="13" height="13" viewBox="0 0 20 20" fill="none" aria-hidden="true" className="onboarding-hint-icon">
-                  <path d="M8.07 2.63A1 1 0 0 1 9.06 2h1.88a1 1 0 0 1 .99.63l.37 1A6.12 6.12 0 0 1 13.4 4.6l1.01-.35a1 1 0 0 1 1.16.39l.94 1.63a1 1 0 0 1-.18 1.21l-.76.7c.04.28.06.57.06.86s-.02.58-.06.86l.76.7a1 1 0 0 1 .18 1.21l-.94 1.63a1 1 0 0 1-1.16.39l-1.01-.35a6.12 6.12 0 0 1-1.1.97l-.37 1A1 1 0 0 1 10.94 18H9.06a1 1 0 0 1-.99-.63l-.37-1A6.12 6.12 0 0 1 6.6 15.4l-1.01.35a1 1 0 0 1-1.16-.39l-.94-1.63a1 1 0 0 1 .18-1.21l.76-.7A6.17 6.17 0 0 1 4.37 11a6.17 6.17 0 0 1 .06-.86l-.76-.7a1 1 0 0 1-.18-1.21l.94-1.63a1 1 0 0 1 1.16-.39l1.01.35a6.12 6.12 0 0 1 1.1-.97l.37-1Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
-                  <circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.5"/>
-                </svg>
-                Select council models and chairman in <strong>Settings</strong> (⚙️ top of sidebar) to get started.
+                {onOpenSettings ? (
+                  <button
+                    type="button"
+                    className="onboarding-hint-gear-btn"
+                    onClick={onOpenSettings}
+                    aria-label="Open settings"
+                    title="Open settings"
+                  >
+                    <GearIcon size={16} aria-hidden="true" />
+                  </button>
+                ) : (
+                  <GearIcon size={16} aria-hidden="true" className="onboarding-hint-icon" />
+                )}
+                Select council models and chairman in{' '}
+                {onOpenSettings ? (
+                  <button
+                    type="button"
+                    className="onboarding-hint-settings-link"
+                    onClick={onOpenSettings}
+                  >
+                    Settings
+                  </button>
+                ) : (
+                  <strong>Settings</strong>
+                )}{' '}
+                to get started.
               </>
             ) : (
               <>
-                <svg width="13" height="13" viewBox="0 0 20 20" fill="none" aria-hidden="true" className="onboarding-hint-icon">
-                  <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.5"/>
-                  <path d="M10 9v5M10 7v.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                </svg>
-                {settings.council_models.length} council model{settings.council_models.length !== 1 ? 's' : ''} active · Chairman: <strong>{settings.chairman_model.split('/').pop()}</strong> · Adjust in ⚙️ Settings
+                {onOpenSettings ? (
+                  <button
+                    type="button"
+                    className="onboarding-hint-gear-btn"
+                    onClick={onOpenSettings}
+                    aria-label="Open settings"
+                    title="Open settings"
+                  >
+                    <GearIcon size={16} aria-hidden="true" />
+                  </button>
+                ) : (
+                  <GearIcon size={16} aria-hidden="true" className="onboarding-hint-icon" />
+                )}
+                {settings.council_models.length} council model{settings.council_models.length !== 1 ? 's' : ''} active · Chairman:{' '}
+                <strong>{settings.chairman_model.split('/').pop()}</strong>
+                {' · '}
+                {onOpenSettings ? (
+                  <button
+                    type="button"
+                    className="onboarding-hint-settings-link"
+                    onClick={onOpenSettings}
+                  >
+                    Adjust in Settings
+                  </button>
+                ) : (
+                  <>Adjust in ⚙️ Settings</>
+                )}
               </>
             )}
           </div>

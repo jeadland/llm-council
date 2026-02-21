@@ -1,0 +1,5 @@
+&lt;svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;
+  &lt;line x1="18" y1="22" x2="12" y2="16"&gt;&lt;/line&gt;
+  &lt;path d="M15.09 10.91L18 13.82V20H6v-6.18l2.91-2.91"&gt;&lt;/path&gt;
+  &lt;circle cx="12" cy="6" r="2"&gt;&lt;/circle&gt;
+&lt;/svg&gt;
