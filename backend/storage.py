@@ -204,6 +204,7 @@ def upsert_assistant_message_for_run(
     stage3: Optional[Dict[str, Any]] = None,
     metadata: Optional[Dict[str, Any]] = None,
     loading: Optional[Dict[str, bool]] = None,
+    error: Optional[str] = None,
 ):
     """Create/update a durable assistant message linked to a run id."""
     conversation = get_conversation(conversation_id)
@@ -229,6 +230,7 @@ def upsert_assistant_message_for_run(
                 "stage2": False,
                 "stage3": False,
             },
+            "error": None,
         }
         conversation["messages"].append(target)
 
@@ -242,6 +244,8 @@ def upsert_assistant_message_for_run(
         target["metadata"] = metadata
     if loading is not None:
         target["loading"] = {**target.get("loading", {}), **loading}
+    if error is not None:
+        target["error"] = error
 
     save_conversation(conversation)
 

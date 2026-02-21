@@ -253,7 +253,7 @@ async def _execute_run(run_id: str):
 
         # Stage 3
         storage.update_run(run_id, {"stage3": {"status": "running"}})
-        stage3_result = await stage3_synthesize_final(content, stage1_results, stage2_results, chairman_model=chairman_model)
+        stage3_result = await stage3_synthesize_final(content, stage1_results, stage2_results, chairman_model=chairman_model, council_models=council_models)
         storage.update_run(
             run_id,
             {
@@ -278,6 +278,8 @@ async def _execute_run(run_id: str):
         )
         raise
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         storage.update_run(
             run_id,
             {
@@ -292,6 +294,7 @@ async def _execute_run(run_id: str):
             conversation_id,
             run_id,
             loading={"stage1": False, "stage2": False, "stage3": False},
+            error=str(e),
         )
     finally:
         RUN_TASKS.pop(run_id, None)

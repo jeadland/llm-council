@@ -108,6 +108,7 @@ function App() {
         stage3: run.stage3?.data || null,
         metadata: run.stage2?.metadata || null,
         loading,
+        error: run.status === 'failed' ? (run.error || 'An unknown error occurred') : null,
       };
 
       if (idx === -1) messages.push(assistantMsg);

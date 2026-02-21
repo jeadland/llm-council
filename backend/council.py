@@ -120,6 +120,7 @@ async def stage3_synthesize_final(
     stage1_results: List[Dict[str, Any]],
     stage2_results: List[Dict[str, Any]],
     chairman_model: str = None,
+    council_models: List[str] = None,
 ) -> Dict[str, Any]:
     """
     Stage 3: Chairman synthesizes final response.
@@ -128,6 +129,8 @@ async def stage3_synthesize_final(
         user_query: The original user query
         stage1_results: Individual model responses from Stage 1
         stage2_results: Rankings from Stage 2
+        chairman_model: Model to use as chairman (defaults to CHAIRMAN_MODEL)
+        council_models: List of council models for fallback if chairman fails
 
     Returns:
         Dict with 'model' and 'response' keys

@@ -192,6 +192,30 @@ export default function ChatInterface({
                     </div>
                   )}
                   {msg.stage3 && <Stage3 finalResponse={msg.stage3} />}
+
+                  {/* Error state — run failed before completing */}
+                  {msg.error && !msg.stage3 && !msg.loading?.stage3 && (
+                    <div className="stage stage3 stage3-fallback">
+                      <div className="stage3-header">
+                        <div className="stage3-icon">
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="15" y1="9" x2="9" y2="15"/>
+                            <line x1="9" y1="9" x2="15" y2="15"/>
+                          </svg>
+                        </div>
+                        <div>
+                          <h3 className="stage-title">Council Error</h3>
+                          <div className="chairman-label">Synthesis could not be completed</div>
+                        </div>
+                      </div>
+                      <div className="final-response">
+                        <p style={{ color: 'var(--text-secondary)', margin: 0 }}>
+                          The council encountered an error during synthesis. Please try again.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
