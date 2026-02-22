@@ -5,15 +5,68 @@ import './Stage3.css';
 
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false);
-  const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
+  const [error, setError] = useState(false);
+
+  const handleCopy = useCallback(async () => {
+    setError(false);
+    const content = text || '';
+    console.log('[CopyButton] Attempting copy, text length:', content.length);
+
+    // Try modern Clipboard API first (requires secure context: HTTPS or localhost)
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(content);
+        console.log('[CopyButton] Clipboard API succeeded');
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+        return;
+      } catch (err) {
+        console.warn('[CopyButton] Clipboard API failed:', err);
+      }
+    } else {
+      console.warn('[CopyButton] Clipboard API unavailable (not secure context or missing API)');
+    }
+
+    // Fallback: create a temporary textarea and use execCommand('copy')
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = content;
+      ta.style.position = 'fixed';
+      ta.style.top = '0';
+      ta.style.left = '0';
+      ta.style.opacity = '0';
+      ta.setAttribute('readonly', '');
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      if (ok) {
+        console.log('[CopyButton] execCommand fallback succeeded');
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } else {
+        throw new Error('execCommand returned false');
+      }
+    } catch (err2) {
+      console.error('[CopyButton] Fallback copy also failed:', err2);
+      setError(true);
+      setTimeout(() => setError(false), 3000);
+    }
   }, [text]);
+
   return (
-    <button className="copy-synthesis-btn" onClick={handleCopy} title="Copy to clipboard">
-      {copied ? <><Check size={14} /> Copied!</> : <><ClipboardCopy size={14} /> Copy</>}
+    <button
+      className={`copy-synthesis-btn${error ? ' copy-error' : ''}`}
+      onClick={handleCopy}
+      title={error ? 'Copy failed — try selecting text manually' : 'Copy to clipboard'}
+    >
+      {copied
+        ? <><Check size={14} /> Copied!</>
+        : error
+          ? <><ClipboardCopy size={14} /> Failed</>
+          : <><ClipboardCopy size={14} /> Copy</>
+      }
     </button>
   );
 }

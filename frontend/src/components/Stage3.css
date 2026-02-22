@@ -154,3 +154,19 @@
   background: #1e3a2a;
   color: #4ade80;
 }
+.copy-synthesis-btn.copy-error {
+  color: #c0392b;
+  border-color: #e8b4b0;
+}
+.copy-synthesis-btn.copy-error:hover {
+  background: #fdecea;
+  color: #a0261c;
+}
+:root[data-theme='dark'] .copy-synthesis-btn.copy-error {
+  color: #ff6b6b;
+  border-color: #5a2020;
+}
+:root[data-theme='dark'] .copy-synthesis-btn.copy-error:hover {
+  background: #3a1515;
+  color: #ff8888;
+}
