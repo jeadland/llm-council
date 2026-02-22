@@ -94,29 +94,39 @@ def list_conversations() -> List[Dict[str, Any]]:
     Returns:
         List of conversation metadata dicts
     """
+    print(f"DEBUG: Scanning DATA_DIR={DATA_DIR}, files={os.listdir(DATA_DIR) if os.path.exists(DATA_DIR) else 'DIR NOT FOUND'}")
     ensure_data_dir()
 
     conversations = []
-    import json  # Ensure available
-    for filename in os.listdir(DATA_DIR):
+    skipped = []
+    for filename in os.listdir(DATA_DIR) if os.path.exists(DATA_DIR) else []:
         if filename.endswith('.json'):
             try:
                 path = os.path.join(DATA_DIR, filename)
                 with open(path, 'r') as f:
                     data = json.load(f)
                 conversations.append({
-                    "id": data["id"],
-                    "created_at": data["created_at"],
+                    "id": data.get("id", filename[:-5]),
+                    "created_at": data.get("created_at", "1970-01-01T00:00:00Z"),
                     "title": data.get("title", "New Conversation"),
                     "pinned": data.get("pinned", False),
-                    "message_count": len(data["messages"])
+                    "message_count": len(data.get("messages", []))
                 })
-            except (json.JSONDecodeError, KeyError, Exception) as e:
-                print(f"Skipping invalid conversation {filename}: {e}")
+            except Exception as e:
+                skipped.append(filename)
+                print(f"Skipping {filename}: {e}")
                 continue
 
-    # Sort pinned first, then newest first
-    conversations.sort(key=lambda x: (not x.get("pinned", False), -int(datetime.fromisoformat(x["created_at"]).timestamp())))
+    print(f"DEBUG: Loaded {len(conversations)} convos, skipped {skipped}")
+
+    # Sort pinned first, then newest first (safe parse)
+    def safe_timestamp(conv):
+        try:
+            return not conv.get("pinned", False), -int(datetime.fromisoformat(conv["created_at"]).timestamp())
+        except:
+            return True, 0  # unpinned, old
+
+    conversations.sort(key=safe_timestamp)
 
     return conversations
 

@@ -1,138 +1,52 @@
-"""OpenClaw local proxy client for LLM requests.
+"""OpenClaw local gateway client.
 
-Routes requests through the local OpenClaw gateway (http://127.0.0.1:18789/v1/*)
-which acts as an OpenAI-compatible proxy to all configured model providers.
+Provides OpenAI-compatible API access via the local OpenClaw gateway
+(default: http://127.0.0.1:18789/v1/chat/completions).
 
-No API key is needed — auth uses the gateway device token from openclaw.json.
+No external API key required — uses the gateway auth token from openclaw.json.
 """
 
 import json
 import os
-import shutil
-import subprocess
-import httpx
 from typing import List, Dict, Any, Optional
 
-
-# Default OpenClaw gateway base URL
-OPENCLAW_PROXY_URL = os.getenv("OPENCLAW_PROXY_URL", "http://127.0.0.1:18789")
-
-# Well-known installation paths for the openclaw CLI binary
-_OPENCLAW_KNOWN_PATHS = [
-    "/home/pi/.npm-global/bin/openclaw",
-    "/usr/local/bin/openclaw",
-    "/usr/bin/openclaw",
-    os.path.expanduser("~/.npm-global/bin/openclaw"),
-    os.path.expanduser("~/.local/bin/openclaw"),
-]
+import httpx
 
 
-def _find_openclaw_binary() -> str:
-    """Locate the openclaw CLI binary, searching PATH and known install locations."""
-    # 1. Check current PATH
-    found = shutil.which("openclaw")
-    if found:
-        return found
-
-    # 2. Try known paths
-    for p in _OPENCLAW_KNOWN_PATHS:
-        if os.path.isfile(p) and os.access(p, os.X_OK):
-            return p
-
-    # 3. Environment override
-    env_path = os.getenv("OPENCLAW_BIN")
-    if env_path and os.path.isfile(env_path):
-        return env_path
-
-    return "openclaw"  # Last resort — may fail if not in PATH
+def _read_openclaw_config() -> dict:
+    """Read and return ~/.openclaw/openclaw.json as a dict, or {}."""
+    config_path = os.getenv("OPENCLAW_CONFIG_PATH") or os.path.expanduser("~/.openclaw/openclaw.json")
+    if not os.path.exists(config_path):
+        return {}
+    try:
+        with open(config_path, "r") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"[openclaw] Failed to read config: {e}")
+        return {}
 
 
 def _get_gateway_token() -> Optional[str]:
-    """Read the gateway device token from openclaw.json."""
-    config_path = os.getenv("OPENCLAW_CONFIG_PATH") or os.path.expanduser("~/.openclaw/openclaw.json")
-    if not os.path.exists(config_path):
-        return None
-    try:
-        with open(config_path, "r") as f:
-            cfg = json.load(f)
-        return cfg.get("gateway", {}).get("auth", {}).get("token")
-    except Exception as e:
-        print(f"[openclaw] Warning: could not read gateway token: {e}")
-        return None
+    """Return the OpenClaw gateway auth token, or None if not configured."""
+    # Allow override via env (e.g. in tests or CI)
+    token = os.getenv("OPENCLAW_GATEWAY_TOKEN")
+    if token:
+        return token
+
+    cfg = _read_openclaw_config()
+    return (cfg.get("gateway") or {}).get("auth", {}).get("token") or None
 
 
-def _build_full_model_id(provider: str, model_id: str) -> str:
-    """Construct a fully-qualified model id like 'openrouter/anthropic/claude-sonnet-4.6'."""
-    return f"{provider}/{model_id}"
+def _get_gateway_base_url() -> str:
+    """Return the OpenClaw gateway base URL (e.g. http://127.0.0.1:18789)."""
+    cfg = _read_openclaw_config()
+    port = (cfg.get("gateway") or {}).get("port", 18789)
+    return f"http://127.0.0.1:{port}"
 
 
-async def fetch_openclaw_models() -> List[Dict[str, Any]]:
-    """
-    Fetch models available through the local OpenClaw gateway.
-
-    Uses the gateway RPC `models.list` via the CLI (subprocess) since there
-    is no direct HTTP endpoint for model listing — only WS RPC.
-
-    Returns:
-        List of model dicts with keys: id (full openclaw id), name, provider, alias
-    """
-    token = _get_gateway_token()
-    if token is None:
-        return []
-
-    try:
-        openclaw_bin = _find_openclaw_binary()
-        result = subprocess.run(
-            [openclaw_bin, "gateway", "call", "models.list", "--token", token, "--json"],
-            capture_output=True,
-            text=True,
-            timeout=15,
-        )
-        if result.returncode != 0:
-            print(f"[openclaw] models.list failed: {result.stderr}")
-            return []
-
-        data = json.loads(result.stdout)
-        raw_models = data.get("models", [])
-
-        # Build full openclaw model ids: "provider/id"
-        models = []
-        for m in raw_models:
-            provider = m.get("provider", "")
-            model_id = m.get("id", "")
-            if not provider or not model_id:
-                continue
-            full_id = _build_full_model_id(provider, model_id)
-            models.append({
-                "id": full_id,
-                "name": m.get("name", full_id),
-                "provider": provider,
-                "contextWindow": m.get("contextWindow"),
-                "reasoning": m.get("reasoning", False),
-                "input": m.get("input", ["text"]),
-            })
-
-        return models
-
-    except Exception as e:
-        print(f"[openclaw] Error fetching models: {e}")
-        return []
-
-
-async def fetch_openclaw_model_ids(filter_openrouter_only: bool = False) -> List[str]:
-    """
-    Return list of model id strings available through the local OpenClaw gateway.
-
-    Args:
-        filter_openrouter_only: If True, only return openrouter/* models.
-
-    Returns:
-        Sorted list of full model id strings (e.g. 'openrouter/anthropic/claude-sonnet-4.6')
-    """
-    models = await fetch_openclaw_models()
-    if filter_openrouter_only:
-        models = [m for m in models if m["provider"] == "openrouter"]
-    return sorted(m["id"] for m in models)
+def _normalize_model_for_gateway(model: str) -> str:
+    """Pass model id through as-is — gateway handles openclaw prefixed ids."""
+    return model
 
 
 async def query_openclaw(
@@ -140,25 +54,23 @@ async def query_openclaw(
     messages: List[Dict[str, str]],
     timeout: float = 120.0,
 ) -> Optional[Dict[str, Any]]:
-    """
-    Query a model through the local OpenClaw gateway proxy.
-
-    Uses POST /v1/chat/completions (OpenAI-compatible API).
-    Auth: Bearer token from openclaw.json.
+    """Query the OpenClaw local gateway with an OpenAI-compatible request.
 
     Args:
-        model: Full openclaw model id (e.g. 'openrouter/anthropic/claude-sonnet-4.6')
-               or a configured alias (e.g. 'sonnet-46').
-        messages: List of message dicts with 'role' and 'content'.
-        timeout: Request timeout in seconds.
+        model: Model identifier (openclaw full id like 'openrouter/anthropic/claude-sonnet-4.6',
+               an alias, or a bare openrouter id)
+        messages: List of message dicts with 'role' and 'content'
+        timeout: Request timeout in seconds
 
     Returns:
-        Dict with 'content' and optional 'reasoning_details', or None if failed.
+        Dict with 'content' and optional 'reasoning_details', or None on failure.
     """
     token = _get_gateway_token()
-    if token is None:
-        print("[openclaw] No gateway token available, cannot use local proxy")
+    if not token:
         return None
+
+    base_url = _get_gateway_base_url()
+    endpoint = f"{base_url}/v1/chat/completions"
 
     headers = {
         "Authorization": f"Bearer {token}",
@@ -170,20 +82,18 @@ async def query_openclaw(
         "messages": messages,
     }
 
-    url = f"{OPENCLAW_PROXY_URL}/v1/chat/completions"
-
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.post(url, headers=headers, json=payload)
+            response = await client.post(endpoint, headers=headers, json=payload)
             response.raise_for_status()
 
             data = response.json()
             message = data["choices"][0]["message"]
             content = message.get("content", "")
 
-            # Surface API-level errors that the gateway wraps in valid responses
+            # Detect gateway-level error responses (rate limit, auth, etc.)
             if content and content.startswith("⚠️"):
-                print(f"[openclaw] Gateway returned error response for {model}: {content}")
+                print(f"[openclaw] Gateway error for {model}: {content}")
                 return None
 
             return {
@@ -191,30 +101,58 @@ async def query_openclaw(
                 "reasoning_details": message.get("reasoning_details"),
             }
 
+    except httpx.HTTPStatusError as e:
+        print(f"[openclaw] HTTP error querying {model}: {e.response.status_code} {e.response.text[:200]}")
+        return None
     except Exception as e:
-        print(f"[openclaw] Error querying {model} via local proxy: {e}")
+        print(f"[openclaw] Error querying {model}: {e}")
         return None
 
 
-def is_openclaw_available() -> bool:
-    """Quick synchronous check: can we reach the local gateway?"""
+async def fetch_openclaw_model_ids(
+    filter_openrouter_only: bool = False,
+) -> List[str]:
+    """Return model IDs available via the OpenClaw gateway.
+
+    Uses the gateway's RPC endpoint to list configured models.
+    Falls back to reading openclaw.json directly if the RPC fails.
+
+    Args:
+        filter_openrouter_only: If True, return only openrouter/* models.
+
+    Returns:
+        Sorted list of model id strings.
+    """
     token = _get_gateway_token()
-    if token is None:
-        return False
+    if not token:
+        return []
+
+    base_url = _get_gateway_base_url()
+
+    # Try the gateway RPC for model list
     try:
-        import urllib.request
-        req = urllib.request.Request(
-            f"{OPENCLAW_PROXY_URL}/v1/chat/completions",
-            method="OPTIONS",
-        )
-        req.add_header("Authorization", f"Bearer {token}")
-        with urllib.request.urlopen(req, timeout=3):
-            pass
-        return True
-    except Exception:
-        # 405 Method Not Allowed still means the server is up
-        try:
-            import urllib.error
-        except ImportError:
-            pass
-        return True  # Any response = server is running
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                f"{base_url}/rpc",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                },
+                json={"method": "models.list", "params": {}},
+            )
+            if response.status_code == 200:
+                data = response.json()
+                models = data.get("result") or data.get("models") or []
+                if isinstance(models, list) and models:
+                    ids = [
+                        m.get("id") or m if isinstance(m, dict) else m
+                        for m in models
+                    ]
+                    ids = [m for m in ids if isinstance(m, str) and m.strip()]
+                    if filter_openrouter_only:
+                        ids = [m for m in ids if m.startswith("openrouter/")]
+                    return sorted(ids)
+    except Exception as e:
+        print(f"[openclaw] RPC models.list failed: {e}")
+
+    return []

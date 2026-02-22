@@ -32,8 +32,8 @@ PREMIER_MODELS = [
     "x-ai/grok-4",
 ]
 
-# OpenRouter API endpoint
-OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
+# OpenRouter API endpoint (override via env for local proxy mode)
+OPENROUTER_API_URL = os.getenv("OPENROUTER_API_URL", "https://openrouter.ai/api/v1/chat/completions")
 
-# Data directory for conversation storage
-DATA_DIR = "data/conversations"
+# Data directory for conversation storage (relative to backend/)
+DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'conversations'))
