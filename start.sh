@@ -1,8 +1,21 @@
 #!/bin/bash
 
 # LLM Council - Start script
+# On OpenClaw installs: no API key needed — routes through local gateway automatically.
 
 echo "Starting LLM Council..."
+echo ""
+
+# Check for OpenClaw gateway (local-first mode)
+if curl -sf --max-time 2 -X POST http://127.0.0.1:18789/v1/chat/completions -o /dev/null 2>/dev/null; then
+    echo "✓ OpenClaw gateway detected — using local proxy (no API key needed)"
+elif [ -n "$OPENROUTER_API_KEY" ] || [ -f ".env" ]; then
+    echo "ℹ  OpenClaw gateway not found — using OpenRouter direct API"
+else
+    echo "⚠  No OpenClaw gateway and no OPENROUTER_API_KEY — queries may fail"
+    echo "   Start the OpenClaw gateway:  openclaw gateway start"
+    echo "   Or set OPENROUTER_API_KEY in .env"
+fi
 echo ""
 
 # Start backend

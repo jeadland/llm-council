@@ -5,8 +5,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# OpenRouter API key
+# OpenRouter API key (optional when using OpenClaw local proxy)
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+
+# OpenClaw local proxy URL — set OPENCLAW_PROXY_URL to override
+# When the local OpenClaw gateway is running, no API key is needed.
+OPENCLAW_PROXY_URL = os.getenv("OPENCLAW_PROXY_URL", "http://127.0.0.1:18789")
 
 # Council members - list of OpenRouter model identifiers
 COUNCIL_MODELS = [
