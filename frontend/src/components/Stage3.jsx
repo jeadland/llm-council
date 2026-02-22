@@ -1,5 +1,22 @@
+import { useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
+import { ClipboardCopy, Check } from 'lucide-react';
 import './Stage3.css';
+
+function CopyButton({ text }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, [text]);
+  return (
+    <button className="copy-synthesis-btn" onClick={handleCopy} title="Copy to clipboard">
+      {copied ? <><Check size={14} /> Copied!</> : <><ClipboardCopy size={14} /> Copy</>}
+    </button>
+  );
+}
 
 function formatModelLabel(model) {
   if (!model) return 'Unknown';
@@ -52,8 +69,14 @@ export default function Stage3({ finalResponse }) {
         </div>
       </div>
       <div className="final-response">
+        <div className="copy-row copy-row-top">
+          <CopyButton text={finalResponse.response} />
+        </div>
         <div className="final-text markdown-content">
           <ReactMarkdown>{finalResponse.response}</ReactMarkdown>
+        </div>
+        <div className="copy-row copy-row-bottom">
+          <CopyButton text={finalResponse.response} />
         </div>
       </div>
     </div>

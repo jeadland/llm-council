@@ -116,3 +116,41 @@
 :root[data-theme='dark'] .final-text {
   color: #e8eaf0 !important;
 }
+
+/* Copy button */
+.copy-row {
+  display: flex;
+  justify-content: flex-end;
+}
+.copy-row-top {
+  margin-bottom: 8px;
+}
+.copy-row-bottom {
+  margin-top: 8px;
+}
+.copy-synthesis-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #4a9a4a;
+  background: transparent;
+  border: 1px solid #c8e6c8;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.copy-synthesis-btn:hover {
+  background: #e8f5e9;
+  color: #1a7a1a;
+}
+:root[data-theme='dark'] .copy-synthesis-btn {
+  color: #6ee7a0;
+  border-color: #1e3a2a;
+}
+:root[data-theme='dark'] .copy-synthesis-btn:hover {
+  background: #1e3a2a;
+  color: #4ade80;
+}
