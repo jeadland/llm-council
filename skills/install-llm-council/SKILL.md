@@ -1,6 +1,6 @@
 ---
 name: install-llm-council
-version: 1.1.5
+version: 1.1.6
 description: |
   LLM Council — multi-model consensus app with one-command setup. Ask one question to many
   models, let them critique each other, get a synthesized chairman answer. OpenRouter/OpenClaw-native

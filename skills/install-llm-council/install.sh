@@ -29,6 +29,24 @@ fi
 
 cd "$TARGET_DIR"
 
+# Persist chat history outside the app folder so reinstalls/updates don't wipe it.
+STATE_ROOT="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}"
+PERSIST_DIR="$STATE_ROOT/apps-data/llm-council"
+mkdir -p "$PERSIST_DIR"
+
+if [[ -d "$TARGET_DIR/data" && ! -L "$TARGET_DIR/data" ]]; then
+  # Merge any existing local data into persistent location first.
+  mkdir -p "$PERSIST_DIR/data"
+  cp -a "$TARGET_DIR/data/." "$PERSIST_DIR/data/" 2>/dev/null || true
+  rm -rf "$TARGET_DIR/data"
+fi
+
+if [[ ! -e "$TARGET_DIR/data" ]]; then
+  ln -s "$PERSIST_DIR/data" "$TARGET_DIR/data"
+fi
+
+echo "- Persistent data path: $PERSIST_DIR/data"
+
 echo "- Installing backend dependencies (uv sync)"
 uv sync
 
