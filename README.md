@@ -54,6 +54,25 @@ cd ..
 
 ### 3) Run app (no API key needed on OpenClaw installs)
 
+Recommended starter (auto mode):
+```bash
+./start.sh
+```
+
+`start.sh` modes:
+```bash
+# Auto (default): uses preview mode when Caddy is detected on :5173, else dev mode
+./start.sh --mode auto
+
+# Force preview (stable for Caddy reverse proxy)
+./start.sh --mode preview
+
+# Force dev (hot reload)
+./start.sh --mode dev
+```
+
+Manual backend/frontend (if needed):
+
 Backend:
 ```bash
 uv run python -m backend.main
