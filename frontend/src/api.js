@@ -2,7 +2,8 @@
  * API client for the LLM Council backend.
  */
 
-const API_BASE = '';
+const appBase = import.meta.env.BASE_URL || '/';
+const API_BASE = appBase === '/' ? '' : appBase.replace(/\/$/, '');
 
 export const api = {
   async listConversations() {

@@ -231,6 +231,8 @@ export default function Sidebar({
                   <label className="account-field">
                     <span>OpenRouter API key</span>
                     <input
+                      id="llm-council-settings-openrouter-api-key"
+                      name="openrouter-api-key"
                       type="password"
                       autoComplete="off"
                       value={openRouterKey}
@@ -327,6 +329,8 @@ export default function Sidebar({
                   <label className="account-field">
                     <span>Current password</span>
                     <input
+                      id="llm-council-settings-current-password"
+                      name="current-password"
                       type="password"
                       autoComplete="current-password"
                       value={currentPassword}
@@ -336,6 +340,8 @@ export default function Sidebar({
                   <label className="account-field">
                     <span>New password</span>
                     <input
+                      id="llm-council-settings-new-password"
+                      name="new-password"
                       type="password"
                       autoComplete="new-password"
                       value={newPassword}
@@ -345,6 +351,8 @@ export default function Sidebar({
                   <label className="account-field">
                     <span>Confirm new password</span>
                     <input
+                      id="llm-council-settings-confirm-password"
+                      name="confirm-password"
                       type="password"
                       autoComplete="new-password"
                       value={confirmPassword}
@@ -393,7 +401,7 @@ export default function Sidebar({
             <div className="sidebar-brand-row">
               <div className="sidebar-logo-group">
                 <img
-                  src="/images/llm-council-icon.svg"
+                  src={`${import.meta.env.BASE_URL}images/llm-council-icon.svg`}
                   alt="LLM Council"
                   className="sidebar-logo-icon"
                   width="28"

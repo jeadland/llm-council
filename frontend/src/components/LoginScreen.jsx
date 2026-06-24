@@ -89,7 +89,7 @@ export default function LoginScreen({ onLogin, onSignup, onSignupContinue, onRes
       <div className="login-screen">
         <section className="login-panel login-panel-confirm" aria-labelledby="account-created-title">
           <img
-            src="/images/llm-council-icon.svg"
+            src={`${import.meta.env.BASE_URL}images/llm-council-icon.svg`}
             alt=""
             className="login-logo"
             width="56"
@@ -129,7 +129,7 @@ export default function LoginScreen({ onLogin, onSignup, onSignupContinue, onRes
       <form className={`login-panel${isSignup ? ' login-panel-wide' : ''}`} onSubmit={handleSubmit}>
         <div className="login-heading-row">
           <img
-            src="/images/llm-council-icon.svg"
+            src={`${import.meta.env.BASE_URL}images/llm-council-icon.svg`}
             alt=""
             className="login-logo"
             width="56"
@@ -192,6 +192,8 @@ export default function LoginScreen({ onLogin, onSignup, onSignupContinue, onRes
           <label className="login-field">
             <span>Name <em>optional</em></span>
             <input
+              id="llm-council-name"
+              name="name"
               type="text"
               autoComplete="name"
               value={name}
@@ -203,8 +205,10 @@ export default function LoginScreen({ onLogin, onSignup, onSignupContinue, onRes
         <label className="login-field">
           <span>Email</span>
           <input
+            id="llm-council-email"
+            name="email"
             type="email"
-            autoComplete="email"
+            autoComplete="username"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -216,6 +220,8 @@ export default function LoginScreen({ onLogin, onSignup, onSignupContinue, onRes
             <label className="login-field">
               <span>Recovery code</span>
               <input
+                id="llm-council-reset-token"
+                name="reset-token"
                 type="password"
                 autoComplete="one-time-code"
                 value={resetToken}
@@ -227,6 +233,8 @@ export default function LoginScreen({ onLogin, onSignup, onSignupContinue, onRes
             <label className="login-field">
               <span>New password</span>
               <input
+                id="llm-council-new-password"
+                name="new-password"
                 type="password"
                 autoComplete="new-password"
                 value={newPassword}
@@ -239,6 +247,8 @@ export default function LoginScreen({ onLogin, onSignup, onSignupContinue, onRes
           <label className="login-field">
             <span>Password</span>
             <input
+              id={isSignup ? 'llm-council-signup-password' : 'llm-council-current-password'}
+              name={isSignup ? 'new-password' : 'current-password'}
               type="password"
               autoComplete={isSignup ? 'new-password' : 'current-password'}
               value={password}
@@ -252,6 +262,8 @@ export default function LoginScreen({ onLogin, onSignup, onSignupContinue, onRes
           <label className="login-field">
             <span>{isReset ? 'Confirm new password' : 'Confirm password'}</span>
             <input
+              id="llm-council-confirm-password"
+              name="confirm-password"
               type="password"
               autoComplete="new-password"
               value={confirmPassword}
@@ -265,6 +277,8 @@ export default function LoginScreen({ onLogin, onSignup, onSignupContinue, onRes
           <label className="login-field">
             <span>OpenRouter API key</span>
             <input
+              id="llm-council-openrouter-api-key"
+              name="openrouter-api-key"
               type="password"
               autoComplete="off"
               value={openRouterKey}

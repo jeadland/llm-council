@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "npm --prefix frontend ci",
-  "buildCommand": "npm --prefix frontend run build",
+  "buildCommand": "VITE_BASE_PATH=/llm-council/ npm --prefix frontend run build",
   "outputDirectory": "frontend/dist",
   "functions": {
     "api/index.py": {
@@ -10,8 +10,52 @@
   },
   "rewrites": [
     {
+      "source": "/llm-council/api/(.*)",
+      "destination": "/api/index.py"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/index.py"
+    },
+    {
+      "source": "/llm-council/assets/:path*",
+      "destination": "/assets/:path*"
+    },
+    {
+      "source": "/llm-council/images/:path*",
+      "destination": "/images/:path*"
+    },
+    {
+      "source": "/llm-council/favicon.ico",
+      "destination": "/favicon.ico"
+    },
+    {
+      "source": "/llm-council/favicon.png",
+      "destination": "/favicon.png"
+    },
+    {
+      "source": "/llm-council/favicon-16.png",
+      "destination": "/favicon-16.png"
+    },
+    {
+      "source": "/llm-council/favicon-32.png",
+      "destination": "/favicon-32.png"
+    },
+    {
+      "source": "/llm-council/favicon-64.png",
+      "destination": "/favicon-64.png"
+    },
+    {
+      "source": "/llm-council/apple-touch-icon.png",
+      "destination": "/apple-touch-icon.png"
+    },
+    {
+      "source": "/llm-council",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/llm-council/:path*",
+      "destination": "/index.html"
     },
     {
       "source": "/(.*)",

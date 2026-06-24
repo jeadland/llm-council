@@ -28,9 +28,40 @@ from .openrouter import build_cost_summary, fetch_openrouter_model_catalog, reco
 from .openrouter import use_openrouter_account_scope
 from .model_curation import create_model_curation_draft
 
+SUBPATH_PREFIX = "/llm-council"
+
+
+class SubpathPrefixMiddleware:
+    """Let the API work both at the domain root and under /llm-council."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") in {"http", "websocket"}:
+            path = scope.get("path", "")
+            if path == SUBPATH_PREFIX:
+                scope["root_path"] = f"{scope.get('root_path', '')}{SUBPATH_PREFIX}"
+                scope["path"] = "/"
+            elif path.startswith(f"{SUBPATH_PREFIX}/"):
+                scope["root_path"] = f"{scope.get('root_path', '')}{SUBPATH_PREFIX}"
+                scope["path"] = path[len(SUBPATH_PREFIX):] or "/"
+        await self.app(scope, receive, send)
+
+
+def _normalize_request_path(path: str) -> str:
+    if path == SUBPATH_PREFIX:
+        return "/"
+    if path.startswith(f"{SUBPATH_PREFIX}/"):
+        return path[len(SUBPATH_PREFIX):] or "/"
+    return path
+
+
 app = FastAPI(title="LLM Council API")
+app.add_middleware(SubpathPrefixMiddleware)
 RUN_TASKS: Dict[str, asyncio.Task] = {}
 PUBLIC_API_PATHS = {
+    "/api/health",
     "/api/auth/signup",
     "/api/auth/login",
     "/api/auth/logout",
@@ -53,7 +84,7 @@ app.add_middleware(
 @app.middleware("http")
 async def require_auth_for_api(request: Request, call_next):
     """Protect app APIs while keeping auth bootstrap endpoints public."""
-    path = request.url.path
+    path = _normalize_request_path(request.url.path)
     if path.startswith("/api/") and path not in PUBLIC_API_PATHS and auth.is_auth_required():
         if auth.get_user_from_request(request) is None:
             return JSONResponse({"detail": "Not authenticated"}, status_code=401)
@@ -139,6 +170,11 @@ class Conversation(BaseModel):
 async def root():
     """Health check endpoint."""
     return {"status": "ok", "service": "LLM Council API"}
+
+
+@app.get("/api/health")
+async def health():
+    return {"ok": True, "app": "llm-council", "storage": "redis-or-local"}
 
 
 def _set_session_cookie(response: Response, token: str):

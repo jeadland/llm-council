@@ -56,7 +56,7 @@ function EmptyStartSurface({
       <div className="empty-state-panel">
         <div className="empty-state-heading-row">
           <img
-            src="/images/llm-council-icon.svg"
+            src={`${import.meta.env.BASE_URL}images/llm-council-icon.svg`}
             alt="LLM Council"
             className="empty-state-logo"
             width="46"
