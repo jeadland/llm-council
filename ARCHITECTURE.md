@@ -80,8 +80,8 @@ Local mode uses background run tasks and polling. Vercel mode uses `RUN_EXECUTIO
 | `OPENCLAW_GATEWAY_TOKEN` | Optional local | Override OpenClaw gateway token |
 | `OPENCLAW_CONFIG_PATH` | Optional local | Override OpenClaw config path |
 | `STORAGE_BACKEND=redis` | Vercel | Force Redis storage |
-| `UPSTASH_REDIS_REST_URL` | Vercel | Redis REST endpoint |
-| `UPSTASH_REDIS_REST_TOKEN` | Vercel | Redis token |
+| `UPSTASH_REDIS_REST_URL` or `KV_REST_API_URL` | Vercel | Redis REST endpoint |
+| `UPSTASH_REDIS_REST_TOKEN` or `KV_REST_API_TOKEN` | Vercel | Redis token |
 | `RUN_EXECUTION_MODE=sync` | Vercel | Avoid serverless background tasks |
 | `ADMIN_EMAIL` | Hosted auth | Single allowed owner email |
 | `ADMIN_INITIAL_PASSWORD` | Hosted auth bootstrap | Used only to create first password hash |

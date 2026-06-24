@@ -25,14 +25,20 @@ def _using_redis() -> bool:
         return True
     if backend in {"json", "file", "local"}:
         return False
-    return bool(os.getenv("UPSTASH_REDIS_REST_URL") and os.getenv("UPSTASH_REDIS_REST_TOKEN"))
+    return bool(
+        (os.getenv("UPSTASH_REDIS_REST_URL") and os.getenv("UPSTASH_REDIS_REST_TOKEN"))
+        or (os.getenv("KV_REST_API_URL") and os.getenv("KV_REST_API_TOKEN"))
+    )
 
 
 def _redis_env() -> tuple[str, str]:
-    url = os.getenv("UPSTASH_REDIS_REST_URL")
-    token = os.getenv("UPSTASH_REDIS_REST_TOKEN")
+    url = os.getenv("UPSTASH_REDIS_REST_URL") or os.getenv("KV_REST_API_URL")
+    token = os.getenv("UPSTASH_REDIS_REST_TOKEN") or os.getenv("KV_REST_API_TOKEN")
     if not url or not token:
-        raise RuntimeError("Redis storage requires UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN")
+        raise RuntimeError(
+            "Redis storage requires UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN "
+            "or KV_REST_API_URL/KV_REST_API_TOKEN"
+        )
     return url.rstrip("/"), token
 
 
