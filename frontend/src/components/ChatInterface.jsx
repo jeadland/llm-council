@@ -1,9 +1,135 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { ChevronDown } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import Stage1 from './Stage1';
 import Stage2 from './Stage2';
 import Stage3 from './Stage3';
+import { displayModelName, estimateCouncilCosts, presetNormalCost, shortModelName } from '../modelUtils';
 import './ChatInterface.css';
+
+function activeCouncilName(settings, presets) {
+  const activeId = settings?.active_model_group_id;
+  const custom = settings?.custom_model_groups?.find((group) => group.id === activeId);
+  if (custom) return { name: custom.name, badge: 'Custom' };
+  const preset = presets?.find((item) => item.id === activeId);
+  if (preset) return { name: preset.name, badge: preset.badge || 'Curated', preset };
+  const matched = presets?.find((presetItem) => {
+    const models = presetItem.models || [];
+    const selected = settings?.council_models || [];
+    return models.length === selected.length && models.every((model) => selected.includes(model));
+  });
+  if (matched) return { name: matched.name, badge: matched.badge || 'Curated', preset: matched };
+  return { name: 'Custom Council', badge: 'Custom' };
+}
+
+const promptStarters = [
+  'Compare the strongest arguments on both sides.',
+  'Give me the practical recommendation and caveats.',
+  'Stress-test this plan before I act on it.',
+];
+
+function EmptyStartSurface({
+  compact = false,
+  settings,
+  modelMap,
+  presets,
+  onCreateConversation,
+  onOpenModels,
+  onUseStarter,
+}) {
+  const selectedModels = settings?.council_models || [];
+  const chairman = settings?.chairman_model || '';
+  const active = activeCouncilName(settings, presets);
+  const fallbackEstimate = estimateCouncilCosts(selectedModels, chairman, modelMap);
+  const estimate = presetNormalCost(active.preset) || fallbackEstimate?.display || 'Pricing unavailable';
+  const modelCountLabel = `${selectedModels.length} model${selectedModels.length === 1 ? '' : 's'} active`;
+  const renderModelChips = () => (
+    selectedModels.length > 0 ? (
+      selectedModels.map((modelId) => (
+        <span className="empty-model-chip" key={modelId}>
+          {displayModelName(modelId, modelMap).replace(/^.*?:\s*/, '')}
+        </span>
+      ))
+    ) : (
+      <span className="empty-model-empty">No council models selected</span>
+    )
+  );
+
+  return (
+    <div className={`empty-state empty-state-start${compact ? ' empty-state-start--compact' : ''}`}>
+      <div className="empty-state-panel">
+        <div className="empty-state-heading-row">
+          <img
+            src="/images/llm-council-icon.svg"
+            alt="LLM Council"
+            className="empty-state-logo"
+            width="46"
+            height="46"
+            onError={(e) => { e.target.style.display = 'none'; }}
+          />
+          <div>
+            <h2>{compact ? 'Ask the council' : 'Start a conversation'}</h2>
+            <p>{compact ? 'The active council is ready for the first question.' : 'Choose the first question and the selected models will deliberate.'}</p>
+          </div>
+        </div>
+
+        <div className="empty-council-summary" aria-label="Active council summary">
+          <div>
+            <span>Active council</span>
+            <strong>{active.name}</strong>
+          </div>
+          <div>
+            <span>Chairman</span>
+            <strong>{shortModelName(chairman) || 'None'}</strong>
+          </div>
+          <div>
+            <span>Est. cost</span>
+            <strong>{estimate}</strong>
+          </div>
+        </div>
+
+        <div className="empty-model-strip empty-model-strip-full" aria-label="Selected models">
+          {renderModelChips()}
+        </div>
+
+        {compact && (
+          <details className="empty-model-disclosure">
+            <summary>
+              <span>{modelCountLabel}</span>
+              <ChevronDown size={16} aria-hidden="true" />
+            </summary>
+            <div className="empty-model-strip" aria-label="Selected models">
+              {renderModelChips()}
+            </div>
+          </details>
+        )}
+
+        <div className="empty-state-actions">
+          {!compact && (
+            <button type="button" className="start-conversation-btn" onClick={onCreateConversation}>
+              Start a conversation
+            </button>
+          )}
+          {onOpenModels && (
+            <button type="button" className="adjust-models-btn" onClick={onOpenModels}>
+              Adjust models
+            </button>
+          )}
+        </div>
+
+        {compact && onUseStarter && (
+          <div className="prompt-starters" aria-label="Prompt starters">
+            {promptStarters.map((starter) => (
+              <button type="button" key={starter} onClick={() => onUseStarter(starter)}>
+                {starter}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function StageStepper({ msg }) {
   const stages = [
@@ -54,7 +180,9 @@ export default function ChatInterface({
   isLoading,
   activeRunId,
   settings,
-  onOpenSettings,
+  onOpenModels,
+  modelMap,
+  presets,
 }) {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef(null);
@@ -112,21 +240,13 @@ export default function ChatInterface({
   if (!conversation) {
     return (
       <div className="chat-interface">
-        <div className="empty-state">
-          <img
-            src="/images/llm-council-icon.svg"
-            alt="LLM Council"
-            className="empty-state-logo"
-            width="64"
-            height="64"
-            onError={(e) => { e.target.style.display = 'none'; }}
-          />
-          <h2>Welcome to LLM Council</h2>
-          <p>Create a new conversation to get started</p>
-          <button className="start-conversation-btn" onClick={onCreateConversation}>
-            Start a conversation
-          </button>
-        </div>
+        <EmptyStartSurface
+          settings={settings}
+          modelMap={modelMap}
+          presets={presets}
+          onCreateConversation={onCreateConversation}
+          onOpenModels={onOpenModels}
+        />
       </div>
     );
   }
@@ -135,10 +255,20 @@ export default function ChatInterface({
     <div className="chat-interface">
       <div className="messages-container" ref={containerRef} onScroll={handleScroll}>
         {conversation.messages.length === 0 ? (
-          <div className="empty-state">
-            <h2>Start a conversation</h2>
-            <p>Ask a question to consult the LLM Council</p>
-          </div>
+          <EmptyStartSurface
+            compact
+            settings={settings}
+            modelMap={modelMap}
+            presets={presets}
+            onOpenModels={onOpenModels}
+            onUseStarter={(starter) => {
+              setInput(starter);
+              requestAnimationFrame(() => {
+                textareaRef.current?.focus();
+                autoResize();
+              });
+            }}
+          />
         ) : (
           conversation.messages.map((msg, index) => (
             <div key={index} className="message-group">
@@ -192,7 +322,12 @@ export default function ChatInterface({
                       <span>Synthesizing final answer…</span>
                     </div>
                   )}
-                  {msg.stage3 && <Stage3 finalResponse={msg.stage3} />}
+                  {msg.stage3 && (
+                    <Stage3
+                      finalResponse={msg.stage3}
+                      costSummary={msg.cost_summary || msg.metadata?.cost_summary}
+                    />
+                  )}
 
                   {/* Error state — run failed before completing */}
                   {msg.error && !msg.stage3 && !msg.loading?.stage3 && (
@@ -306,16 +441,16 @@ export default function ChatInterface({
             {isUnconfigured ? (
               <>
                 Select council models and chairman in{' '}
-                {onOpenSettings ? (
+                {onOpenModels ? (
                   <button
                     type="button"
                     className="onboarding-hint-settings-link"
-                    onClick={onOpenSettings}
+                    onClick={onOpenModels}
                   >
-                    Settings
+                    Models
                   </button>
                 ) : (
-                  <strong>Settings</strong>
+                  <strong>Models</strong>
                 )}{' '}
                 to get started.
               </>
@@ -324,16 +459,16 @@ export default function ChatInterface({
                 {settings.council_models.length} council model{settings.council_models.length !== 1 ? 's' : ''} active · Chairman:{' '}
                 <strong>{settings.chairman_model.split('/').pop()}</strong>
                 {' · '}
-                {onOpenSettings ? (
+                {onOpenModels ? (
                   <button
                     type="button"
                     className="onboarding-hint-settings-link"
-                    onClick={onOpenSettings}
+                    onClick={onOpenModels}
                   >
-                    Adjust in Settings
+                    Adjust models
                   </button>
                 ) : (
-                  <>Adjust in Settings</>
+                  <>Adjust models</>
                 )}
               </>
             )}

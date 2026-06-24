@@ -96,9 +96,18 @@ async def query_openclaw(
                 print(f"[openclaw] Gateway error for {model}: {content}")
                 return None
 
+            choice = (data.get("choices") or [{}])[0]
+
             return {
                 "content": content,
                 "reasoning_details": message.get("reasoning_details"),
+                "provider_source": "openclaw",
+                "requested_model": model,
+                "resolved_model": data.get("model") or model,
+                "generation_id": data.get("id"),
+                "usage": data.get("usage"),
+                "finish_reason": choice.get("finish_reason"),
+                "native_finish_reason": choice.get("native_finish_reason"),
             }
 
     except httpx.HTTPStatusError as e:

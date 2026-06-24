@@ -60,6 +60,88 @@
   margin-top: 2px;
 }
 
+.actual-cost {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-top: 8px;
+  color: #317a42;
+  font-size: 12px;
+}
+
+.actual-cost > span {
+  color: #5b8f65;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.actual-cost > strong {
+  color: #1f6f35;
+  font-weight: 750;
+}
+
+.actual-cost-details {
+  width: 100%;
+  max-width: 620px;
+}
+
+.actual-cost-details summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  color: #2f7b42;
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.actual-cost-call-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.actual-cost-call {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 0;
+  border-top: 1px solid #d9edd9;
+}
+
+.actual-cost-call div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.actual-cost-stage,
+.actual-cost-call small {
+  color: #5b8f65;
+  font-size: 11px;
+}
+
+.actual-cost-call strong {
+  overflow-wrap: anywhere;
+  color: #174d28;
+  font-size: 12px;
+}
+
+.actual-cost-value {
+  color: #1f6f35;
+  font-family: monospace;
+  font-size: 12px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.actual-cost-value--unpriced,
+.actual-cost-value--failed {
+  color: #8a6418;
+}
+
 .final-response {
   background: #ffffff;
   padding: 20px;
@@ -106,6 +188,32 @@
 
 :root[data-theme='dark'] .chairman-label {
   color: #6ee7a0 !important;
+}
+
+:root[data-theme='dark'] .actual-cost {
+  color: #7ddc9a;
+}
+
+:root[data-theme='dark'] .actual-cost > span,
+:root[data-theme='dark'] .actual-cost-stage,
+:root[data-theme='dark'] .actual-cost-call small {
+  color: #85b88f;
+}
+
+:root[data-theme='dark'] .actual-cost > strong,
+:root[data-theme='dark'] .actual-cost-details summary,
+:root[data-theme='dark'] .actual-cost-call strong,
+:root[data-theme='dark'] .actual-cost-value {
+  color: #8ef0aa;
+}
+
+:root[data-theme='dark'] .actual-cost-call {
+  border-top-color: #1e3a2a;
+}
+
+:root[data-theme='dark'] .actual-cost-value--unpriced,
+:root[data-theme='dark'] .actual-cost-value--failed {
+  color: #e3b65d;
 }
 
 :root[data-theme='dark'] .final-response {

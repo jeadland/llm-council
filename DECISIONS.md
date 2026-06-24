@@ -4,6 +4,90 @@ Use this file to record important product, architecture, design, and implementat
 
 ## Decision Log
 
+## 2026-06-24 - Per-answer costs use stored OpenRouter generation IDs
+
+Decision:
+
+- Future council runs store per-call OpenRouter usage/generation metadata and aggregate it into a `cost_summary` on the run and assistant message.
+- The app does not infer exact answer costs from OpenRouter activity time windows.
+- Older runs without stored call metadata show cost unavailable.
+
+Context:
+
+- OpenRouter returns usage in completion responses and supports post-hoc generation stats by generation ID.
+- Multiple runs or other apps can share the same API key, so time-window matching is not reliable enough for exact per-answer attribution.
+
+Status:
+
+- Active
+
+## 2026-06-24 - Server OpenRouter key is owner-scoped
+
+Decision:
+
+- Hosted direct OpenRouter calls may use the server `OPENROUTER_API_KEY` only under the configured owner account scope.
+- The owner may also save an account-scoped OpenRouter key through API & Integrations; the UI only receives masked status, and model calls receive the key server-side.
+- Future multi-user support should require each non-owner user to upload or configure their own provider key before running paid model calls.
+
+Context:
+
+- The app is currently single-owner, but the hosted server key should not become a shared multi-user credential by accident.
+
+Rationale:
+
+- This preserves the private-owner launch path while avoiding a future permission footgun.
+
+Alternatives considered:
+
+- Share the server key with all authenticated users.
+- Build the full upload-key flow immediately.
+
+Implications:
+
+- `ADMIN_EMAIL` is the default key owner; `OPENROUTER_OWNER_EMAIL` can override the env-key owner.
+- Legacy or future run paths must carry owner/user scope before direct OpenRouter fallback.
+
+Owner approval:
+
+- Requested by owner in chat on 2026-06-24.
+
+Status:
+
+- Active
+
+## 2026-06-24 - Weekly model curation creates reviewable drafts
+
+Decision:
+
+- Weekly model curation generates a draft for owner review instead of automatically replacing curated presets.
+- Approving a draft is a separate owner action.
+
+Context:
+
+- Model availability, pricing, and rankings change over time, but changing defaults can affect cost and answer quality.
+
+Rationale:
+
+- Review-first curation keeps recommendations fresh without silently changing the app's behavior or spend profile.
+
+Alternatives considered:
+
+- Fully automatic curated preset updates.
+- Manual-only curation refresh.
+
+Implications:
+
+- Vercel Cron requires `CRON_SECRET`.
+- `MODEL_CURATION_MODEL` defaults to `openai/gpt-5.5`; `MODEL_CURATION_MAX_USD` caps the optional curation model call.
+
+Owner approval:
+
+- Approved in chat on 2026-06-24.
+
+Status:
+
+- Active
+
 ## 2026-06-24 - Keep local and hosted branches separate
 
 Decision:

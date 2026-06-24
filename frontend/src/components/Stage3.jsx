@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { ClipboardCopy, Check } from 'lucide-react';
+import { formatMoney } from '../modelUtils';
 import './Stage3.css';
 
 function CopyButton({ text }) {
@@ -81,6 +82,8 @@ function formatModelLabel(model) {
     'google/gemini-3.1-pro-preview': 'Gemini 3.1 Pro Preview',
     'google/gemini-2.5-pro': 'Gemini 2.5 Pro',
     'x-ai/grok-4': 'Grok 4',
+    'x-ai/grok-4.20': 'Grok 4.20',
+    'x-ai/grok-4.3': 'Grok 4.3',
     'x-ai/grok-4.1-fast': 'Grok 4.1 Fast',
     'openai/gpt-5.2': 'GPT-5.2',
     'openai/gpt-5.2-chat': 'GPT-5.2 Chat',
@@ -89,7 +92,86 @@ function formatModelLabel(model) {
   return nice[raw] || raw;
 }
 
-export default function Stage3({ finalResponse }) {
+function formatStageLabel(stage) {
+  const labels = {
+    stage1: 'Stage 1',
+    stage2: 'Stage 2',
+    stage3: 'Stage 3',
+  };
+  return labels[stage] || stage || 'Call';
+}
+
+function formatCallCost(call) {
+  if (call.cost_usd !== null && call.cost_usd !== undefined) {
+    return formatMoney(Number(call.cost_usd));
+  }
+  if (call.status === 'failed') return 'failed';
+  return 'unpriced';
+}
+
+function formatTokens(call) {
+  if (call.total_tokens) return `${call.total_tokens.toLocaleString()} tokens`;
+  const pieces = [];
+  if (call.prompt_tokens) pieces.push(`${call.prompt_tokens.toLocaleString()} in`);
+  if (call.completion_tokens) pieces.push(`${call.completion_tokens.toLocaleString()} out`);
+  return pieces.length ? pieces.join(' / ') : 'tokens unavailable';
+}
+
+function CostSummary({ costSummary }) {
+  const calls = costSummary?.calls || [];
+
+  if (!costSummary || calls.length === 0) {
+    return (
+      <div className="actual-cost" aria-label="Actual cost">
+        <span>Actual cost</span>
+        <strong>Cost unavailable for older run</strong>
+      </div>
+    );
+  }
+
+  const total = costSummary.total_usd !== null && costSummary.total_usd !== undefined
+    ? formatMoney(Number(costSummary.total_usd))
+    : null;
+  const unpriced = Number(costSummary.unpriced_calls_count || 0);
+  const failed = Number(costSummary.failed_calls_count || 0);
+  let label = 'Cost unavailable';
+  if (total && unpriced > 0) {
+    label = `${total} tracked · ${unpriced} call${unpriced === 1 ? '' : 's'} unpriced`;
+  } else if (total) {
+    label = total;
+  } else if (unpriced > 0) {
+    label = `${unpriced} call${unpriced === 1 ? '' : 's'} unpriced`;
+  }
+  if (failed > 0) {
+    label = `${label} · ${failed} failed`;
+  }
+
+  return (
+    <div className="actual-cost" aria-label="Actual cost">
+      <span>Actual cost</span>
+      <strong>{label}</strong>
+      <details className="actual-cost-details">
+        <summary>Details</summary>
+        <div className="actual-cost-call-list">
+          {calls.map((call, index) => (
+            <div className="actual-cost-call" key={`${call.stage}-${call.requested_model}-${index}`}>
+              <div>
+                <span className="actual-cost-stage">{formatStageLabel(call.stage)}</span>
+                <strong>{formatModelLabel(call.resolved_model || call.requested_model)}</strong>
+                <small>{formatTokens(call)}</small>
+              </div>
+              <span className={`actual-cost-value actual-cost-value--${call.status || 'unpriced'}`}>
+                {formatCallCost(call)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </details>
+    </div>
+  );
+}
+
+export default function Stage3({ finalResponse, costSummary }) {
   if (!finalResponse) {
     return null;
   }
@@ -119,6 +201,7 @@ export default function Stage3({ finalResponse }) {
             {isFallback ? 'Chairman unavailable — ' : 'Synthesized by '}
             {formatModelLabel(finalResponse.model.split(' (')[0])}
           </div>
+          <CostSummary costSummary={costSummary} />
         </div>
       </div>
       <div className="final-response">

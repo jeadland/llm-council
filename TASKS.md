@@ -65,6 +65,7 @@ Notes:
 
 ## Next
 
+- Validate the redesigned top model bar and curated/custom picker on hosted preview.
 - Add automated backend tests for auth hash/session behavior.
 - Add a documented Vercel deploy checklist with exact env var setup steps.
 - Decide whether hosted runs need queue/progress architecture if sync runs time out.
@@ -84,5 +85,6 @@ Notes:
 
 ## Completed
 
+- 2026-06-24: Added top-level model bar, richer curated/custom model picker, owner-scoped OpenRouter key handling, cost estimates, and reviewable weekly curation draft endpoints.
 - 2026-06-24: Added Vercel web branch implementation with Redis storage, private auth, password change, and sync run mode. Commit: `4892cb6`.
 - 2026-06-24: Added project-bootstrap workflow docs and Cursor/GitHub templates.

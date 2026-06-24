@@ -37,7 +37,10 @@ docs/                  Agent handoff and brand guidance
 | Conversation | User-visible thread with messages | `data/conversations/*.json` locally; Redis keys on Vercel |
 | Assistant message | Stage 1, Stage 2, Stage 3 output for a run | Embedded in conversation |
 | Run | Durable progress/result snapshot for one council query | `data/runs/*.json` locally; Redis keys on Vercel |
-| Settings | Available models, council selection, chairman, theme | `data/settings.json` locally; Redis key on Vercel |
+| Cost summary | Actual tracked OpenRouter usage/cost for one completed council run | Embedded in run and assistant message when available |
+| Settings | Available models, active council/chairman, custom groups, theme | `data/settings.json` locally; Redis key on Vercel |
+| Integration credential | Owner OpenRouter API key status and server-side secret | `data/integrations.json` locally; Redis key on Vercel |
+| Model curation draft | Reviewable weekly curated-preset recommendation | `data/model-curation-drafts.json` locally; Redis keys on Vercel |
 | Auth user | Owner email and password hash | `data/auth-users.json` locally; Redis on Vercel |
 | Session | HttpOnly-cookie session backing record | `data/auth-sessions/` locally; Redis with TTL on Vercel |
 
@@ -66,7 +69,14 @@ Local mode uses background run tasks and polling. Vercel mode uses `RUN_EXECUTIO
 | `/api/auth/logout` | Delete session |
 | `/api/auth/change-password` | Rotate owner password and invalidate old sessions |
 | `/api/auth/reset-password` | Create/reset owner password with recovery code and invalidate old sessions |
-| `/api/settings` | Read/update model and theme settings |
+| `/api/settings` | Read/update active model group, custom groups, chairman, and theme settings |
+| `/api/integrations/openrouter` | Read masked OpenRouter key status and save/clear the owner account key |
+| `/api/models/status` | Safe model-provider status booleans and catalog reachability |
+| `/api/models/catalog` | OpenRouter text model catalog metadata plus app-level council presets |
+| `/api/model-curation/latest` | Read latest model curation draft |
+| `/api/model-curation/run` | Owner-triggered curation draft generation |
+| `/api/model-curation/{id}/approve` | Owner approval path for curated preset updates |
+| `/api/cron/model-curation` | Vercel Cron entrypoint for weekly curation drafts |
 | `/api/conversations` | List/create conversations |
 | `/api/conversations/{id}` | Read/delete conversation |
 | `/api/conversations/{id}/runs` | Create council run |
@@ -76,7 +86,11 @@ Local mode uses background run tasks and polling. Vercel mode uses `RUN_EXECUTIO
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `OPENROUTER_API_KEY` | Vercel/direct mode | Direct OpenRouter calls |
+| `OPENROUTER_API_KEY` | Vercel/direct mode | Direct OpenRouter calls, scoped to owner account in hosted mode |
+| `OPENROUTER_OWNER_EMAIL` | Optional hosted | Overrides `ADMIN_EMAIL` as the account allowed to use the server OpenRouter key |
+| `MODEL_CURATION_MODEL` | Optional hosted | Model used to review weekly curation drafts, default `openai/gpt-5.5` |
+| `MODEL_CURATION_MAX_USD` | Optional hosted | Maximum estimated spend for one curation model call, default `2.00` |
+| `CRON_SECRET` | Hosted cron | Secret Vercel sends as `Authorization: Bearer ...` for weekly curation |
 | `OPENCLAW_GATEWAY_TOKEN` | Optional local | Override OpenClaw gateway token |
 | `OPENCLAW_CONFIG_PATH` | Optional local | Override OpenClaw config path |
 | `STORAGE_BACKEND=redis` | Vercel | Force Redis storage |

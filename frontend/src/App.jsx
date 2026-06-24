@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
-import GearIcon from './components/GearIcon';
 import LoginScreen from './components/LoginScreen';
+import AppTopBar from './components/AppTopBar';
+import ModelPicker from './components/ModelPicker';
 import { api } from './api';
 import './App.css';
 
@@ -17,9 +18,12 @@ function App() {
   const [currentConversation, setCurrentConversation] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [openSettingsOnSidebarOpen, setOpenSettingsOnSidebarOpen] = useState(false);
+  const [sidebarSettingsRequest, setSidebarSettingsRequest] = useState(null);
   const [activeRunId, setActiveRunId] = useState(null);
   const [settings, setSettings] = useState(null);
+  const [showModelPicker, setShowModelPicker] = useState(false);
+  const [modelCatalog, setModelCatalog] = useState([]);
+  const [modelPresets, setModelPresets] = useState([]);
   const [authState, setAuthState] = useState({
     loading: true,
     authenticated: false,
@@ -102,13 +106,41 @@ function App() {
     }
   }
 
+  async function loadModelCatalog() {
+    try {
+      const data = await api.getModelCatalog();
+      setModelCatalog(data.models || []);
+      setModelPresets(data.presets || []);
+    } catch (error) {
+      console.error('Failed to load model catalog:', error);
+    }
+  }
+
   const handleSaveSettings = async (patch) => {
     try {
       const updated = await api.updateSettings(patch);
       setSettings(updated);
+      return updated;
     } catch (error) {
       console.error('Failed to save settings:', error);
+      throw error;
     }
+  };
+
+  const handleSaveCustomGroup = async (group) => {
+    const groups = settings?.custom_model_groups || [];
+    const existingIndex = groups.findIndex((item) => item.id === group.id);
+    const nextGroups = existingIndex >= 0
+      ? groups.map((item) => (item.id === group.id ? group : item))
+      : [...groups, group];
+    const updated = await handleSaveSettings({ custom_model_groups: nextGroups });
+    return updated;
+  };
+
+  const openIntegrationsPanel = () => {
+    setShowModelPicker(false);
+    setSidebarSettingsRequest({ section: 'integrations', requestedAt: Date.now() });
+    setIsSidebarOpen(true);
   };
 
   const handleLogin = async (email, password) => {
@@ -116,6 +148,7 @@ function App() {
     setAuthState({ loading: false, ...me });
     await loadConversations();
     await loadSettings();
+    await loadModelCatalog();
   };
 
   const handleResetPassword = async (email, resetToken, newPassword) => {
@@ -123,6 +156,7 @@ function App() {
     setAuthState({ loading: false, ...me });
     await loadConversations();
     await loadSettings();
+    await loadModelCatalog();
   };
 
   const handleLogout = async () => {
@@ -213,6 +247,7 @@ function App() {
         if (me.authenticated) {
           loadConversations();
           loadSettings();
+          loadModelCatalog();
           try {
             const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
             if (saved.currentConversationId) setCurrentConversationId(saved.currentConversationId);
@@ -356,6 +391,8 @@ function App() {
     return <LoginScreen onLogin={handleLogin} onResetPassword={handleResetPassword} />;
   }
 
+  const modelMap = new Map(modelCatalog.map((model) => [model.id, model]));
+
   return (
     <div className="app">
       <Sidebar
@@ -372,8 +409,8 @@ function App() {
         onLogout={handleLogout}
         onChangePassword={handleChangePassword}
         isOpen={isSidebarOpen}
-        openSettingsOnOpen={openSettingsOnSidebarOpen}
-        onSettingsOpened={() => setOpenSettingsOnSidebarOpen(false)}
+        settingsRequest={sidebarSettingsRequest}
+        onSettingsRequestHandled={() => setSidebarSettingsRequest(null)}
         sidebarWidth={sidebarWidth}
         onResizeStart={handleResizeStart}
       />
@@ -381,46 +418,13 @@ function App() {
       {isSidebarOpen && <div className="mobile-backdrop" onClick={() => setIsSidebarOpen(false)} />}
 
       <div className="chat-shell">
-        <div className="mobile-topbar">
-          <button
-            className="mobile-menu-btn"
-            onClick={() => setIsSidebarOpen((v) => !v)}
-            aria-label="Open conversations"
-          >
-            {/* Hamburger SVG — crisp, accessible */}
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-              <rect x="2" y="4.5" width="16" height="2" rx="1" fill="currentColor"/>
-              <rect x="2" y="9"   width="16" height="2" rx="1" fill="currentColor"/>
-              <rect x="2" y="13.5" width="16" height="2" rx="1" fill="currentColor"/>
-            </svg>
-          </button>
-
-          <div className="mobile-title-group">
-            <img
-              src="/images/llm-council-icon.svg"
-              alt=""
-              className="mobile-logo-icon"
-              width="22"
-              height="22"
-              aria-hidden="true"
-              onError={(e) => { e.target.style.display = 'none'; }}
-            />
-            <span className="mobile-title">LLM Council</span>
-          </div>
-
-          {/* Settings gear — shared GearIcon component (16×16, Lucide stroke) */}
-          <button
-            className="mobile-settings-btn settings-icon-btn"
-            onClick={() => {
-              setOpenSettingsOnSidebarOpen(true);
-              setIsSidebarOpen(true);
-            }}
-            aria-label="Open settings"
-            title="Settings"
-          >
-            <GearIcon aria-hidden="true" />
-          </button>
-        </div>
+        <AppTopBar
+          settings={settings}
+          modelMap={modelMap}
+          presets={modelPresets}
+          onOpenModels={() => setShowModelPicker(true)}
+          onOpenConversations={() => setIsSidebarOpen((v) => !v)}
+        />
 
         <ChatInterface
           conversation={currentConversation}
@@ -430,12 +434,30 @@ function App() {
           isLoading={isLoading}
           activeRunId={activeRunId}
           settings={settings}
-          onOpenSettings={() => {
-            setOpenSettingsOnSidebarOpen(true);
-            setIsSidebarOpen(true);
-          }}
+          onOpenModels={() => setShowModelPicker(true)}
+          modelMap={modelMap}
+          presets={modelPresets}
         />
       </div>
+
+      <ModelPicker
+        open={showModelPicker}
+        selectedCouncil={settings?.council_models || []}
+        selectedChairman={settings?.chairman_model || ''}
+        activeGroupId={settings?.active_model_group_id || ''}
+        customGroups={settings?.custom_model_groups || []}
+        onApply={async (patch) => {
+          await handleSaveSettings(patch);
+          await loadModelCatalog();
+        }}
+        onSaveCustomGroup={handleSaveCustomGroup}
+        onCurationApproved={(updatedSettings) => {
+          setSettings(updatedSettings);
+          loadModelCatalog();
+        }}
+        onOpenIntegrations={openIntegrationsPanel}
+        onClose={() => setShowModelPicker(false)}
+      />
     </div>
   );
 }

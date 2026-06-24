@@ -39,6 +39,78 @@ export const api = {
     return response.json();
   },
 
+  async getModelStatus() {
+    const response = await fetch(`${API_BASE}/api/models/status`, { credentials: 'include' });
+    if (!response.ok) throw new Error('Failed to load model status');
+    return response.json();
+  },
+
+  async getOpenRouterIntegration() {
+    const response = await fetch(`${API_BASE}/api/integrations/openrouter`, { credentials: 'include' });
+    if (!response.ok) throw new Error('Failed to load OpenRouter integration');
+    return response.json();
+  },
+
+  async updateOpenRouterIntegration(payload) {
+    const response = await fetch(`${API_BASE}/api/integrations/openrouter`, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.detail || 'Failed to update OpenRouter integration');
+    }
+    return response.json();
+  },
+
+  async getModelCatalog(params = {}) {
+    const search = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        search.set(key, value);
+      }
+    });
+    const suffix = search.toString() ? `?${search.toString()}` : '';
+    const response = await fetch(`${API_BASE}/api/models/catalog${suffix}`, { credentials: 'include' });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.detail || 'Failed to load model catalog');
+    }
+    return response.json();
+  },
+
+  async getLatestModelCuration() {
+    const response = await fetch(`${API_BASE}/api/model-curation/latest`, { credentials: 'include' });
+    if (!response.ok) throw new Error('Failed to load model curation status');
+    return response.json();
+  },
+
+  async runModelCuration() {
+    const response = await fetch(`${API_BASE}/api/model-curation/run`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.detail || 'Failed to run model curation');
+    }
+    return response.json();
+  },
+
+  async approveModelCuration(draftId) {
+    const response = await fetch(`${API_BASE}/api/model-curation/${draftId}/approve`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.detail || 'Failed to approve model curation');
+    }
+    return response.json();
+  },
+
   async getConversation(conversationId) {
     const response = await fetch(`${API_BASE}/api/conversations/${conversationId}`, { credentials: 'include' });
     if (!response.ok) throw new Error('Failed to get conversation');

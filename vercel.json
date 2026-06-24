@@ -17,5 +17,11 @@
       "source": "/(.*)",
       "destination": "/index.html"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/model-curation",
+      "schedule": "0 10 * * 0"
+    }
   ]
 }
