@@ -4,6 +4,79 @@ Use this file to record important product, architecture, design, and implementat
 
 ## Decision Log
 
+## 2026-06-24 - BYOK signup launches without invite codes or email confirmation
+
+Decision:
+
+- Hosted signup is open to anyone with the app URL, but every non-owner account must provide a valid OpenRouter API key during account creation.
+- There is no invite code and no email confirmation in this version.
+- Signup validates OpenRouter keys with the non-generative OpenRouter key endpoint before creating the account.
+- Non-owner users never fall back to the server `OPENROUTER_API_KEY`; if their account key is missing, council runs are blocked.
+
+Context:
+
+- The desired onboarding path is low-friction: name optional, email required, OpenRouter key required, and an on-screen account-created confirmation.
+- The app does not yet handle email delivery, email confirmation, managed credits, or billing.
+
+Rationale:
+
+- BYOK keeps model spend attached to the user's own OpenRouter account and avoids Josh-funded access.
+- Requiring a key at signup is the practical gate while email confirmation is intentionally deferred.
+- Removing invite codes avoids a confusing manual distribution step.
+
+Implications:
+
+- User conversations, settings, runs, and OpenRouter integration status must be scoped by authenticated email.
+- Account recovery remains owner-only via recovery code until email-based recovery is added.
+- Public deployments should still be treated as sensitive because anyone with the URL can create an account if they bring a valid key.
+
+Status:
+
+- Active
+
+## 2026-06-24 - OpenRouter onboarding uses a hybrid path before managed credits
+
+Decision:
+
+- Near-term hosted onboarding is BYOK for non-owner users: each user can create an account by pasting their own OpenRouter key.
+- The owner can still use the server environment key or save an account OpenRouter key through API & Integrations.
+- Future OpenRouter OAuth support can reduce paste-key friction before LLM Council offers Josh-managed paid credits.
+- Josh-managed credits, if built, should provision one OpenRouter API key per LLM Council user through OpenRouter Management API, set hard per-user spend limits, and keep a local cost ledger tied to each run.
+- Stripe-backed credit wallets and markup are a later business feature, not part of the first hosted/private launch.
+
+Context:
+
+- OpenRouter supports manual API keys, OAuth PKCE user key connection, Management API key provisioning, per-key spend limits, shared/organization credit pools, and usage/credit APIs.
+- The product explicitly keeps billing, managed credits, and subscriptions out of the MVP.
+- The server `OPENROUTER_API_KEY` is owner-scoped and must not become a shared credential for future users by accident.
+
+Rationale:
+
+- Parent-friendly onboarding eventually needs a simple "create account, buy credits, ask questions" flow, but implementing billing before private hosted launch would broaden auth, privacy, cost, and support risk.
+- User-owned OpenRouter keys are the safest intermediate step because each user's provider spend stays outside Josh's account.
+- Managed credits become viable after multi-user identity, per-run attribution, hard spend caps, and payment/refund rules exist.
+
+Implications:
+
+- Do not add shared-user access to the owner/server OpenRouter key.
+- Multi-user account work must user-scope conversations, settings, sessions, OpenRouter credentials, and run cost records before any managed-credit beta.
+- Managed credits require explicit owner approval before implementation because they affect billing, entitlements, payments, and privacy-sensitive account behavior.
+
+References:
+
+- OpenRouter authentication: https://openrouter.ai/docs/api/reference/authentication
+- OpenRouter OAuth PKCE: https://openrouter.ai/docs/guides/overview/auth/oauth
+- OpenRouter Management API keys: https://openrouter.ai/docs/guides/overview/auth/management-api-keys
+- OpenRouter per-user spend limits: https://openrouter.zendesk.com/hc/en-us/articles/51680687417499-Can-I-create-one-API-key-per-user-with-its-own-spending-limit-Management-API-keys
+
+Owner approval:
+
+- Requested by owner in chat on 2026-06-24.
+
+Status:
+
+- Active
+
 ## 2026-06-24 - Per-answer costs use stored OpenRouter generation IDs
 
 Decision:
@@ -31,7 +104,7 @@ Decision:
 
 Context:
 
-- The app is currently single-owner, but the hosted server key should not become a shared multi-user credential by accident.
+- The app now supports BYOK users, so the hosted server key must not become a shared multi-user credential by accident.
 
 Rationale:
 
@@ -61,6 +134,7 @@ Decision:
 
 - Weekly model curation generates a draft for owner review instead of automatically replacing curated presets.
 - Approving a draft is a separate owner action.
+- The curation process may automatically promote the next curation model for future drafts, starting from `openrouter/auto`.
 
 Context:
 
@@ -78,7 +152,8 @@ Alternatives considered:
 Implications:
 
 - Vercel Cron requires `CRON_SECRET`.
-- `MODEL_CURATION_MODEL` defaults to `openai/gpt-5.5`; `MODEL_CURATION_MAX_USD` caps the optional curation model call.
+- `MODEL_CURATION_MODEL` is only an initial override before app-core curation state exists; `MODEL_CURATION_MAX_USD` caps curation calls when fixed pricing is available.
+- Curator promotion does not apply curated preset changes; preset changes remain approval-gated.
 
 Owner approval:
 
@@ -189,7 +264,8 @@ Status:
 
 Decision:
 
-- Hosted app uses owner email/password auth with password change capability.
+- Hosted app began with owner email/password auth with password change capability.
+- This is superseded for general access by BYOK user signup, while owner bootstrap and recovery-code reset remain owner-only.
 
 Context:
 
@@ -197,7 +273,7 @@ Context:
 
 Rationale:
 
-- Single-owner auth is enough for first hosted launch and avoids multi-user permission complexity.
+- Single-owner auth was enough for the first hosted launch and avoided early permission complexity.
 
 Alternatives considered:
 
@@ -216,7 +292,7 @@ Owner approval:
 
 Status:
 
-- Active
+- Superseded for general access by BYOK signup; owner bootstrap behavior remains active.
 
 ## 2026-06-24 - Hosted password reset uses owner recovery code
 

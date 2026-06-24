@@ -7,6 +7,69 @@ export function displayModelName(modelId, modelMap) {
   return model?.name || shortModelName(modelId);
 }
 
+export function sameModelSet(left = [], right = []) {
+  const leftSet = new Set(left);
+  const rightSet = new Set(right);
+  if (leftSet.size !== rightSet.size) return false;
+  return [...leftSet].every((modelId) => rightSet.has(modelId));
+}
+
+function chairmanMatches(expected, selected) {
+  return !expected || expected === selected;
+}
+
+export function resolveActiveCouncil(settings, presets = []) {
+  const activeId = settings?.active_model_group_id || '';
+  const selected = settings?.council_models || [];
+  const chairman = settings?.chairman_model || '';
+  const custom = settings?.custom_model_groups?.find((group) => group.id === activeId);
+
+  if (custom) {
+    const exact = sameModelSet(custom.models || [], selected) && chairmanMatches(custom.chairman_model, chairman);
+    return {
+      name: custom.name,
+      badge: exact ? 'Custom' : 'Review',
+      custom,
+      selectionMatches: exact,
+      source: 'custom',
+    };
+  }
+
+  const activePreset = presets?.find((item) => item.id === activeId);
+  if (activePreset) {
+    const exact = sameModelSet(activePreset.models || [], selected) && chairmanMatches(activePreset.chairman_model, chairman);
+    return {
+      name: activePreset.name,
+      badge: exact ? (activePreset.badge || 'Curated') : 'Review',
+      preset: activePreset,
+      selectionMatches: exact,
+      selectionMatchesPreset: exact,
+      source: 'preset',
+    };
+  }
+
+  const matched = presets?.find((preset) => (
+    sameModelSet(preset.models || [], selected) && chairmanMatches(preset.chairman_model, chairman)
+  ));
+  if (matched) {
+    return {
+      name: matched.name,
+      badge: matched.badge || 'Curated',
+      preset: matched,
+      selectionMatches: true,
+      selectionMatchesPreset: true,
+      source: 'preset',
+    };
+  }
+
+  return {
+    name: 'Custom Council',
+    badge: 'Custom',
+    selectionMatches: true,
+    source: 'manual',
+  };
+}
+
 export function formatContext(tokens) {
   if (!tokens) return 'Unknown context';
   if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(tokens % 1_000_000 === 0 ? 0 : 1)}M ctx`;

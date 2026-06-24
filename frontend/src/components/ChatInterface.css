@@ -1025,6 +1025,19 @@
   font-weight: 600;
 }
 
+.send-error {
+  margin: 10px 18px 0;
+  padding: 10px 12px;
+  border: 1px solid #f1b8b8;
+  border-radius: 6px;
+  background: #fff3f3;
+  color: #a33434;
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: center;
+  flex-shrink: 0;
+}
+
 /* Unconfigured state: amber callout */
 .onboarding-hint--warn {
   color: #8a6a20;
@@ -1111,6 +1124,12 @@
 
 :root[data-theme='dark'] .onboarding-hint--warn strong {
   color: #d4aa50 !important;
+}
+
+:root[data-theme='dark'] .send-error {
+  background: #351f25;
+  border-color: #70404b;
+  color: #ffb4c0;
 }
 
 /* Mobile: slightly more compact, extra bottom padding for tap target */

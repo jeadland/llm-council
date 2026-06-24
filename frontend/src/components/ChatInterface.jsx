@@ -1,26 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ChevronDown } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
 import Stage1 from './Stage1';
 import Stage2 from './Stage2';
 import Stage3 from './Stage3';
-import { displayModelName, estimateCouncilCosts, presetNormalCost, shortModelName } from '../modelUtils';
+import MarkdownContent from './MarkdownContent';
+import {
+  displayModelName,
+  estimateCouncilCosts,
+  presetNormalCost,
+  resolveActiveCouncil,
+  shortModelName,
+} from '../modelUtils';
 import './ChatInterface.css';
-
-function activeCouncilName(settings, presets) {
-  const activeId = settings?.active_model_group_id;
-  const custom = settings?.custom_model_groups?.find((group) => group.id === activeId);
-  if (custom) return { name: custom.name, badge: 'Custom' };
-  const preset = presets?.find((item) => item.id === activeId);
-  if (preset) return { name: preset.name, badge: preset.badge || 'Curated', preset };
-  const matched = presets?.find((presetItem) => {
-    const models = presetItem.models || [];
-    const selected = settings?.council_models || [];
-    return models.length === selected.length && models.every((model) => selected.includes(model));
-  });
-  if (matched) return { name: matched.name, badge: matched.badge || 'Curated', preset: matched };
-  return { name: 'Custom Council', badge: 'Custom' };
-}
 
 const promptStarters = [
   'Compare the strongest arguments on both sides.',
@@ -39,14 +30,19 @@ function EmptyStartSurface({
 }) {
   const selectedModels = settings?.council_models || [];
   const chairman = settings?.chairman_model || '';
-  const active = activeCouncilName(settings, presets);
+  const active = resolveActiveCouncil(settings, presets);
   const fallbackEstimate = estimateCouncilCosts(selectedModels, chairman, modelMap);
-  const estimate = presetNormalCost(active.preset) || fallbackEstimate?.display || 'Pricing unavailable';
+  const presetEstimate = active.selectionMatchesPreset ? presetNormalCost(active.preset) : null;
+  const estimate = presetEstimate || fallbackEstimate?.display || 'Pricing unavailable';
   const modelCountLabel = `${selectedModels.length} model${selectedModels.length === 1 ? '' : 's'} active`;
+  const catalogLoaded = (modelMap?.size || 0) > 0;
   const renderModelChips = () => (
     selectedModels.length > 0 ? (
       selectedModels.map((modelId) => (
-        <span className="empty-model-chip" key={modelId}>
+        <span
+          className={`empty-model-chip${catalogLoaded && !modelMap.has(modelId) ? ' empty-model-chip-muted' : ''}`}
+          key={modelId}
+        >
           {displayModelName(modelId, modelMap).replace(/^.*?:\s*/, '')}
         </span>
       ))
@@ -179,8 +175,10 @@ export default function ChatInterface({
   onCreateConversation,
   isLoading,
   activeRunId,
+  sendError,
   settings,
   onOpenModels,
+  onOpenIntegrations,
   modelMap,
   presets,
 }) {
@@ -276,9 +274,7 @@ export default function ChatInterface({
                 <div className="user-message">
                   <div className="message-label">You</div>
                   <div className="message-content">
-                    <div className="markdown-content">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
-                    </div>
+                    <MarkdownContent>{msg.content}</MarkdownContent>
                   </div>
                 </div>
               ) : (
@@ -430,6 +426,24 @@ export default function ChatInterface({
           </div>
         </div>
       </form>
+
+      {sendError && (
+        <div className="send-error" role="alert">
+          {sendError}
+          {sendError.includes('OpenRouter') && onOpenIntegrations && (
+            <>
+              {' '}
+              <button
+                type="button"
+                className="onboarding-hint-settings-link"
+                onClick={onOpenIntegrations}
+              >
+                Open API settings
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Onboarding hint — always visible, more prominent when no models configured */}
       {(() => {

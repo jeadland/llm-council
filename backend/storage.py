@@ -11,14 +11,17 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 from .config import DATA_DIR, COUNCIL_MODELS, CHAIRMAN_MODEL, PREMIER_MODELS
-from .openrouter import MODEL_PRESETS, model_lab, normalize_model_id
+from .openrouter import normalize_model_id
 
 RUNS_DIR = "data/runs"
 SETTINGS_PATH = "data/settings.json"
+USER_SETTINGS_PATH = "data/user-settings.json"
 AUTH_USERS_PATH = "data/auth-users.json"
 AUTH_SESSIONS_DIR = "data/auth-sessions"
 INTEGRATIONS_PATH = "data/integrations.json"
+MODEL_CURATION_STATE_PATH = "data/model-curation-state.json"
 REDIS_PREFIX = os.getenv("REDIS_KEY_PREFIX", "llm-council")
+DEFAULT_CURATION_MODEL = "openrouter/auto"
 
 
 def _using_redis() -> bool:
@@ -67,6 +70,18 @@ def _key(*parts: str) -> str:
     return ":".join([REDIS_PREFIX, *parts])
 
 
+def _owner_scope(owner_email: Optional[str]) -> str:
+    return (owner_email or "local-owner").lower().strip()
+
+
+def _legacy_owner_scope() -> str:
+    return (os.getenv("ADMIN_EMAIL") or "local-owner").lower().strip()
+
+
+def _is_legacy_owner_scope(owner_email: Optional[str]) -> bool:
+    return _owner_scope(owner_email) == _legacy_owner_scope()
+
+
 def _json_get(key: str) -> Optional[Dict[str, Any]]:
     raw = _redis_command("GET", key)
     if raw is None:
@@ -102,16 +117,67 @@ def _canonicalize_model(model: Optional[str], available: Optional[List[str]] = N
     return normalized
 
 
-def _preset_candidate_ids(preset: Dict[str, Any]) -> set[str]:
-    ids = set()
-    for slot in preset.get("slots", []):
-        for candidate in slot:
-            if canonical := _canonicalize_model(candidate):
-                ids.add(canonical)
-    for candidate in preset.get("chairman_candidates", []):
-        if canonical := _canonicalize_model(candidate):
-            ids.add(canonical)
-    return ids
+def _canonicalize_models(models: Optional[List[str]]) -> List[str]:
+    canonical_models = []
+    seen = set()
+    for model in models or []:
+        canonical = _canonicalize_model(model)
+        if canonical and canonical not in seen:
+            canonical_models.append(canonical)
+            seen.add(canonical)
+    return canonical_models
+
+
+def _initial_curation_model() -> str:
+    return _normalize_curation_model(os.getenv("MODEL_CURATION_MODEL")) or DEFAULT_CURATION_MODEL
+
+
+def _normalize_curation_model(model: Optional[str]) -> Optional[str]:
+    if not isinstance(model, str):
+        return None
+    raw = model.strip()
+    if not raw:
+        return None
+    if raw == "openrouter/auto":
+        return raw
+    if raw.startswith("openrouter/openrouter/"):
+        return raw[len("openrouter/"):]
+    if raw.startswith("openrouter/") and raw.count("/") >= 2:
+        return raw[len("openrouter/"):]
+    if "/" in raw:
+        return raw
+    return None
+
+
+def _default_model_curation_state() -> Dict[str, Any]:
+    model = _initial_curation_model()
+    return {
+        "current_curation_model": model,
+        "fallback_curation_model": DEFAULT_CURATION_MODEL,
+        "last_draft_id": None,
+        "last_success_at": None,
+        "last_promoted_at": None,
+        "promotion_history": [],
+        "failure_count": 0,
+    }
+
+
+def _sanitize_model_curation_state(state: Dict[str, Any]) -> Dict[str, Any]:
+    default = _default_model_curation_state()
+    fallback = _normalize_curation_model(state.get("fallback_curation_model")) or default["fallback_curation_model"]
+    current = _normalize_curation_model(state.get("current_curation_model")) or fallback
+    history = state.get("promotion_history")
+    if not isinstance(history, list):
+        history = []
+    return {
+        "current_curation_model": current,
+        "fallback_curation_model": fallback,
+        "last_draft_id": state.get("last_draft_id"),
+        "last_success_at": state.get("last_success_at"),
+        "last_promoted_at": state.get("last_promoted_at"),
+        "promotion_history": history[-25:],
+        "failure_count": max(0, int(state.get("failure_count") or 0)),
+    }
 
 
 def _sanitize_settings(settings: Dict[str, Any]) -> Dict[str, Any]:
@@ -120,17 +186,9 @@ def _sanitize_settings(settings: Dict[str, Any]) -> Dict[str, Any]:
         for model in settings.get("available_models", PREMIER_MODELS)
         if (normalized := normalize_model_id(model))
     ] or PREMIER_MODELS
-    council = [
-        canonical
-        for model in settings.get("council_models", [])
-        if (canonical := _canonicalize_model(model))
-    ]
+    council = _canonicalize_models(settings.get("council_models", []))
     if not council:
-        council = [
-            canonical
-            for model in COUNCIL_MODELS
-            if (canonical := _canonicalize_model(model))
-        ] or COUNCIL_MODELS
+        council = _canonicalize_models(COUNCIL_MODELS) or COUNCIL_MODELS
 
     chairman = _canonicalize_model(settings.get("chairman_model"))
     if chairman is None:
@@ -144,14 +202,12 @@ def _sanitize_settings(settings: Dict[str, Any]) -> Dict[str, Any]:
     for group in settings.get("custom_model_groups", []) or []:
         if not isinstance(group, dict):
             continue
-        models = [
-            canonical
-            for model in group.get("models", [])
-            if (canonical := _canonicalize_model(model))
-        ]
+        models = _canonicalize_models(group.get("models", []))
         group_chairman = _canonicalize_model(group.get("chairman_model"))
-        if not group.get("name") or not models or not group_chairman:
+        if not group.get("name") or not models:
             continue
+        if group_chairman not in models:
+            group_chairman = models[0]
         custom_groups.append({
             "id": str(group.get("id") or "").strip(),
             "name": str(group.get("name")).strip(),
@@ -172,39 +228,9 @@ def _sanitize_settings(settings: Dict[str, Any]) -> Dict[str, Any]:
     if active_custom:
         council = active_custom["models"]
         chairman = active_custom["chairman_model"]
-    else:
-        preset_definitions = curated_model_presets or MODEL_PRESETS
-        active_preset = next(
-            (preset for preset in preset_definitions if preset.get("id") == active_group_id),
-            None,
-        )
-        if active_preset:
-            available_ids = set(available) | _preset_candidate_ids(active_preset)
-            selected = []
-            selected_labs = set()
-            for slot in active_preset.get("slots", []):
-                match = next(
-                    (
-                        canonical
-                        for candidate in slot
-                        if (canonical := _canonicalize_model(candidate)) in available_ids
-                        and model_lab(canonical) not in selected_labs
-                    ),
-                    None,
-                )
-                if match and match not in selected:
-                    selected.append(match)
-                    selected_labs.add(model_lab(match))
-            if selected:
-                council = selected
-                chairman = next(
-                    (
-                        canonical
-                        for candidate in active_preset.get("chairman_candidates", [])
-                        if (canonical := _canonicalize_model(candidate)) in selected
-                    ),
-                    selected[0],
-                )
+
+    if chairman not in council:
+        chairman = council[0]
 
     return {
         "available_models": available,
@@ -238,7 +264,7 @@ def get_conversation_path(conversation_id: str) -> str:
     return os.path.join(DATA_DIR, f"{conversation_id}.json")
 
 
-def create_conversation(conversation_id: str) -> Dict[str, Any]:
+def create_conversation(conversation_id: str, owner_email: Optional[str] = None) -> Dict[str, Any]:
     """
     Create a new conversation.
 
@@ -251,6 +277,7 @@ def create_conversation(conversation_id: str) -> Dict[str, Any]:
     conversation = {
         "id": conversation_id,
         "created_at": datetime.utcnow().isoformat(),
+        "owner_email": _owner_scope(owner_email),
         "title": "New Conversation",
         "pinned": False,
         "messages": []
@@ -271,7 +298,7 @@ def create_conversation(conversation_id: str) -> Dict[str, Any]:
     return conversation
 
 
-def get_conversation(conversation_id: str) -> Optional[Dict[str, Any]]:
+def get_conversation(conversation_id: str, owner_email: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """
     Load a conversation from storage.
 
@@ -282,7 +309,10 @@ def get_conversation(conversation_id: str) -> Optional[Dict[str, Any]]:
         Conversation dict or None if not found
     """
     if _using_redis():
-        return _json_get(_key("conversation", conversation_id))
+        data = _json_get(_key("conversation", conversation_id))
+        if data and owner_email and not _belongs_to_scope(data, owner_email):
+            return None
+        return data
 
     path = get_conversation_path(conversation_id)
 
@@ -290,7 +320,10 @@ def get_conversation(conversation_id: str) -> Optional[Dict[str, Any]]:
         return None
 
     with open(path, 'r') as f:
-        return json.load(f)
+        data = json.load(f)
+    if owner_email and not _belongs_to_scope(data, owner_email):
+        return None
+    return data
 
 
 def save_conversation(conversation: Dict[str, Any]):
@@ -312,7 +345,16 @@ def save_conversation(conversation: Dict[str, Any]):
         json.dump(conversation, f, indent=2)
 
 
-def list_conversations() -> List[Dict[str, Any]]:
+def _belongs_to_scope(data: Dict[str, Any], owner_email: Optional[str]) -> bool:
+    if not owner_email:
+        return True
+    data_owner = data.get("owner_email")
+    if data_owner:
+        return _owner_scope(data_owner) == _owner_scope(owner_email)
+    return _is_legacy_owner_scope(owner_email)
+
+
+def list_conversations(owner_email: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     List all conversations (metadata only).
 
@@ -325,6 +367,8 @@ def list_conversations() -> List[Dict[str, Any]]:
         for conversation_id in ids:
             data = get_conversation(conversation_id)
             if not data:
+                continue
+            if owner_email and not _belongs_to_scope(data, owner_email):
                 continue
             conversations.append({
                 "id": data.get("id", conversation_id),
@@ -345,6 +389,8 @@ def list_conversations() -> List[Dict[str, Any]]:
                 path = os.path.join(DATA_DIR, filename)
                 with open(path, 'r') as f:
                     data = json.load(f)
+                if owner_email and not _belongs_to_scope(data, owner_email):
+                    continue
                 conversations.append({
                     "id": data.get("id", filename[:-5]),
                     "created_at": data.get("created_at", "1970-01-01T00:00:00Z"),
@@ -519,10 +565,16 @@ def get_run_path(run_id: str) -> str:
     return os.path.join(RUNS_DIR, f"{run_id}.json")
 
 
-def create_run(run_id: str, conversation_id: str, content: str) -> Dict[str, Any]:
+def create_run(
+    run_id: str,
+    conversation_id: str,
+    content: str,
+    owner_email: Optional[str] = None,
+) -> Dict[str, Any]:
     run = {
         "run_id": run_id,
         "conversation_id": conversation_id,
+        "owner_email": _owner_scope(owner_email),
         "content": content,
         "status": "queued",
         "created_at": datetime.utcnow().isoformat(),
@@ -583,12 +635,17 @@ def update_run(run_id: str, patch: Dict[str, Any]) -> Dict[str, Any]:
     return run
 
 
-def get_latest_active_run_for_conversation(conversation_id: str) -> Optional[Dict[str, Any]]:
+def get_latest_active_run_for_conversation(
+    conversation_id: str,
+    owner_email: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
     if _using_redis():
         latest = None
         for run_id in _redis_command("SMEMBERS", _key("run_ids")) or []:
             run = get_run(run_id)
             if not run or run.get("conversation_id") != conversation_id:
+                continue
+            if owner_email and not _belongs_to_scope(run, owner_email):
                 continue
             if run.get("status") in {"queued", "running"}:
                 if latest is None or run.get("created_at", "") > latest.get("created_at", ""):
@@ -605,13 +662,28 @@ def get_latest_active_run_for_conversation(conversation_id: str) -> Optional[Dic
             run = json.load(f)
         if run.get("conversation_id") != conversation_id:
             continue
+        if owner_email and not _belongs_to_scope(run, owner_email):
+            continue
         if run.get("status") in {"queued", "running"}:
             if latest is None or run.get("created_at", "") > latest.get("created_at", ""):
                 latest = run
     return latest
 
 
-def get_settings() -> Dict[str, Any]:
+def _read_user_settings() -> Dict[str, Any]:
+    if not os.path.exists(USER_SETTINGS_PATH):
+        return {}
+    with open(USER_SETTINGS_PATH, "r") as f:
+        return json.load(f)
+
+
+def _write_user_settings(settings_by_scope: Dict[str, Any]):
+    ensure_data_dir()
+    with open(USER_SETTINGS_PATH, "w") as f:
+        json.dump(settings_by_scope, f, indent=2)
+
+
+def get_settings(owner_email: Optional[str] = None) -> Dict[str, Any]:
     default = {
         "available_models": PREMIER_MODELS,
         "council_models": COUNCIL_MODELS,
@@ -623,8 +695,15 @@ def get_settings() -> Dict[str, Any]:
         "last_approved_curation_id": None,
     }
     if _using_redis():
+        if owner_email and not _is_legacy_owner_scope(owner_email):
+            current = _json_get(_key("settings", _owner_scope(owner_email))) or {}
+            return _sanitize_settings({**default, **current})
         current = _json_get(_key("settings")) or {}
         return _sanitize_settings({**default, **current})
+
+    if owner_email and not _is_legacy_owner_scope(owner_email):
+        user_settings = _read_user_settings().get(_owner_scope(owner_email), {})
+        return _sanitize_settings({**default, **user_settings})
 
     if not os.path.exists(SETTINGS_PATH):
         return _sanitize_settings(default)
@@ -635,12 +714,21 @@ def get_settings() -> Dict[str, Any]:
     return _sanitize_settings({**default, **current})
 
 
-def save_settings(settings: Dict[str, Any]) -> Dict[str, Any]:
-    current = get_settings()
+def save_settings(settings: Dict[str, Any], owner_email: Optional[str] = None) -> Dict[str, Any]:
+    current = get_settings(owner_email)
     final = _sanitize_settings({**current, **settings})
 
     if _using_redis():
+        if owner_email and not _is_legacy_owner_scope(owner_email):
+            _json_set(_key("settings", _owner_scope(owner_email)), final)
+            return final
         _json_set(_key("settings"), final)
+        return final
+
+    if owner_email and not _is_legacy_owner_scope(owner_email):
+        user_settings = _read_user_settings()
+        user_settings[_owner_scope(owner_email)] = final
+        _write_user_settings(user_settings)
         return final
 
     ensure_data_dir()
@@ -648,6 +736,34 @@ def save_settings(settings: Dict[str, Any]) -> Dict[str, Any]:
     with open(SETTINGS_PATH, "w") as f:
         json.dump(final, f, indent=2)
 
+    return final
+
+
+def get_model_curation_state() -> Dict[str, Any]:
+    default = _default_model_curation_state()
+    if _using_redis():
+        current = _json_get(_key("model_curation", "state")) or {}
+        return _sanitize_model_curation_state({**default, **current})
+
+    if not os.path.exists(MODEL_CURATION_STATE_PATH):
+        return _sanitize_model_curation_state(default)
+
+    with open(MODEL_CURATION_STATE_PATH, "r") as f:
+        current = json.load(f)
+    return _sanitize_model_curation_state({**default, **current})
+
+
+def save_model_curation_state(state: Dict[str, Any]) -> Dict[str, Any]:
+    current = get_model_curation_state()
+    final = _sanitize_model_curation_state({**current, **state})
+
+    if _using_redis():
+        _json_set(_key("model_curation", "state"), final)
+        return final
+
+    ensure_data_dir()
+    with open(MODEL_CURATION_STATE_PATH, "w") as f:
+        json.dump(final, f, indent=2)
     return final
 
 
@@ -805,10 +921,6 @@ def clear_login_attempts(email: str):
         return
 
     _redis_command("DEL", _key("auth", "attempts", email.lower()))
-
-
-def _owner_scope(owner_email: Optional[str]) -> str:
-    return (owner_email or "local-owner").lower().strip()
 
 
 def _mask_secret(value: str) -> str:

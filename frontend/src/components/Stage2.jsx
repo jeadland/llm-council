@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import ReactMarkdown from 'react-markdown';
+import MarkdownContent from './MarkdownContent';
 import './Stage2.css';
 
 function formatModelLabel(model) {
@@ -72,11 +72,9 @@ export default function Stage2({ rankings, labelToModel, aggregateRankings, defa
             <div className="ranking-model">
               {formatModelLabel(rankings[activeTab].model)}
             </div>
-            <div className="ranking-content markdown-content">
-              <ReactMarkdown>
-                {deAnonymizeText(rankings[activeTab].ranking, labelToModel)}
-              </ReactMarkdown>
-            </div>
+            <MarkdownContent className="ranking-content">
+              {deAnonymizeText(rankings[activeTab].ranking, labelToModel)}
+            </MarkdownContent>
 
             {rankings[activeTab].parsed_ranking &&
              rankings[activeTab].parsed_ranking.length > 0 && (

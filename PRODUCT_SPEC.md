@@ -14,7 +14,7 @@ LLM Council lets the owner ask one question to a panel of AI models, inspect the
 | --- | --- | --- |
 | Primary user | Josh Adland, private owner/operator | Better answers through model disagreement, transparent ranking, and reusable conversations |
 | Admin/owner | Same as primary user | Private access, model selection, password rotation, safe deployment |
-| Future secondary users | Not currently in scope | Could require multi-user auth and permissions later |
+| BYOK beta users | Invited or trusted users with their own OpenRouter account | Create an account, connect their own API key, and keep private conversations/settings |
 
 ## Core Problem
 
@@ -75,6 +75,27 @@ Success criteria:
 - Password change invalidates old password and sessions.
 - Conversations/settings persist through reload and deploy.
 
+### BYOK Account Onboarding
+
+User goal: create an account without email confirmation and use the council with the user's own OpenRouter key.
+
+Steps:
+
+1. Open the hosted app.
+2. Choose Create account.
+3. Enter optional name, required email, password, and OpenRouter API key.
+4. Use the embedded OpenRouter tutorial links to create or find a key if needed.
+5. See an on-screen account-created confirmation.
+6. Continue into the app.
+
+Success criteria:
+
+- Email confirmation is not required in this version.
+- OpenRouter key is required before account creation completes.
+- Key validation uses a non-generative OpenRouter key endpoint.
+- Non-owner users cannot use Josh's/server OpenRouter key.
+- Conversations, settings, runs, and integration status are private to the authenticated user.
+
 ## Functional Requirements
 
 | Area | Requirement | Priority | Notes |
@@ -83,9 +104,10 @@ Success criteria:
 | Transparency | Show raw answers, raw rankings, parsed rankings, aggregate rankings | High | Core trust feature |
 | Settings | Configure council and chairman | High | Persisted |
 | Conversation storage | Store conversation history locally and hosted | High | JSON local, Redis hosted |
-| Private auth | Restrict hosted access to owner | High | Single-user for now |
-| Password change | Owner can rotate launch password | High | Required before public URL use |
+| Private auth | Restrict hosted access to authenticated users | High | Owner plus BYOK users |
+| Password change | Users can rotate passwords | High | Required before public URL use |
 | Password reset | Owner can recover access from login screen | High | Uses server-side recovery code, not email |
+| BYOK signup | Users can create accounts with their own OpenRouter key | High | No invite code and no email confirmation for this version |
 | Branch split | Keep local/OpenClaw branch separate from Vercel branch | High | `main` vs `web/vercel` |
 
 ## Non-Functional Requirements
@@ -102,7 +124,7 @@ Success criteria:
 
 ## Non-Goals
 
-- Multi-user accounts and role management.
+- Email confirmation, email reset links, billing, managed credits, and role-management UI.
 - Public marketing site.
 - Billing or subscriptions.
 - Full analytics/reporting over model performance.
@@ -112,7 +134,7 @@ Success criteria:
 
 - Tech stack: React/Vite frontend, FastAPI backend.
 - Deployment target: local LAN and Vercel.
-- Authentication: single-owner email/password for hosted web.
+- Authentication: owner email/password plus BYOK user signup for hosted web.
 - Data storage: local JSON for dev, Upstash Redis for hosted.
 - Approval gates: auth, persistence, paid services, model/vendor changes, and production deployment require explicit owner approval.
 

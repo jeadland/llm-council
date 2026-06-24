@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
-import ReactMarkdown from 'react-markdown';
 import { ClipboardCopy, Check } from 'lucide-react';
 import { formatMoney } from '../modelUtils';
+import MarkdownContent from './MarkdownContent';
 import './Stage3.css';
 
 function CopyButton({ text }) {
@@ -208,9 +208,9 @@ export default function Stage3({ finalResponse, costSummary }) {
           <CostSummary costSummary={costSummary} />
           <CopyButton text={finalResponse.response} />
         </div>
-        <div className="final-text markdown-content">
-          <ReactMarkdown>{finalResponse.response}</ReactMarkdown>
-        </div>
+        <MarkdownContent className="final-text">
+          {finalResponse.response}
+        </MarkdownContent>
         <div className="copy-row copy-row-bottom">
           <CopyButton text={finalResponse.response} />
         </div>

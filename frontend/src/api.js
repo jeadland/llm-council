@@ -144,7 +144,10 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content }),
     });
-    if (!response.ok) throw new Error('Failed to create run');
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.detail || 'Failed to create run');
+    }
     return response.json();
   },
 
@@ -245,6 +248,25 @@ export const api = {
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));
       throw new Error(data.detail || 'Login failed');
+    }
+    return response.json();
+  },
+
+  async signup({ name, email, password, openRouterApiKey }) {
+    const response = await fetch(`${API_BASE}/api/auth/signup`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        email,
+        password,
+        openrouter_api_key: openRouterApiKey,
+      }),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.detail || 'Account creation failed');
     }
     return response.json();
   },

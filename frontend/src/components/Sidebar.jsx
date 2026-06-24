@@ -148,8 +148,10 @@ export default function Sidebar({
     }
   };
 
-  const ownerLabel = auth?.email || (auth?.auth_required ? 'Owner account' : 'Local session');
-  const ownerInitial = (auth?.email || 'L').trim().slice(0, 1).toUpperCase();
+  const accountTitle = auth?.role === 'owner' ? 'Owner' : 'Account';
+  const ownerLabel = auth?.name || auth?.email || (auth?.auth_required ? 'Account' : 'Local session');
+  const accountSubLabel = auth?.name && auth?.email ? auth.email : ownerLabel;
+  const ownerInitial = (auth?.name || auth?.email || 'L').trim().slice(0, 1).toUpperCase();
 
   return (
     <div
@@ -214,7 +216,7 @@ export default function Sidebar({
                         {openRouterStatus?.configured
                           ? openRouterStatus.source === 'environment'
                             ? 'Configured by server environment'
-                            : `Saved for this account (${openRouterStatus.masked_key})`
+                            : `Your key is saved (${openRouterStatus.masked_key})`
                           : 'No key saved'}
                       </span>
                     </div>
@@ -223,8 +225,8 @@ export default function Sidebar({
                     </span>
                   </div>
                   <p>
-                    Used for direct OpenRouter council runs when the local OpenClaw proxy is unavailable.
-                    The full key is stored server-side only and is never returned to the browser.
+                    Your OpenRouter key pays for your council runs. The full key is stored server-side
+                    only and is never returned to the browser.
                   </p>
                   <label className="account-field">
                     <span>OpenRouter API key</span>
@@ -477,8 +479,8 @@ export default function Sidebar({
                 {auth?.email ? ownerInitial : <UserCircle size={18} />}
               </div>
               <div className="sidebar-owner-copy">
-                <span className="sidebar-owner-title">Owner</span>
-                <span className="sidebar-owner-email">{ownerLabel}</span>
+                <span className="sidebar-owner-title">{accountTitle}</span>
+                <span className="sidebar-owner-email">{accountSubLabel}</span>
               </div>
             </div>
 

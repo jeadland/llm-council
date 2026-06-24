@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import ReactMarkdown from 'react-markdown';
+import MarkdownContent from './MarkdownContent';
 import './Stage1.css';
 
 function formatModelLabel(model) {
@@ -52,9 +52,9 @@ export default function Stage1({ responses, defaultCollapsed = false }) {
 
           <div className="tab-content">
             <div className="model-name">{formatModelLabel(responses[activeTab].model)}</div>
-            <div className="response-text markdown-content">
-              <ReactMarkdown>{responses[activeTab].response}</ReactMarkdown>
-            </div>
+            <MarkdownContent className="response-text">
+              {responses[activeTab].response}
+            </MarkdownContent>
           </div>
         </>
       )}

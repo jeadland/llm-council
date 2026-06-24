@@ -1,21 +1,12 @@
 import { ChevronDown, Layers3, Menu, Sparkles } from 'lucide-react';
-import { displayModelName, estimateCouncilCosts, presetNormalCost, shortModelName } from '../modelUtils';
+import {
+  displayModelName,
+  estimateCouncilCosts,
+  presetNormalCost,
+  resolveActiveCouncil,
+  shortModelName,
+} from '../modelUtils';
 import './AppTopBar.css';
-
-function activeCouncilName(settings, presets) {
-  const activeId = settings?.active_model_group_id;
-  const custom = settings?.custom_model_groups?.find((group) => group.id === activeId);
-  if (custom) return { name: custom.name, badge: 'Custom' };
-  const preset = presets?.find((item) => item.id === activeId);
-  if (preset) return { name: preset.name, badge: preset.badge || 'Curated', preset };
-  const matched = presets?.find((presetItem) => {
-    const models = presetItem.models || [];
-    const selected = settings?.council_models || [];
-    return models.length === selected.length && models.every((model) => selected.includes(model));
-  });
-  if (matched) return { name: matched.name, badge: matched.badge || 'Curated', preset: matched };
-  return { name: 'Custom Council', badge: 'Custom' };
-}
 
 export default function AppTopBar({
   settings,
@@ -26,9 +17,11 @@ export default function AppTopBar({
 }) {
   const selectedModels = settings?.council_models || [];
   const chairman = settings?.chairman_model || '';
-  const active = activeCouncilName(settings, presets);
+  const active = resolveActiveCouncil(settings, presets);
   const fallbackEstimate = estimateCouncilCosts(selectedModels, chairman, modelMap);
-  const estimate = presetNormalCost(active.preset) || fallbackEstimate?.display || 'Pricing unavailable';
+  const presetEstimate = active.selectionMatchesPreset ? presetNormalCost(active.preset) : null;
+  const estimate = presetEstimate || fallbackEstimate?.display || 'Pricing unavailable';
+  const catalogLoaded = (modelMap?.size || 0) > 0;
 
   return (
     <header className="app-topbar">
@@ -55,7 +48,10 @@ export default function AppTopBar({
 
         <div className="app-topbar-models" aria-label="Selected council models">
           {selectedModels.map((modelId) => (
-            <span className="app-topbar-chip" key={modelId}>
+            <span
+              className={`app-topbar-chip${catalogLoaded && !modelMap.has(modelId) ? ' app-topbar-chip-muted' : ''}`}
+              key={modelId}
+            >
               {displayModelName(modelId, modelMap).replace(/^.*?:\s*/, '')}
             </span>
           ))}

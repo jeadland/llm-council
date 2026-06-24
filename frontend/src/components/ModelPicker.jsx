@@ -155,6 +155,7 @@ export default function ModelPicker({
   const [presets, setPresets] = useState([]);
   const [providers, setProviders] = useState([]);
   const [curationDraft, setCurationDraft] = useState(null);
+  const [curationState, setCurationState] = useState(null);
   const [loading, setLoading] = useState(false);
   const [curationBusy, setCurationBusy] = useState(false);
   const [error, setError] = useState('');
@@ -194,6 +195,7 @@ export default function ModelPicker({
         setPresets(catalogData.presets || []);
         setProviders(catalogData.providers || []);
         setCurationDraft(curationData.draft || null);
+        setCurationState(curationData.curation_state || null);
       } catch (e) {
         if (!canceled) setError(e.message || 'Failed to load model catalog.');
       } finally {
@@ -284,6 +286,7 @@ export default function ModelPicker({
     try {
       const data = await api.runModelCuration();
       setCurationDraft(data.draft);
+      setCurationState(data.curation_state || null);
       setActiveTab('review');
     } catch (e) {
       setError(e.message || 'Failed to run model curation.');
@@ -507,6 +510,9 @@ export default function ModelPicker({
                 <div>
                   <h3>Curation Review</h3>
                   <p>Weekly drafts are prepared for review and do not change curated presets until approved.</p>
+                  {curationState?.current_curation_model && (
+                    <p>Current curator: {curationState.current_curation_model}</p>
+                  )}
                 </div>
                 <button type="button" className="model-picker-primary" onClick={runCuration} disabled={curationBusy}>
                   {curationBusy ? 'Running...' : 'Run draft now'}
@@ -520,6 +526,9 @@ export default function ModelPicker({
                     <span>Status: {curationDraft.status}</span>
                     <span>Curation model: {curationDraft.curation_model}</span>
                     <span>Next curation model: {curationDraft.next_curation_model}</span>
+                    {curationDraft.next_curator_status && (
+                      <span>Next curator: {curationDraft.next_curator_status.replace(/_/g, ' ')}</span>
+                    )}
                     {curationDraft.estimated_llm_cost !== null && (
                       <span>Estimated review cost: ${Number(curationDraft.estimated_llm_cost).toFixed(4)}</span>
                     )}

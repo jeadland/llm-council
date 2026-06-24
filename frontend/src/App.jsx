@@ -24,6 +24,7 @@ function App() {
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [modelCatalog, setModelCatalog] = useState([]);
   const [modelPresets, setModelPresets] = useState([]);
+  const [sendError, setSendError] = useState('');
   const [authState, setAuthState] = useState({
     loading: true,
     authenticated: false,
@@ -173,7 +174,24 @@ function App() {
   const handleLogin = async (email, password) => {
     const me = await api.login(email, password);
     setAuthState({ loading: false, ...me });
+    setCurrentConversationId(null);
+    setCurrentConversation(null);
+    setActiveRunId(null);
     await loadConversations();
+    await loadSettings();
+    await loadModelCatalog();
+  };
+
+  const handleSignup = async (payload) => {
+    return api.signup(payload);
+  };
+
+  const handleSignupContinue = async (me) => {
+    setAuthState({ loading: false, ...me });
+    setConversations([]);
+    setCurrentConversationId(null);
+    setCurrentConversation(null);
+    setActiveRunId(null);
     await loadSettings();
     await loadModelCatalog();
   };
@@ -199,6 +217,7 @@ function App() {
     setCurrentConversation(null);
     setActiveRunId(null);
     setIsLoading(false);
+    setSendError('');
     localStorage.removeItem(STORAGE_KEY);
   };
 
@@ -394,6 +413,7 @@ function App() {
 
   const handleSendMessage = async (content) => {
     if (!currentConversationId || isLoading) return;
+    setSendError('');
 
     // Optimistic user message only; assistant progress comes from run snapshots
     setCurrentConversation((prev) => ({
@@ -406,6 +426,7 @@ function App() {
       await monitorRun(currentConversationId, created.run_id);
     } catch (error) {
       console.error('Failed to send message:', error);
+      setSendError(error.message || 'Failed to send message');
       setIsLoading(false);
     }
   };
@@ -420,7 +441,14 @@ function App() {
   }
 
   if (authState.auth_required && !authState.authenticated) {
-    return <LoginScreen onLogin={handleLogin} onResetPassword={handleResetPassword} />;
+    return (
+      <LoginScreen
+        onLogin={handleLogin}
+        onSignup={handleSignup}
+        onSignupContinue={handleSignupContinue}
+        onResetPassword={handleResetPassword}
+      />
+    );
   }
 
   const modelMap = new Map(modelCatalog.map((model) => [model.id, model]));
@@ -465,8 +493,10 @@ function App() {
           onCreateConversation={handleNewConversation}
           isLoading={isLoading}
           activeRunId={activeRunId}
+          sendError={sendError}
           settings={settings}
           onOpenModels={() => setShowModelPicker(true)}
+          onOpenIntegrations={openIntegrationsPanel}
           modelMap={modelMap}
           presets={modelPresets}
         />
