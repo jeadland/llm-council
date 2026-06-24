@@ -85,6 +85,33 @@ function App() {
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
   }, []);
 
+  useEffect(() => {
+    let frame = 0;
+    const syncViewportHeight = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const height = window.visualViewport?.height || window.innerHeight;
+        if (height) {
+          document.documentElement.style.setProperty('--app-viewport-height', `${height}px`);
+        }
+      });
+    };
+
+    syncViewportHeight();
+    window.visualViewport?.addEventListener('resize', syncViewportHeight);
+    window.visualViewport?.addEventListener('scroll', syncViewportHeight);
+    window.addEventListener('resize', syncViewportHeight);
+    window.addEventListener('orientationchange', syncViewportHeight);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      window.visualViewport?.removeEventListener('resize', syncViewportHeight);
+      window.visualViewport?.removeEventListener('scroll', syncViewportHeight);
+      window.removeEventListener('resize', syncViewportHeight);
+      window.removeEventListener('orientationchange', syncViewportHeight);
+    };
+  }, []);
+
   async function loadConversations() {
     try {
       const convs = await api.listConversations();
@@ -195,6 +222,10 @@ function App() {
       if (!prev) return prev;
       const messages = [...prev.messages];
       const idx = messages.findIndex((m) => m.role === 'assistant' && m.run_id === run.run_id);
+      const costSummary = run.cost_summary || run.stage2?.metadata?.cost_summary || null;
+      const metadata = costSummary
+        ? { ...(run.stage2?.metadata || {}), cost_summary: costSummary }
+        : (run.stage2?.metadata || null);
       const loading = {
         stage1: run.stage1?.status === 'running',
         stage2: run.stage2?.status === 'running',
@@ -207,7 +238,8 @@ function App() {
         stage1: run.stage1?.data || null,
         stage2: run.stage2?.data || null,
         stage3: run.stage3?.data || null,
-        metadata: run.stage2?.metadata || null,
+        metadata,
+        cost_summary: costSummary,
         loading,
         error: run.status === 'failed' ? (run.error || 'An unknown error occurred') : null,
       };

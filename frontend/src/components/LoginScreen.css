@@ -1,10 +1,13 @@
 .login-screen {
   width: 100vw;
   height: 100vh;
+  height: -webkit-fill-available;
+  height: 100dvh;
+  height: var(--app-viewport-height, 100dvh);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: calc(24px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom));
   background: var(--bg);
   color: var(--text);
 }

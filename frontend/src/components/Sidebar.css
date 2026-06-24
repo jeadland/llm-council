@@ -7,6 +7,9 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: -webkit-fill-available;
+  height: 100dvh;
+  height: var(--app-viewport-height, 100dvh);
   flex-shrink: 0;
   position: relative; /* needed for absolute resize handle */
 }

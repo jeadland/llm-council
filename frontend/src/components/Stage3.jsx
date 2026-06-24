@@ -148,7 +148,7 @@ function CostSummary({ costSummary }) {
 
   return (
     <div className="actual-cost" aria-label="Actual cost">
-      <span>Actual cost</span>
+      <span>Actual answer cost</span>
       <strong>{label}</strong>
       <details className="actual-cost-details">
         <summary>Details</summary>
@@ -201,11 +201,11 @@ export default function Stage3({ finalResponse, costSummary }) {
             {isFallback ? 'Chairman unavailable — ' : 'Synthesized by '}
             {formatModelLabel(finalResponse.model.split(' (')[0])}
           </div>
-          <CostSummary costSummary={costSummary} />
         </div>
       </div>
       <div className="final-response">
-        <div className="copy-row copy-row-top">
+        <div className="final-answer-toolbar">
+          <CostSummary costSummary={costSummary} />
           <CopyButton text={finalResponse.response} />
         </div>
         <div className="final-text markdown-content">

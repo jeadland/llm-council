@@ -65,7 +65,9 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 6px 10px;
-  margin-top: 8px;
+  flex: 1;
+  min-width: 0;
+  margin-top: 0;
   color: #317a42;
   font-size: 12px;
 }
@@ -149,6 +151,16 @@
   border: 1px solid #c8e6c8;
 }
 
+.final-answer-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #d9edd9;
+}
+
 .final-text {
   color: #333;
   line-height: 1.7;
@@ -209,6 +221,10 @@
 
 :root[data-theme='dark'] .actual-cost-call {
   border-top-color: #1e3a2a;
+}
+
+:root[data-theme='dark'] .final-answer-toolbar {
+  border-bottom-color: #1e3a2a;
 }
 
 :root[data-theme='dark'] .actual-cost-value--unpriced,
@@ -277,4 +293,19 @@
 :root[data-theme='dark'] .copy-synthesis-btn.copy-error:hover {
   background: #3a1515;
   color: #ff8888;
+}
+
+@media (max-width: 720px) {
+  .stage3-header {
+    align-items: flex-start;
+  }
+
+  .final-answer-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .final-answer-toolbar .copy-synthesis-btn {
+    align-self: flex-end;
+  }
 }
