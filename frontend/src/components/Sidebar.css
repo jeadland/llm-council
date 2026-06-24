@@ -995,6 +995,80 @@
   transform: scale(0.98);
 }
 
+.settings-account-subtitle {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.account-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding: 12px;
+  border: 1px solid #e0e4ec;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.account-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 650;
+  color: #5a6478;
+}
+
+.account-field input {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid #d4d8e2;
+  border-radius: 7px;
+  padding: 8px 10px;
+  background: #fafbfc;
+  color: #1a1f2e;
+  font: inherit;
+}
+
+.account-field input:focus {
+  outline: 2px solid rgba(74, 144, 226, 0.22);
+  border-color: #4a90e2;
+}
+
+.account-status {
+  padding: 8px 9px;
+  border-radius: 7px;
+  background: #fff3f3;
+  color: #a33434;
+  font-size: 12px;
+}
+
+.account-status.success {
+  background: #edf9f0;
+  color: #287a3e;
+}
+
+.account-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.account-password-btn,
+.account-logout-btn {
+  min-height: 36px;
+  font-size: 12px;
+}
+
+.account-password-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
 /* ── Conversation list ── */
 
 .conversation-list {
@@ -1473,3 +1547,28 @@
 
 /* ── Dark mode: pinned conversations ── */
 /* No special row styling for pinned — just inherit normal row styles */
+
+:root[data-theme='dark'] .account-settings {
+  background: #11151d !important;
+  border-color: #2d3545 !important;
+}
+
+:root[data-theme='dark'] .account-field {
+  color: #c8cfe0 !important;
+}
+
+:root[data-theme='dark'] .account-field input {
+  background: #171a21 !important;
+  color: #e8eaf0 !important;
+  border-color: #2d3545 !important;
+}
+
+:root[data-theme='dark'] .account-status {
+  background: #351f25 !important;
+  color: #ffb4c0 !important;
+}
+
+:root[data-theme='dark'] .account-status.success {
+  background: #173321 !important;
+  color: #9be7ad !important;
+}

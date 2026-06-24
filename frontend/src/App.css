@@ -15,6 +15,18 @@
   position: relative;
 }
 
+.app-loading {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: var(--bg);
+  color: var(--muted);
+  font-weight: 600;
+}
+
 .chat-shell {
   flex: 1;
   min-width: 0;

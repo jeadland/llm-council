@@ -6,7 +6,7 @@ const API_BASE = '';
 
 export const api = {
   async listConversations() {
-    const response = await fetch(`${API_BASE}/api/conversations`);
+    const response = await fetch(`${API_BASE}/api/conversations`, { credentials: 'include' });
     if (!response.ok) throw new Error('Failed to list conversations');
     return response.json();
   },
@@ -14,6 +14,7 @@ export const api = {
   async createConversation() {
     const response = await fetch(`${API_BASE}/api/conversations`, {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),
     });
@@ -22,7 +23,7 @@ export const api = {
   },
 
   async getSettings() {
-    const response = await fetch(`${API_BASE}/api/settings`);
+    const response = await fetch(`${API_BASE}/api/settings`, { credentials: 'include' });
     if (!response.ok) throw new Error('Failed to load settings');
     return response.json();
   },
@@ -30,6 +31,7 @@ export const api = {
   async updateSettings(payload) {
     const response = await fetch(`${API_BASE}/api/settings`, {
       method: 'PATCH',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
@@ -38,7 +40,7 @@ export const api = {
   },
 
   async getConversation(conversationId) {
-    const response = await fetch(`${API_BASE}/api/conversations/${conversationId}`);
+    const response = await fetch(`${API_BASE}/api/conversations/${conversationId}`, { credentials: 'include' });
     if (!response.ok) throw new Error('Failed to get conversation');
     return response.json();
   },
@@ -46,6 +48,7 @@ export const api = {
   async pinConversation(conversationId, pinned) {
     const response = await fetch(`${API_BASE}/api/conversations/${conversationId}/pin`, {
       method: 'PATCH',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pinned }),
     });
@@ -56,6 +59,7 @@ export const api = {
   async deleteConversation(conversationId) {
     const response = await fetch(`${API_BASE}/api/conversations/${conversationId}`, {
       method: 'DELETE',
+      credentials: 'include',
     });
     if (!response.ok) throw new Error('Failed to delete conversation');
     return response.json();
@@ -64,6 +68,7 @@ export const api = {
   async createRun(conversationId, content) {
     const response = await fetch(`${API_BASE}/api/conversations/${conversationId}/runs`, {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content }),
     });
@@ -72,13 +77,13 @@ export const api = {
   },
 
   async getRun(conversationId, runId) {
-    const response = await fetch(`${API_BASE}/api/conversations/${conversationId}/runs/${runId}`);
+    const response = await fetch(`${API_BASE}/api/conversations/${conversationId}/runs/${runId}`, { credentials: 'include' });
     if (!response.ok) throw new Error('Failed to get run');
     return response.json();
   },
 
   async getActiveRun(conversationId) {
-    const response = await fetch(`${API_BASE}/api/conversations/${conversationId}/runs/active`);
+    const response = await fetch(`${API_BASE}/api/conversations/${conversationId}/runs/active`, { credentials: 'include' });
     if (!response.ok) throw new Error('Failed to get active run');
     return response.json();
   },
@@ -86,6 +91,7 @@ export const api = {
   async stopRun(conversationId, runId) {
     const response = await fetch(`${API_BASE}/api/conversations/${conversationId}/runs/${runId}/stop`, {
       method: 'POST',
+      credentials: 'include',
     });
     if (!response.ok) throw new Error('Failed to stop run');
     return response.json();
@@ -107,6 +113,7 @@ export const api = {
   async sendMessage(conversationId, content) {
     const response = await fetch(`${API_BASE}/api/conversations/${conversationId}/message`, {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content }),
     });
@@ -117,6 +124,7 @@ export const api = {
   async sendMessageStream(conversationId, content, onEvent) {
     const response = await fetch(`${API_BASE}/api/conversations/${conversationId}/message/stream`, {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content }),
     });
@@ -147,5 +155,51 @@ export const api = {
         }
       }
     }
+  },
+
+  async getAuthMe() {
+    const response = await fetch(`${API_BASE}/api/auth/me`, { credentials: 'include' });
+    if (!response.ok) throw new Error('Failed to check auth status');
+    return response.json();
+  },
+
+  async login(email, password) {
+    const response = await fetch(`${API_BASE}/api/auth/login`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.detail || 'Login failed');
+    }
+    return response.json();
+  },
+
+  async logout() {
+    const response = await fetch(`${API_BASE}/api/auth/logout`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+    if (!response.ok) throw new Error('Failed to log out');
+    return response.json();
+  },
+
+  async changePassword(currentPassword, newPassword) {
+    const response = await fetch(`${API_BASE}/api/auth/change-password`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_password: newPassword,
+      }),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.detail || 'Failed to change password');
+    }
+    return response.json();
   },
 };

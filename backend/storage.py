@@ -1,7 +1,12 @@
-"""JSON-based storage for conversations."""
+"""Storage for conversations, runs, settings, and auth state.
+
+Local development defaults to JSON files. Vercel uses Upstash Redis when
+configured with STORAGE_BACKEND=redis or Upstash environment variables.
+"""
 
 import json
 import os
+import httpx
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from pathlib import Path
@@ -9,6 +14,110 @@ from .config import DATA_DIR, COUNCIL_MODELS, CHAIRMAN_MODEL, PREMIER_MODELS
 
 RUNS_DIR = "data/runs"
 SETTINGS_PATH = "data/settings.json"
+AUTH_USERS_PATH = "data/auth-users.json"
+AUTH_SESSIONS_DIR = "data/auth-sessions"
+REDIS_PREFIX = os.getenv("REDIS_KEY_PREFIX", "llm-council")
+
+
+def _using_redis() -> bool:
+    backend = os.getenv("STORAGE_BACKEND", "").strip().lower()
+    if backend == "redis":
+        return True
+    if backend in {"json", "file", "local"}:
+        return False
+    return bool(os.getenv("UPSTASH_REDIS_REST_URL") and os.getenv("UPSTASH_REDIS_REST_TOKEN"))
+
+
+def _redis_env() -> tuple[str, str]:
+    url = os.getenv("UPSTASH_REDIS_REST_URL")
+    token = os.getenv("UPSTASH_REDIS_REST_TOKEN")
+    if not url or not token:
+        raise RuntimeError("Redis storage requires UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN")
+    return url.rstrip("/"), token
+
+
+def _redis_command(*command):
+    url, token = _redis_env()
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            response = client.post(
+                url,
+                headers={"Authorization": f"Bearer {token}"},
+                json=list(command),
+            )
+            response.raise_for_status()
+            payload = response.json()
+    except Exception as e:
+        raise RuntimeError(f"Redis command failed: {command[0]}") from e
+
+    if "error" in payload and payload["error"]:
+        raise RuntimeError(f"Redis command failed: {payload['error']}")
+    return payload.get("result")
+
+
+def _key(*parts: str) -> str:
+    return ":".join([REDIS_PREFIX, *parts])
+
+
+def _json_get(key: str) -> Optional[Dict[str, Any]]:
+    raw = _redis_command("GET", key)
+    if raw is None:
+        return None
+    return json.loads(raw)
+
+
+def _json_set(key: str, value: Dict[str, Any], ttl_seconds: Optional[int] = None):
+    payload = json.dumps(value)
+    if ttl_seconds:
+        _redis_command("SET", key, payload, "EX", ttl_seconds)
+    else:
+        _redis_command("SET", key, payload)
+
+
+def _strip_openrouter_prefix(model: str) -> str:
+    return model[len("openrouter/"):] if model.startswith("openrouter/") else model
+
+
+def _canonicalize_model(model: Optional[str], available: List[str]) -> Optional[str]:
+    if not model:
+        return None
+    if model in available:
+        return model
+    normalized = _strip_openrouter_prefix(model)
+    for candidate in available:
+        if _strip_openrouter_prefix(candidate) == normalized:
+            return candidate
+    return None
+
+
+def _sanitize_settings(settings: Dict[str, Any]) -> Dict[str, Any]:
+    available = settings.get("available_models") or PREMIER_MODELS
+    council = [
+        canonical
+        for model in settings.get("council_models", [])
+        if (canonical := _canonicalize_model(model, available))
+    ]
+    if not council:
+        council = [
+            canonical
+            for model in COUNCIL_MODELS
+            if (canonical := _canonicalize_model(model, available))
+        ] or COUNCIL_MODELS
+
+    chairman = _canonicalize_model(settings.get("chairman_model"), available)
+    if chairman is None:
+        chairman = _canonicalize_model(CHAIRMAN_MODEL, available) or CHAIRMAN_MODEL
+
+    theme_mode = settings.get("theme_mode", "system")
+    if theme_mode not in {"light", "dark", "system"}:
+        theme_mode = "system"
+
+    return {
+        "available_models": available,
+        "council_models": council,
+        "chairman_model": chairman,
+        "theme_mode": theme_mode,
+    }
 
 
 def ensure_data_dir():
@@ -19,6 +128,11 @@ def ensure_data_dir():
 def ensure_runs_dir():
     """Ensure the runs directory exists."""
     Path(RUNS_DIR).mkdir(parents=True, exist_ok=True)
+
+
+def ensure_auth_sessions_dir():
+    """Ensure the auth sessions directory exists."""
+    Path(AUTH_SESSIONS_DIR).mkdir(parents=True, exist_ok=True)
 
 
 def get_conversation_path(conversation_id: str) -> str:
@@ -36,8 +150,6 @@ def create_conversation(conversation_id: str) -> Dict[str, Any]:
     Returns:
         New conversation dict
     """
-    ensure_data_dir()
-
     conversation = {
         "id": conversation_id,
         "created_at": datetime.utcnow().isoformat(),
@@ -45,6 +157,13 @@ def create_conversation(conversation_id: str) -> Dict[str, Any]:
         "pinned": False,
         "messages": []
     }
+
+    if _using_redis():
+        _json_set(_key("conversation", conversation_id), conversation)
+        _redis_command("SADD", _key("conversation_ids"), conversation_id)
+        return conversation
+
+    ensure_data_dir()
 
     # Save to file
     path = get_conversation_path(conversation_id)
@@ -64,6 +183,9 @@ def get_conversation(conversation_id: str) -> Optional[Dict[str, Any]]:
     Returns:
         Conversation dict or None if not found
     """
+    if _using_redis():
+        return _json_get(_key("conversation", conversation_id))
+
     path = get_conversation_path(conversation_id)
 
     if not os.path.exists(path):
@@ -80,6 +202,11 @@ def save_conversation(conversation: Dict[str, Any]):
     Args:
         conversation: Conversation dict to save
     """
+    if _using_redis():
+        _json_set(_key("conversation", conversation["id"]), conversation)
+        _redis_command("SADD", _key("conversation_ids"), conversation["id"])
+        return
+
     ensure_data_dir()
 
     path = get_conversation_path(conversation['id'])
@@ -94,11 +221,26 @@ def list_conversations() -> List[Dict[str, Any]]:
     Returns:
         List of conversation metadata dicts
     """
-    print(f"DEBUG: Scanning DATA_DIR={DATA_DIR}, files={os.listdir(DATA_DIR) if os.path.exists(DATA_DIR) else 'DIR NOT FOUND'}")
+    if _using_redis():
+        ids = _redis_command("SMEMBERS", _key("conversation_ids")) or []
+        conversations = []
+        for conversation_id in ids:
+            data = get_conversation(conversation_id)
+            if not data:
+                continue
+            conversations.append({
+                "id": data.get("id", conversation_id),
+                "created_at": data.get("created_at", "1970-01-01T00:00:00Z"),
+                "title": data.get("title", "New Conversation"),
+                "pinned": data.get("pinned", False),
+                "message_count": len(data.get("messages", []))
+            })
+        conversations.sort(key=_conversation_sort_key)
+        return conversations
+
     ensure_data_dir()
 
     conversations = []
-    skipped = []
     for filename in os.listdir(DATA_DIR) if os.path.exists(DATA_DIR) else []:
         if filename.endswith('.json'):
             try:
@@ -113,22 +255,20 @@ def list_conversations() -> List[Dict[str, Any]]:
                     "message_count": len(data.get("messages", []))
                 })
             except Exception as e:
-                skipped.append(filename)
                 print(f"Skipping {filename}: {e}")
                 continue
 
-    print(f"DEBUG: Loaded {len(conversations)} convos, skipped {skipped}")
-
     # Sort pinned first, then newest first (safe parse)
-    def safe_timestamp(conv):
-        try:
-            return not conv.get("pinned", False), -int(datetime.fromisoformat(conv["created_at"]).timestamp())
-        except:
-            return True, 0  # unpinned, old
-
-    conversations.sort(key=safe_timestamp)
+    conversations.sort(key=_conversation_sort_key)
 
     return conversations
+
+
+def _conversation_sort_key(conv: Dict[str, Any]):
+    try:
+        return not conv.get("pinned", False), -int(datetime.fromisoformat(conv["created_at"]).timestamp())
+    except Exception:
+        return True, 0  # unpinned, old
 
 
 def add_user_message(conversation_id: str, content: str):
@@ -205,6 +345,11 @@ def set_conversation_pinned(conversation_id: str, pinned: bool):
 
 
 def delete_conversation(conversation_id: str):
+    if _using_redis():
+        _redis_command("DEL", _key("conversation", conversation_id))
+        _redis_command("SREM", _key("conversation_ids"), conversation_id)
+        return
+
     path = get_conversation_path(conversation_id)
     if os.path.exists(path):
         os.remove(path)
@@ -269,7 +414,6 @@ def get_run_path(run_id: str) -> str:
 
 
 def create_run(run_id: str, conversation_id: str, content: str) -> Dict[str, Any]:
-    ensure_runs_dir()
     run = {
         "run_id": run_id,
         "conversation_id": conversation_id,
@@ -282,12 +426,21 @@ def create_run(run_id: str, conversation_id: str, content: str) -> Dict[str, Any
         "stage2": {"status": "pending", "data": None, "metadata": None},
         "stage3": {"status": "pending", "data": None},
     }
+    if _using_redis():
+        _json_set(_key("run", run_id), run)
+        _redis_command("SADD", _key("run_ids"), run_id)
+        return run
+
+    ensure_runs_dir()
     with open(get_run_path(run_id), "w") as f:
         json.dump(run, f, indent=2)
     return run
 
 
 def get_run(run_id: str) -> Optional[Dict[str, Any]]:
+    if _using_redis():
+        return _json_get(_key("run", run_id))
+
     path = get_run_path(run_id)
     if not os.path.exists(path):
         return None
@@ -296,6 +449,12 @@ def get_run(run_id: str) -> Optional[Dict[str, Any]]:
 
 
 def save_run(run: Dict[str, Any]):
+    if _using_redis():
+        run["updated_at"] = datetime.utcnow().isoformat()
+        _json_set(_key("run", run["run_id"]), run)
+        _redis_command("SADD", _key("run_ids"), run["run_id"])
+        return
+
     ensure_runs_dir()
     run["updated_at"] = datetime.utcnow().isoformat()
     with open(get_run_path(run["run_id"]), "w") as f:
@@ -318,6 +477,17 @@ def update_run(run_id: str, patch: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def get_latest_active_run_for_conversation(conversation_id: str) -> Optional[Dict[str, Any]]:
+    if _using_redis():
+        latest = None
+        for run_id in _redis_command("SMEMBERS", _key("run_ids")) or []:
+            run = get_run(run_id)
+            if not run or run.get("conversation_id") != conversation_id:
+                continue
+            if run.get("status") in {"queued", "running"}:
+                if latest is None or run.get("created_at", "") > latest.get("created_at", ""):
+                    latest = run
+        return latest
+
     ensure_runs_dir()
     latest = None
     for filename in os.listdir(RUNS_DIR):
@@ -341,53 +511,131 @@ def get_settings() -> Dict[str, Any]:
         "chairman_model": CHAIRMAN_MODEL,
         "theme_mode": "system",
     }
+    if _using_redis():
+        current = _json_get(_key("settings")) or {}
+        return _sanitize_settings({**default, **current})
+
     if not os.path.exists(SETTINGS_PATH):
-        return default
+        return _sanitize_settings(default)
 
     with open(SETTINGS_PATH, "r") as f:
         current = json.load(f)
 
-    settings = {**default, **current}
-
-    # sanitize
-    settings["council_models"] = [
-        m for m in settings.get("council_models", []) if m in settings["available_models"]
-    ]
-    if not settings["council_models"]:
-        settings["council_models"] = default["council_models"]
-
-    if settings.get("chairman_model") not in settings["available_models"]:
-        settings["chairman_model"] = default["chairman_model"]
-
-    return settings
+    return _sanitize_settings({**default, **current})
 
 
 def save_settings(settings: Dict[str, Any]) -> Dict[str, Any]:
-    ensure_data_dir()
     current = get_settings()
-    merged = {**current, **settings}
+    final = _sanitize_settings({**current, **settings})
 
-    available = merged.get("available_models", PREMIER_MODELS)
-    council = [m for m in merged.get("council_models", []) if m in available]
-    if not council:
-        council = current.get("council_models", COUNCIL_MODELS)
+    if _using_redis():
+        _json_set(_key("settings"), final)
+        return final
 
-    chairman = merged.get("chairman_model", current.get("chairman_model", CHAIRMAN_MODEL))
-    if chairman not in available:
-        chairman = current.get("chairman_model", CHAIRMAN_MODEL)
-
-    theme_mode = merged.get("theme_mode", current.get("theme_mode", "system"))
-    if theme_mode not in {"light", "dark", "system"}:
-        theme_mode = current.get("theme_mode", "system")
-
-    final = {
-        "available_models": available,
-        "council_models": council,
-        "chairman_model": chairman,
-        "theme_mode": theme_mode,
-    }
+    ensure_data_dir()
 
     with open(SETTINGS_PATH, "w") as f:
         json.dump(final, f, indent=2)
 
     return final
+
+
+def get_auth_user(email: str) -> Optional[Dict[str, Any]]:
+    if not _using_redis():
+        if not os.path.exists(AUTH_USERS_PATH):
+            return None
+        with open(AUTH_USERS_PATH, "r") as f:
+            users = json.load(f)
+        return users.get(email.lower())
+
+    return _json_get(_key("auth", "user", email.lower()))
+
+
+def save_auth_user(email: str, user: Dict[str, Any]):
+    if not _using_redis():
+        ensure_data_dir()
+        users = {}
+        if os.path.exists(AUTH_USERS_PATH):
+            with open(AUTH_USERS_PATH, "r") as f:
+                users = json.load(f)
+        users[email.lower()] = user
+        with open(AUTH_USERS_PATH, "w") as f:
+            json.dump(users, f, indent=2)
+        return
+
+    _json_set(_key("auth", "user", email.lower()), user)
+
+
+def save_session(token_hash: str, session: Dict[str, Any], ttl_seconds: int):
+    if not _using_redis():
+        ensure_auth_sessions_dir()
+        with open(os.path.join(AUTH_SESSIONS_DIR, f"{token_hash}.json"), "w") as f:
+            json.dump(session, f, indent=2)
+        return
+
+    _json_set(_key("auth", "session", token_hash), session, ttl_seconds=ttl_seconds)
+    _redis_command("SADD", _key("auth", "sessions", session["email"].lower()), token_hash)
+
+
+def get_session(token_hash: str) -> Optional[Dict[str, Any]]:
+    if not _using_redis():
+        path = os.path.join(AUTH_SESSIONS_DIR, f"{token_hash}.json")
+        if not os.path.exists(path):
+            return None
+        with open(path, "r") as f:
+            return json.load(f)
+
+    return _json_get(_key("auth", "session", token_hash))
+
+
+def delete_session(token_hash: str, email: Optional[str] = None):
+    if not _using_redis():
+        path = os.path.join(AUTH_SESSIONS_DIR, f"{token_hash}.json")
+        if os.path.exists(path):
+            os.remove(path)
+        return
+
+    _redis_command("DEL", _key("auth", "session", token_hash))
+    if email:
+        _redis_command("SREM", _key("auth", "sessions", email.lower()), token_hash)
+
+
+def delete_sessions_for_email(email: str):
+    if not _using_redis():
+        ensure_auth_sessions_dir()
+        for filename in os.listdir(AUTH_SESSIONS_DIR):
+            if not filename.endswith(".json"):
+                continue
+            path = os.path.join(AUTH_SESSIONS_DIR, filename)
+            try:
+                with open(path, "r") as f:
+                    session = json.load(f)
+                if session.get("email", "").lower() == email.lower():
+                    os.remove(path)
+            except Exception:
+                continue
+        return
+
+    sessions_key = _key("auth", "sessions", email.lower())
+    token_hashes = _redis_command("SMEMBERS", sessions_key) or []
+    for token_hash in token_hashes:
+        _redis_command("DEL", _key("auth", "session", token_hash))
+    _redis_command("DEL", sessions_key)
+
+
+def increment_login_attempts(email: str, ttl_seconds: int) -> int:
+    if not _using_redis():
+        return 1
+
+    attempts_key = _key("auth", "attempts", email.lower())
+    attempts = int(_redis_command("INCR", attempts_key) or 0)
+    if attempts == 1:
+        _redis_command("EXPIRE", attempts_key, ttl_seconds)
+    return attempts
+
+
+def clear_login_attempts(email: str):
+    if not _using_redis():
+        return
+
+    _redis_command("DEL", _key("auth", "attempts", email.lower()))

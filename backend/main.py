@@ -1,15 +1,17 @@
 """FastAPI backend for LLM Council."""
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import uuid
 import json
 import asyncio
+import os
 
 from . import storage
+from . import auth
 from .council import (
     run_full_council,
     generate_conversation_title,
@@ -22,6 +24,11 @@ from .openrouter import fetch_available_models
 
 app = FastAPI(title="LLM Council API")
 RUN_TASKS: Dict[str, asyncio.Task] = {}
+PUBLIC_API_PATHS = {
+    "/api/auth/login",
+    "/api/auth/logout",
+    "/api/auth/me",
+}
 
 # Enable CORS for local development
 app.add_middleware(
@@ -31,6 +38,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def require_auth_for_api(request: Request, call_next):
+    """Protect app APIs while keeping auth bootstrap endpoints public."""
+    path = request.url.path
+    if path.startswith("/api/") and path not in PUBLIC_API_PATHS and auth.is_auth_required():
+        if auth.get_user_from_request(request) is None:
+            return JSONResponse({"detail": "Not authenticated"}, status_code=401)
+    return await call_next(request)
 
 
 class CreateConversationRequest(BaseModel):
@@ -57,6 +74,16 @@ class UpdateSettingsRequest(BaseModel):
     theme_mode: Optional[str] = None
 
 
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
 class ConversationMetadata(BaseModel):
     """Conversation metadata for list view."""
 
@@ -80,6 +107,92 @@ class Conversation(BaseModel):
 async def root():
     """Health check endpoint."""
     return {"status": "ok", "service": "LLM Council API"}
+
+
+def _set_session_cookie(response: Response, token: str):
+    response.set_cookie(
+        auth.SESSION_COOKIE,
+        token,
+        max_age=auth.SESSION_TTL_SECONDS,
+        httponly=True,
+        secure=auth.cookie_secure(),
+        samesite="lax",
+        path="/",
+    )
+
+
+def _clear_session_cookie(response: Response):
+    response.delete_cookie(
+        auth.SESSION_COOKIE,
+        httponly=True,
+        secure=auth.cookie_secure(),
+        samesite="lax",
+        path="/",
+    )
+
+
+@app.get("/api/auth/me")
+async def auth_me(request: Request):
+    if not auth.is_auth_required():
+        return {"authenticated": True, "auth_required": False, "email": None}
+
+    user = auth.get_user_from_request(request)
+    return {
+        "authenticated": user is not None,
+        "auth_required": True,
+        "email": user.get("email") if user else None,
+        "configured": auth.ensure_admin_user() is not None,
+    }
+
+
+@app.post("/api/auth/login")
+async def auth_login(request: LoginRequest, response: Response):
+    if not auth.is_auth_required():
+        return {"authenticated": True, "auth_required": False, "email": None}
+
+    if auth.ensure_admin_user() is None:
+        raise HTTPException(status_code=503, detail="Authentication is not configured")
+
+    attempts = storage.increment_login_attempts(request.email, auth.LOGIN_ATTEMPT_TTL_SECONDS)
+    if attempts > auth.MAX_LOGIN_ATTEMPTS:
+        raise HTTPException(status_code=429, detail="Too many login attempts. Try again shortly.")
+
+    user = auth.authenticate(request.email, request.password)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    storage.clear_login_attempts(request.email)
+    token = auth.create_session(user["email"])
+    _set_session_cookie(response, token)
+    return {"authenticated": True, "auth_required": True, "email": user["email"]}
+
+
+@app.post("/api/auth/logout")
+async def auth_logout(request: Request, response: Response):
+    token = request.cookies.get(auth.SESSION_COOKIE)
+    user = auth.get_user_for_token(token)
+    if token:
+        auth_hash = auth.hash_token(token)
+        storage.delete_session(auth_hash, user.get("email") if user else None)
+    _clear_session_cookie(response)
+    return {"ok": True}
+
+
+@app.post("/api/auth/change-password")
+async def auth_change_password(request: Request, payload: ChangePasswordRequest, response: Response):
+    user = auth.get_user_from_request(request)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    if len(payload.new_password) < 12:
+        raise HTTPException(status_code=400, detail="New password must be at least 12 characters")
+
+    changed = auth.change_password(user["email"], payload.current_password, payload.new_password)
+    if not changed:
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+
+    token = auth.create_session(user["email"])
+    _set_session_cookie(response, token)
+    return {"ok": True}
 
 
 @app.get("/api/conversations", response_model=List[ConversationMetadata])
@@ -317,6 +430,11 @@ async def create_run(conversation_id: str, request: CreateRunRequest):
     run_id = str(uuid.uuid4())
     run = storage.create_run(run_id, conversation_id, request.content)
     storage.upsert_assistant_message_for_run(conversation_id, run_id)
+
+    if os.getenv("RUN_EXECUTION_MODE", "").strip().lower() == "sync":
+        await _execute_run(run_id)
+        completed = storage.get_run(run_id) or run
+        return {"run_id": run_id, "status": completed["status"]}
 
     task = asyncio.create_task(_execute_run(run_id))
     RUN_TASKS[run_id] = task

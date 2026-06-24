@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
 import GearIcon from './components/GearIcon';
+import LoginScreen from './components/LoginScreen';
 import { api } from './api';
 import './App.css';
 
@@ -19,6 +20,12 @@ function App() {
   const [openSettingsOnSidebarOpen, setOpenSettingsOnSidebarOpen] = useState(false);
   const [activeRunId, setActiveRunId] = useState(null);
   const [settings, setSettings] = useState(null);
+  const [authState, setAuthState] = useState({
+    loading: true,
+    authenticated: false,
+    auth_required: true,
+    email: null,
+  });
 
   // Sidebar resize state — default 300px, restored from localStorage if valid
   const [sidebarWidth, setSidebarWidth] = useState(() => {
@@ -33,8 +40,6 @@ function App() {
   });
   const dragStartX = useRef(null);
   const dragStartWidth = useRef(null);
-  const sidebarRef = useRef(null);
-
   const handleResizeStart = useCallback((e) => {
     dragStartX.current = e.clientX;
     // Read current sidebar width from DOM at drag start
@@ -76,37 +81,7 @@ function App() {
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
   }, []);
 
-  useEffect(() => {
-    applyTheme(settings?.theme_mode || 'system');
-  }, [settings?.theme_mode, applyTheme]);
-
-  useEffect(() => {
-    loadConversations();
-    loadSettings();
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-      if (saved.currentConversationId) setCurrentConversationId(saved.currentConversationId);
-      if (saved.activeRunId) setActiveRunId(saved.activeRunId);
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ currentConversationId, activeRunId })
-    );
-  }, [currentConversationId, activeRunId]);
-
-  useEffect(() => {
-    if (currentConversationId) {
-      loadConversation(currentConversationId);
-      checkForActiveRun(currentConversationId);
-    }
-  }, [currentConversationId]);
-
-  const loadConversations = async () => {
+  async function loadConversations() {
     try {
       const convs = await api.listConversations();
       setConversations(convs);
@@ -116,16 +91,16 @@ function App() {
     } catch (error) {
       console.error('Failed to load conversations:', error);
     }
-  };
+  }
 
-  const loadSettings = async () => {
+  async function loadSettings() {
     try {
       const data = await api.getSettings();
       setSettings(data);
     } catch (error) {
       console.error('Failed to load settings:', error);
     }
-  };
+  }
 
   const handleSaveSettings = async (patch) => {
     try {
@@ -136,16 +111,45 @@ function App() {
     }
   };
 
-  const loadConversation = async (id) => {
+  const handleLogin = async (email, password) => {
+    const me = await api.login(email, password);
+    setAuthState({ loading: false, ...me });
+    await loadConversations();
+    await loadSettings();
+  };
+
+  const handleLogout = async () => {
+    await api.logout();
+    setAuthState({
+      loading: false,
+      authenticated: false,
+      auth_required: true,
+      email: null,
+    });
+    setConversations([]);
+    setCurrentConversationId(null);
+    setCurrentConversation(null);
+    setActiveRunId(null);
+    setIsLoading(false);
+    localStorage.removeItem(STORAGE_KEY);
+  };
+
+  const handleChangePassword = async (currentPassword, newPassword) => {
+    await api.changePassword(currentPassword, newPassword);
+    const me = await api.getAuthMe();
+    setAuthState({ loading: false, ...me });
+  };
+
+  async function loadConversation(id) {
     try {
       const conv = await api.getConversation(id);
       setCurrentConversation(conv);
     } catch (error) {
       console.error('Failed to load conversation:', error);
     }
-  };
+  }
 
-  const syncConversationWithRun = (run) => {
+  function syncConversationWithRun(run) {
     setCurrentConversation((prev) => {
       if (!prev) return prev;
       const messages = [...prev.messages];
@@ -172,9 +176,9 @@ function App() {
 
       return { ...prev, messages };
     });
-  };
+  }
 
-  const monitorRun = async (conversationId, runId) => {
+  async function monitorRun(conversationId, runId) {
     setIsLoading(true);
     setActiveRunId(runId);
 
@@ -188,18 +192,72 @@ function App() {
 
     await loadConversation(conversationId);
     await loadConversations();
-  };
+  }
 
-  const checkForActiveRun = async (conversationId) => {
-    try {
-      const { run } = await api.getActiveRun(conversationId);
-      if (run) {
-        await monitorRun(conversationId, run.run_id);
+  useEffect(() => {
+    applyTheme(settings?.theme_mode || 'system');
+  }, [settings?.theme_mode, applyTheme]);
+
+  useEffect(() => {
+    const boot = async () => {
+      try {
+        const me = await api.getAuthMe();
+        setAuthState({ loading: false, ...me });
+        if (me.authenticated) {
+          loadConversations();
+          loadSettings();
+          try {
+            const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+            if (saved.currentConversationId) setCurrentConversationId(saved.currentConversationId);
+            if (saved.activeRunId) setActiveRunId(saved.activeRunId);
+          } catch {
+            // ignore
+          }
+        }
+      } catch (error) {
+        console.error('Failed to check auth status:', error);
+        setAuthState({
+          loading: false,
+          authenticated: false,
+          auth_required: true,
+          email: null,
+        });
       }
-    } catch (e) {
-      console.error('Failed checking active run:', e);
-    }
-  };
+    };
+
+    boot();
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ currentConversationId, activeRunId })
+    );
+  }, [currentConversationId, activeRunId]);
+
+  useEffect(() => {
+    if (!currentConversationId) return;
+
+    let canceled = false;
+    const refreshConversation = async () => {
+      try {
+        const conv = await api.getConversation(currentConversationId);
+        if (!canceled) setCurrentConversation(conv);
+
+        const { run } = await api.getActiveRun(currentConversationId);
+        if (!canceled && run) {
+          await monitorRun(currentConversationId, run.run_id);
+        }
+      } catch (error) {
+        if (!canceled) console.error('Failed to refresh conversation:', error);
+      }
+    };
+
+    refreshConversation();
+    return () => {
+      canceled = true;
+    };
+  }, [currentConversationId]);
 
   const handleNewConversation = async () => {
     try {
@@ -278,6 +336,19 @@ function App() {
     }
   };
 
+  if (authState.loading) {
+    return (
+      <div className="app-loading">
+        <div className="spinner"></div>
+        <span>Loading LLM Council...</span>
+      </div>
+    );
+  }
+
+  if (authState.auth_required && !authState.authenticated) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
+
   return (
     <div className="app">
       <Sidebar
@@ -290,6 +361,9 @@ function App() {
         settings={settings}
         onSaveSettings={handleSaveSettings}
         onThemePreview={applyTheme}
+        auth={authState}
+        onLogout={handleLogout}
+        onChangePassword={handleChangePassword}
         isOpen={isSidebarOpen}
         openSettingsOnOpen={openSettingsOnSidebarOpen}
         onSettingsOpened={() => setOpenSettingsOnSidebarOpen(false)}

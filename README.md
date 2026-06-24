@@ -110,6 +110,28 @@ The backend falls back to direct OpenRouter API calls when the local gateway is 
 
 ---
 
+## Vercel web branch
+
+The hosted web build lives on the `web/vercel` branch. Keep `main` for local
+OpenClaw/LAN use.
+
+Set these environment variables in Vercel:
+
+```bash
+STORAGE_BACKEND=redis
+RUN_EXECUTION_MODE=sync
+OPENROUTER_API_KEY=sk-or-v1-...
+UPSTASH_REDIS_REST_URL=...
+UPSTASH_REDIS_REST_TOKEN=...
+ADMIN_EMAIL=josh.adland@gmail.com
+ADMIN_INITIAL_PASSWORD=...
+```
+
+`ADMIN_INITIAL_PASSWORD` is only used to bootstrap the admin record when one
+does not exist yet. Change it from Settings after the first login.
+
+---
+
 ## Model routing
 
 ```

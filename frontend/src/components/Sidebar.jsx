@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import GearIcon from './GearIcon';
 import './Sidebar.css';
 
@@ -16,6 +16,9 @@ export default function Sidebar({
   settings,
   onSaveSettings,
   onThemePreview,
+  auth,
+  onLogout,
+  onChangePassword,
   isOpen,
   openSettingsOnOpen,
   onSettingsOpened,
@@ -48,6 +51,11 @@ export default function Sidebar({
   const [draftCouncil, setDraftCouncil] = useState(settings?.council_models || []);
   const [draftChairman, setDraftChairman] = useState(settings?.chairman_model || '');
   const [draftThemeMode, setDraftThemeMode] = useState(settings?.theme_mode || 'system');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordStatus, setPasswordStatus] = useState('');
+  const [passwordBusy, setPasswordBusy] = useState(false);
   // Accordion state for chairman picker
   const [chairmanExpanded, setChairmanExpanded] = useState(false);
   // Accordion state for council models (collapsed = only selected; expanded = all)
@@ -59,6 +67,10 @@ export default function Sidebar({
     setDraftCouncil(settings?.council_models || []);
     setDraftChairman(settings?.chairman_model || '');
     setDraftThemeMode(settings?.theme_mode || 'system');
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setPasswordStatus('');
     setChairmanExpanded(false);
     setCouncilExpanded(false);
     setShowSettings(true);
@@ -70,6 +82,30 @@ export default function Sidebar({
     setChairmanExpanded(false);
     setCouncilExpanded(false);
     setShowSettings(false);
+  };
+
+  const submitPasswordChange = async () => {
+    setPasswordStatus('');
+    if (newPassword !== confirmPassword) {
+      setPasswordStatus('New passwords do not match.');
+      return;
+    }
+    if (newPassword.length < 12) {
+      setPasswordStatus('New password must be at least 12 characters.');
+      return;
+    }
+    setPasswordBusy(true);
+    try {
+      await onChangePassword(currentPassword, newPassword);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setPasswordStatus('Password updated.');
+    } catch (e) {
+      setPasswordStatus(e.message || 'Password change failed.');
+    } finally {
+      setPasswordBusy(false);
+    }
   };
 
   const toggleModel = (model) => {
@@ -343,6 +379,66 @@ export default function Sidebar({
                 <span>System</span>
               </button>
             </div>
+
+            {auth?.auth_required && (
+              <>
+                <div className="settings-subtitle settings-account-subtitle">
+                  <span>Account</span>
+                  <span className="settings-chairman-hint">{auth.email}</span>
+                </div>
+                <div className="account-settings">
+                  <label className="account-field">
+                    <span>Current password</span>
+                    <input
+                      type="password"
+                      autoComplete="current-password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                    />
+                  </label>
+                  <label className="account-field">
+                    <span>New password</span>
+                    <input
+                      type="password"
+                      autoComplete="new-password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                    />
+                  </label>
+                  <label className="account-field">
+                    <span>Confirm new password</span>
+                    <input
+                      type="password"
+                      autoComplete="new-password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                    />
+                  </label>
+                  {passwordStatus && (
+                    <div className={`account-status${passwordStatus === 'Password updated.' ? ' success' : ''}`}>
+                      {passwordStatus}
+                    </div>
+                  )}
+                  <div className="account-actions">
+                    <button
+                      type="button"
+                      className="settings-save-btn account-password-btn"
+                      onClick={submitPasswordChange}
+                      disabled={passwordBusy || !currentPassword || !newPassword || !confirmPassword}
+                    >
+                      {passwordBusy ? 'Updating...' : 'Change Password'}
+                    </button>
+                    <button
+                      type="button"
+                      className="settings-cancel-btn account-logout-btn"
+                      onClick={onLogout}
+                    >
+                      Log Out
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Sticky footer with actions — even-width buttons */}
