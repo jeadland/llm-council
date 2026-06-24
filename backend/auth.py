@@ -17,6 +17,8 @@ SESSION_TTL_SECONDS = 60 * 60 * 24 * 30
 PASSWORD_ITERATIONS = 390_000
 LOGIN_ATTEMPT_TTL_SECONDS = 60 * 10
 MAX_LOGIN_ATTEMPTS = 8
+PASSWORD_RESET_TTL_SECONDS = 60 * 10
+MAX_PASSWORD_RESET_ATTEMPTS = 8
 
 
 def is_auth_required() -> bool:
@@ -158,4 +160,28 @@ def change_password(email: str, current_password: str, new_password: str) -> boo
     user["password_changed_at"] = datetime.utcnow().isoformat()
     storage.save_auth_user(email, user)
     storage.delete_sessions_for_email(email)
+    return True
+
+
+def reset_password(email: str, reset_token: str, new_password: str) -> bool:
+    expected_email = admin_email()
+    configured_token = os.getenv("ADMIN_PASSWORD_RESET_TOKEN")
+    if not expected_email or not configured_token:
+        return False
+    if email.lower().strip() != expected_email:
+        return False
+    if not hmac.compare_digest(reset_token, configured_token):
+        return False
+
+    user = storage.get_auth_user(expected_email) or {
+        "email": expected_email,
+        "created_at": datetime.utcnow().isoformat(),
+        "password_changed_at": None,
+    }
+
+    user["password_hash"] = hash_password(new_password)
+    user["password_changed_at"] = datetime.utcnow().isoformat()
+    user["password_reset_at"] = datetime.utcnow().isoformat()
+    storage.save_auth_user(expected_email, user)
+    storage.delete_sessions_for_email(expected_email)
     return True

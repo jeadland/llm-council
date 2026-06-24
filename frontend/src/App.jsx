@@ -118,6 +118,13 @@ function App() {
     await loadSettings();
   };
 
+  const handleResetPassword = async (email, resetToken, newPassword) => {
+    const me = await api.resetPassword(email, resetToken, newPassword);
+    setAuthState({ loading: false, ...me });
+    await loadConversations();
+    await loadSettings();
+  };
+
   const handleLogout = async () => {
     await api.logout();
     setAuthState({
@@ -346,7 +353,7 @@ function App() {
   }
 
   if (authState.auth_required && !authState.authenticated) {
-    return <LoginScreen onLogin={handleLogin} />;
+    return <LoginScreen onLogin={handleLogin} onResetPassword={handleResetPassword} />;
   }
 
   return (

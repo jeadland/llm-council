@@ -15,7 +15,7 @@ Push `web/vercel`, configure Vercel/Upstash/OpenRouter environment variables, de
 User-visible behavior:
 
 - Hosted app shows login before any conversation data.
-- Josh can log in, change password, and use the council.
+- Josh can log in, reset/change password, and use the council.
 - Conversations/settings persist through reload.
 
 Relevant files:
@@ -32,6 +32,7 @@ Acceptance criteria:
 - [ ] User-facing behavior: login wall appears on hosted preview.
 - [ ] Data or persistence behavior: conversation/settings survive reload and redeploy.
 - [ ] Loading, empty, error, and permission states: unauthenticated API returns `401`; failed login shows clear error.
+- [ ] Password recovery: reset form accepts owner recovery code, sets a new password, and rejects the old password.
 - [ ] Mobile/responsive behavior: login and main app usable on phone width.
 - [ ] What must not change: `main` remains local/OpenClaw branch.
 
@@ -60,6 +61,7 @@ Notes:
 
 - Do not commit or print real secrets.
 - Set Vercel production branch to `web/vercel`, not `main`.
+- Set `ADMIN_PASSWORD_RESET_TOKEN` to a long random secret before relying on hosted password recovery.
 
 ## Next
 

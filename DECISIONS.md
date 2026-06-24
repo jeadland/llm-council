@@ -133,3 +133,41 @@ Owner approval:
 Status:
 
 - Active
+
+## 2026-06-24 - Hosted password reset uses owner recovery code
+
+Decision:
+
+- Hosted password reset uses `ADMIN_PASSWORD_RESET_TOKEN` as an owner recovery code.
+- The login screen exposes a reset form that accepts the owner email, recovery code, and new password.
+- A valid recovery code can create the first owner password if `ADMIN_INITIAL_PASSWORD` was not configured.
+
+Context:
+
+- Password change requires an active session, which does not help if the owner is locked out.
+- Adding email delivery would introduce another vendor and more secrets before first launch.
+
+Rationale:
+
+- A server-side recovery code is the smallest recovery path for a single-owner private app.
+- Resetting the password invalidates existing sessions, matching password-change behavior.
+- Recovery also fixes a missing bootstrap password without manually editing Redis.
+
+Alternatives considered:
+
+- Email-based reset links.
+- Manual Redis edit.
+- Reusing `ADMIN_INITIAL_PASSWORD` after bootstrap.
+
+Implications:
+
+- Hosted deployments should set `ADMIN_PASSWORD_RESET_TOKEN` to a long random value.
+- Anyone with the recovery code and owner email can rotate the password, so it must be handled like a secret.
+
+Owner approval:
+
+- Requested by owner in chat on 2026-06-24.
+
+Status:
+
+- Active

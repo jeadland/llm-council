@@ -65,6 +65,7 @@ Local mode uses background run tasks and polling. Vercel mode uses `RUN_EXECUTIO
 | `/api/auth/login` | Create session |
 | `/api/auth/logout` | Delete session |
 | `/api/auth/change-password` | Rotate owner password and invalidate old sessions |
+| `/api/auth/reset-password` | Create/reset owner password with recovery code and invalidate old sessions |
 | `/api/settings` | Read/update model and theme settings |
 | `/api/conversations` | List/create conversations |
 | `/api/conversations/{id}` | Read/delete conversation |
@@ -84,6 +85,7 @@ Local mode uses background run tasks and polling. Vercel mode uses `RUN_EXECUTIO
 | `RUN_EXECUTION_MODE=sync` | Vercel | Avoid serverless background tasks |
 | `ADMIN_EMAIL` | Hosted auth | Single allowed owner email |
 | `ADMIN_INITIAL_PASSWORD` | Hosted auth bootstrap | Used only to create first password hash |
+| `ADMIN_PASSWORD_RESET_TOKEN` | Hosted password recovery | Owner-only recovery code for resetting password from login screen |
 | `AUTH_REQUIRED` | Optional | Force auth on/off locally |
 | `COOKIE_SECURE` | Optional local | Use `false` for local auth smoke over HTTP |
 

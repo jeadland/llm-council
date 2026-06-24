@@ -28,6 +28,7 @@ PUBLIC_API_PATHS = {
     "/api/auth/login",
     "/api/auth/logout",
     "/api/auth/me",
+    "/api/auth/reset-password",
 }
 
 # Enable CORS for local development
@@ -81,6 +82,12 @@ class LoginRequest(BaseModel):
 
 class ChangePasswordRequest(BaseModel):
     current_password: str
+    new_password: str
+
+
+class ResetPasswordRequest(BaseModel):
+    email: str
+    reset_token: str
     new_password: str
 
 
@@ -193,6 +200,32 @@ async def auth_change_password(request: Request, payload: ChangePasswordRequest,
     token = auth.create_session(user["email"])
     _set_session_cookie(response, token)
     return {"ok": True}
+
+
+@app.post("/api/auth/reset-password")
+async def auth_reset_password(payload: ResetPasswordRequest, response: Response):
+    if not auth.is_auth_required():
+        return {"authenticated": True, "auth_required": False, "email": None}
+    if not os.getenv("ADMIN_PASSWORD_RESET_TOKEN"):
+        raise HTTPException(status_code=503, detail="Password reset is not configured")
+    if len(payload.new_password) < 12:
+        raise HTTPException(status_code=400, detail="New password must be at least 12 characters")
+
+    attempts = storage.increment_login_attempts(
+        f"reset:{payload.email}",
+        auth.PASSWORD_RESET_TTL_SECONDS,
+    )
+    if attempts > auth.MAX_PASSWORD_RESET_ATTEMPTS:
+        raise HTTPException(status_code=429, detail="Too many reset attempts. Try again shortly.")
+
+    changed = auth.reset_password(payload.email, payload.reset_token, payload.new_password)
+    if not changed:
+        raise HTTPException(status_code=401, detail="Invalid reset code")
+
+    storage.clear_login_attempts(f"reset:{payload.email}")
+    token = auth.create_session(payload.email)
+    _set_session_cookie(response, token)
+    return {"authenticated": True, "auth_required": True, "email": payload.email.lower().strip()}
 
 
 @app.get("/api/conversations", response_model=List[ConversationMetadata])

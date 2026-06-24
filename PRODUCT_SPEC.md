@@ -67,6 +67,7 @@ Steps:
 2. Log in with owner email/password.
 3. Use the app.
 4. Change password from Account settings after launch.
+5. If locked out, reset the password with the configured owner recovery code.
 
 Success criteria:
 
@@ -84,6 +85,7 @@ Success criteria:
 | Conversation storage | Store conversation history locally and hosted | High | JSON local, Redis hosted |
 | Private auth | Restrict hosted access to owner | High | Single-user for now |
 | Password change | Owner can rotate launch password | High | Required before public URL use |
+| Password reset | Owner can recover access from login screen | High | Uses server-side recovery code, not email |
 | Branch split | Keep local/OpenClaw branch separate from Vercel branch | High | `main` vs `web/vercel` |
 
 ## Non-Functional Requirements

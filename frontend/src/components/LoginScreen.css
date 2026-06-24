@@ -87,8 +87,28 @@
   cursor: wait;
 }
 
+.login-link-button {
+  min-height: 34px;
+  border: none;
+  background: transparent;
+  color: #2f6fb6;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.login-link-button:disabled {
+  opacity: 0.72;
+  cursor: wait;
+}
+
 :root[data-theme='dark'] .login-error {
   background: #351f25;
   border-color: #70404b;
   color: #ffb4c0;
+}
+
+:root[data-theme='dark'] .login-link-button {
+  color: #8abfff;
 }
