@@ -1,10 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import GearIcon from './GearIcon';
+import { LogOut, PlugZap, Settings as SettingsIcon, UserCircle } from 'lucide-react';
+import { api } from '../api';
 import './Sidebar.css';
-
-const SIDEBAR_WIDTH_KEY = 'llm-council-sidebar-width';
-const SIDEBAR_MIN = 240;
-const SIDEBAR_MAX = 480;
 
 export default function Sidebar({
   conversations,
@@ -20,12 +17,13 @@ export default function Sidebar({
   onLogout,
   onChangePassword,
   isOpen,
-  openSettingsOnOpen,
-  onSettingsOpened,
+  settingsRequest,
+  onSettingsRequestHandled,
   sidebarWidth,
   onResizeStart,
 }) {
   const [showSettings, setShowSettings] = useState(false);
+  const [settingsSection, setSettingsSection] = useState('settings');
   const [isDragging, setIsDragging] = useState(false);
 
   const handleResizeMouseDown = useCallback((e) => {
@@ -40,49 +38,54 @@ export default function Sidebar({
     window.addEventListener('mouseup', onUp);
     return () => window.removeEventListener('mouseup', onUp);
   }, [isDragging]);
-
-  // When mobile topbar gear is tapped: sidebar opens + settings should auto-open
-  useEffect(() => {
-    if (isOpen && openSettingsOnOpen && !showSettings) {
-      openSettings();
-      onSettingsOpened?.();
-    }
-  }, [isOpen, openSettingsOnOpen]); // eslint-disable-line react-hooks/exhaustive-deps
-  const [draftCouncil, setDraftCouncil] = useState(settings?.council_models || []);
-  const [draftChairman, setDraftChairman] = useState(settings?.chairman_model || '');
   const [draftThemeMode, setDraftThemeMode] = useState(settings?.theme_mode || 'system');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordStatus, setPasswordStatus] = useState('');
   const [passwordBusy, setPasswordBusy] = useState(false);
-  // Accordion state for chairman picker
-  const [chairmanExpanded, setChairmanExpanded] = useState(false);
-  // Accordion state for council models (collapsed = only selected; expanded = all)
-  const [councilExpanded, setCouncilExpanded] = useState(false);
+  const [openRouterStatus, setOpenRouterStatus] = useState(null);
+  const [openRouterKey, setOpenRouterKey] = useState('');
+  const [openRouterStatusMessage, setOpenRouterStatusMessage] = useState('');
+  const [openRouterBusy, setOpenRouterBusy] = useState(false);
 
-  const available = settings?.available_models || [];
+  const loadOpenRouterStatus = useCallback(async () => {
+    try {
+      const status = await api.getOpenRouterIntegration();
+      setOpenRouterStatus(status);
+    } catch (e) {
+      setOpenRouterStatusMessage(e.message || 'Could not load OpenRouter status.');
+    }
+  }, []);
 
-  const openSettings = () => {
-    setDraftCouncil(settings?.council_models || []);
-    setDraftChairman(settings?.chairman_model || '');
+  const openSettings = (section = 'settings') => {
+    setSettingsSection(section);
     setDraftThemeMode(settings?.theme_mode || 'system');
     setCurrentPassword('');
     setNewPassword('');
     setConfirmPassword('');
     setPasswordStatus('');
-    setChairmanExpanded(false);
-    setCouncilExpanded(false);
+    setOpenRouterKey('');
+    setOpenRouterStatusMessage('');
     setShowSettings(true);
   };
 
   const closeSettings = () => {
     // Revert live theme preview to the saved/persisted setting
     if (onThemePreview) onThemePreview(settings?.theme_mode || 'system');
-    setChairmanExpanded(false);
-    setCouncilExpanded(false);
     setShowSettings(false);
   };
+
+  useEffect(() => {
+    if (!settingsRequest) return;
+    openSettings(settingsRequest.section || 'settings');
+    onSettingsRequestHandled?.();
+  }, [settingsRequest]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!showSettings) return;
+    loadOpenRouterStatus();
+  }, [showSettings, loadOpenRouterStatus]);
 
   const submitPasswordChange = async () => {
     setPasswordStatus('');
@@ -108,37 +111,52 @@ export default function Sidebar({
     }
   };
 
-  const toggleModel = (model) => {
-    setDraftCouncil((prev) =>
-      prev.includes(model) ? prev.filter((m) => m !== model) : [...prev, model]
-    );
-  };
-
-  const selectChairman = (model) => {
-    setDraftChairman(model);
-    setChairmanExpanded(false); // collapse after selection
-  };
-
   const save = async () => {
-    const safeCouncil = draftCouncil.length ? draftCouncil : settings?.council_models || [];
-    const safeChairman = draftChairman || settings?.chairman_model;
     await onSaveSettings({
-      council_models: safeCouncil,
-      chairman_model: safeChairman,
       theme_mode: draftThemeMode,
     });
     setShowSettings(false);
-    setChairmanExpanded(false);
   };
 
-  const currentChairman = settings?.chairman_model || '';
-  const chairmanShort = currentChairman ? currentChairman.split('/').pop() : '';
-  const draftChairmanShort = draftChairman ? draftChairman.split('/').pop() : '';
+  const submitOpenRouterKey = async () => {
+    setOpenRouterStatusMessage('');
+    setOpenRouterBusy(true);
+    try {
+      const status = await api.updateOpenRouterIntegration({ api_key: openRouterKey });
+      setOpenRouterStatus(status);
+      setOpenRouterKey('');
+      setOpenRouterStatusMessage('OpenRouter key saved.');
+    } catch (e) {
+      setOpenRouterStatusMessage(e.message || 'OpenRouter key could not be saved.');
+    } finally {
+      setOpenRouterBusy(false);
+    }
+  };
+
+  const clearOpenRouterKey = async () => {
+    setOpenRouterStatusMessage('');
+    setOpenRouterBusy(true);
+    try {
+      const status = await api.updateOpenRouterIntegration({ clear: true });
+      setOpenRouterStatus(status);
+      setOpenRouterKey('');
+      setOpenRouterStatusMessage('OpenRouter account key cleared.');
+    } catch (e) {
+      setOpenRouterStatusMessage(e.message || 'OpenRouter key could not be cleared.');
+    } finally {
+      setOpenRouterBusy(false);
+    }
+  };
+
+  const accountTitle = auth?.role === 'owner' ? 'Owner' : 'Account';
+  const ownerLabel = auth?.name || auth?.email || (auth?.auth_required ? 'Account' : 'Local session');
+  const accountSubLabel = auth?.name && auth?.email ? auth.email : ownerLabel;
+  const ownerInitial = (auth?.name || auth?.email || 'L').trim().slice(0, 1).toUpperCase();
 
   return (
     <div
       className={`sidebar ${isOpen ? 'open' : ''} ${showSettings ? 'settings-fullpanel' : ''}`}
-      style={sidebarWidth ? { width: sidebarWidth } : undefined}
+      style={sidebarWidth ? { '--sidebar-width': `${sidebarWidth}px` } : undefined}
     >
       {/* Drag resize handle — desktop only, hidden on mobile via CSS */}
       <div
@@ -163,7 +181,9 @@ export default function Sidebar({
                 <path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
-            <span className="settings-fullpanel-title">Settings</span>
+            <span className="settings-fullpanel-title">
+              {settingsSection === 'integrations' ? 'API & Integrations' : 'Settings'}
+            </span>
             {/* Static pencil/edit icon — replaces spinning gear */}
             <div className="settings-fullpanel-editicon" aria-hidden="true">
               <svg width="17" height="17" viewBox="0 0 20 20" fill="none">
@@ -180,153 +200,70 @@ export default function Sidebar({
 
           {/* Settings body — scrollable */}
           <div className="settings-fullpanel-body">
-            <div className="settings-subtitle">Council Models</div>
-            {available.length === 0 && (
-              <p className="settings-empty-note">No models available. Check your OpenClaw model library.</p>
-            )}
-
-            {/* ── Council models collapsible accordion ── */}
-            {available.length > 0 && (() => {
-              // Models to render: collapsed → only selected; expanded → all
-              const unselected = available.filter((m) => !draftCouncil.includes(m));
-              const modelsToShow = councilExpanded ? available : available.filter((m) => draftCouncil.includes(m));
-              const extraCount = unselected.length;
-
-              return (
-                <div className="council-models-accordion">
-                  {/* Render rows */}
-                  <div className="council-models-list">
-                    {modelsToShow.length === 0 && !councilExpanded && (
-                      <p className="settings-empty-note council-models-empty">
-                        No models selected. Expand to add some.
-                      </p>
-                    )}
-                    {modelsToShow.map((model) => {
-                      const checked = draftCouncil.includes(model);
-                      const shortName = model.split('/').pop();
-                      return (
-                        <button
-                          key={model}
-                          type="button"
-                          role="checkbox"
-                          aria-checked={checked}
-                          className={`council-model-row${checked ? ' checked' : ''}`}
-                          onClick={() => toggleModel(model)}
-                        >
-                          <span className="council-model-checkbox" aria-hidden="true">
-                            {checked && (
-                              <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-                                <path d="M2 6L5 9L10 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                              </svg>
-                            )}
-                          </span>
-                          <span className="council-model-name">{shortName}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Toggle button */}
-                  <button
-                    type="button"
-                    className={`council-models-toggle-btn${councilExpanded ? ' expanded' : ''}`}
-                    onClick={() => setCouncilExpanded((v) => !v)}
-                    aria-expanded={councilExpanded}
-                    aria-label={councilExpanded ? 'Hide extra models' : `Show all ${available.length} models`}
-                  >
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 12 12"
-                      fill="none"
-                      aria-hidden="true"
-                      className="toggle-chevron"
-                    >
-                      <path d="M2 4L6 8L10 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                    {councilExpanded
-                      ? 'Hide extras ▴'
-                      : `Show all ${available.length} models ▾`}
-                    {!councilExpanded && extraCount > 0 && (
-                      <span className="council-models-extra-badge">+{extraCount}</span>
-                    )}
-                  </button>
+            {settingsSection === 'integrations' && (
+              <>
+                <div className="settings-subtitle settings-account-subtitle">
+                  <span>API &amp; Integrations</span>
+                  <span className="settings-chairman-hint">
+                    {openRouterStatus?.configured ? 'Configured' : 'Required for hosted direct runs'}
+                  </span>
                 </div>
-              );
-            })()}
-
-            {/* ── Chairman accordion ── */}
-            <div className="settings-subtitle settings-chairman-subtitle">
-              <span>Chairman</span>
-              <span className="settings-chairman-hint">Synthesizes the final verdict</span>
-            </div>
-
-            <div className="settings-chairman-accordion">
-              {/* Selected chairman chip (always visible) */}
-              <div className="settings-chairman-selected-row">
-                {draftChairmanShort ? (
-                  <div className="settings-chairman-chip">
-                    <div className="settings-chairman-chip-bubble">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
-                      </svg>
+                <div className="integration-settings-card">
+                  <div className="integration-card-header">
+                    <div>
+                      <strong>OpenRouter</strong>
+                      <span>
+                        {openRouterStatus?.configured
+                          ? openRouterStatus.source === 'environment'
+                            ? 'Configured by server environment'
+                            : `Your key is saved (${openRouterStatus.masked_key})`
+                          : 'No key saved'}
+                      </span>
                     </div>
-                    <span className="settings-chairman-chip-name">{draftChairmanShort}</span>
+                    <span className={`integration-status-pill${openRouterStatus?.configured ? ' configured' : ''}`}>
+                      {openRouterStatus?.configured ? 'Ready' : 'Needs key'}
+                    </span>
                   </div>
-                ) : (
-                  <span className="settings-chairman-none">None selected</span>
-                )}
-                <button
-                  className={`settings-chairman-toggle-btn${chairmanExpanded ? ' expanded' : ''}`}
-                  onClick={() => setChairmanExpanded((v) => !v)}
-                  aria-expanded={chairmanExpanded}
-                  aria-label={chairmanExpanded ? 'Collapse chairman picker' : 'Change chairman'}
-                >
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" className="toggle-chevron">
-                    <path d="M2 4L6 8L10 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  {chairmanExpanded ? 'Collapse' : 'Change'}
-                </button>
-              </div>
-
-              {/* Expandable picker */}
-              {chairmanExpanded && (
-                <div className="settings-chairman-picker" role="radiogroup" aria-label="Select chairman model">
-                  {available.length === 0 && (
-                    <p className="settings-empty-note">No models available.</p>
+                  <p>
+                    Your OpenRouter key pays for your council runs. The full key is stored server-side
+                    only and is never returned to the browser.
+                  </p>
+                  <label className="account-field">
+                    <span>OpenRouter API key</span>
+                    <input
+                      type="password"
+                      autoComplete="off"
+                      value={openRouterKey}
+                      onChange={(e) => setOpenRouterKey(e.target.value)}
+                      placeholder={openRouterStatus?.configured ? 'Leave blank to keep the saved key' : 'sk-or-v1-...'}
+                    />
+                  </label>
+                  {openRouterStatusMessage && (
+                    <div className={`account-status${openRouterStatusMessage.includes('saved') || openRouterStatusMessage.includes('cleared') ? ' success' : ''}`}>
+                      {openRouterStatusMessage}
+                    </div>
                   )}
-                  {available.map((model) => {
-                    const isChairman = draftChairman === model;
-                    const shortName = model.split('/').pop();
-                    return (
-                      <div
-                        key={model}
-                        className={`settings-chairman-option${isChairman ? ' selected' : ''}`}
-                        onClick={() => selectChairman(model)}
-                        role="radio"
-                        aria-checked={isChairman}
-                        tabIndex={0}
-                        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && selectChairman(model)}
-                      >
-                        <div className="settings-chairman-bubble">
-                          {isChairman ? (
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
-                            </svg>
-                          ) : (
-                            <span className="settings-chairman-initial">{shortName[0]?.toUpperCase()}</span>
-                          )}
-                        </div>
-                        <span className="settings-chairman-name">{shortName}</span>
-                        {isChairman && (
-                          <span className="settings-chairman-badge">✓</span>
-                        )}
-                      </div>
-                    );
-                  })}
+                  <div className="account-actions integration-actions">
+                    <button
+                      type="button"
+                      className="settings-save-btn account-password-btn"
+                      onClick={submitOpenRouterKey}
+                      disabled={openRouterBusy || !openRouterKey.trim()}
+                    >
+                      {openRouterBusy ? 'Saving...' : 'Save key'}
+                    </button>
+                    <button
+                      type="button"
+                      className="settings-cancel-btn account-logout-btn"
+                      onClick={clearOpenRouterKey}
+                      disabled={openRouterBusy || openRouterStatus?.source !== 'account'}
+                    >
+                      Clear account key
+                    </button>
+                  </div>
                 </div>
-              )}
-            </div>
+              </>
+            )}
 
             <div className="settings-subtitle">Appearance</div>
             <div className="appearance-icon-row" role="group" aria-label="Theme mode">
@@ -453,9 +390,7 @@ export default function Sidebar({
       {!showSettings && (
         <>
           <div className="sidebar-header">
-            {/* Brand row: logo + settings gear */}
             <div className="sidebar-brand-row">
-              {/* Logo image — falls back to text */}
               <div className="sidebar-logo-group">
                 <img
                   src="/images/llm-council-icon.svg"
@@ -467,34 +402,8 @@ export default function Sidebar({
                 />
                 <h1>LLM Council</h1>
               </div>
-              {/* Static settings gear button — no rotation animation */}
-              <button
-                className="settings-icon-btn"
-                aria-label="Open settings"
-                title="Settings"
-                onClick={openSettings}
-              >
-                <GearIcon aria-hidden="true" />
-              </button>
             </div>
 
-            {/* Chairman bubble — visible when chairman is set */}
-            {chairmanShort && (
-              <div className="sidebar-chairman-row" onClick={openSettings} title="Edit chairman in Settings">
-                <span className="sidebar-chairman-label">Chairman</span>
-                <div className="sidebar-chairman-bubble">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
-                  </svg>
-                  <span>{chairmanShort}</span>
-                  <svg width="10" height="10" viewBox="0 0 20 20" fill="none" className="chairman-edit-icon" aria-hidden="true">
-                    <path d="M14.5 2.5a2.121 2.121 0 0 1 3 3L6.5 16.5l-4 1 1-4L14.5 2.5Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round"/>
-                  </svg>
-                </div>
-              </div>
-            )}
-
-            {/* New conversation button */}
             <button className="new-conversation-btn" onClick={onNewConversation}>
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                 <path d="M8 2v12M2 8h12" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/>
@@ -561,6 +470,39 @@ export default function Sidebar({
                   <div className="conversation-meta">{conv.message_count} messages</div>
                 </div>
               ))
+            )}
+          </div>
+
+          <div className="sidebar-footer">
+            <div className="sidebar-owner">
+              <div className="sidebar-owner-avatar" aria-hidden="true">
+                {auth?.email ? ownerInitial : <UserCircle size={18} />}
+              </div>
+              <div className="sidebar-owner-copy">
+                <span className="sidebar-owner-title">{accountTitle}</span>
+                <span className="sidebar-owner-email">{accountSubLabel}</span>
+              </div>
+            </div>
+
+            <button type="button" className="sidebar-footer-action" onClick={() => openSettings('settings')}>
+              <SettingsIcon size={16} />
+              <span>Settings</span>
+            </button>
+
+            <button
+              type="button"
+              className="sidebar-footer-action"
+              onClick={() => openSettings('integrations')}
+            >
+              <PlugZap size={16} />
+              <span>API &amp; Integrations</span>
+            </button>
+
+            {auth?.auth_required && (
+              <button type="button" className="sidebar-footer-action is-danger" onClick={onLogout}>
+                <LogOut size={16} />
+                <span>Sign out</span>
+              </button>
             )}
           </div>
         </>

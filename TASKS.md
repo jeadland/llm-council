@@ -65,12 +65,29 @@ Notes:
 
 ## Next
 
+- Validate the redesigned top model bar and curated/custom picker on hosted preview.
+- Validate weekly model curation cron on hosted preview: draft creation, app-core curator promotion, Redis state persistence, and review-gated preset approval.
+- Validate BYOK signup on hosted preview with a disposable OpenRouter key.
 - Add automated backend tests for auth hash/session behavior.
 - Add a documented Vercel deploy checklist with exact env var setup steps.
 - Decide whether hosted runs need queue/progress architecture if sync runs time out.
 
 ## Later
 
+- Email confirmation and recovery:
+  - User-facing behavior: users confirm email and recover passwords without owner intervention.
+  - Data or persistence behavior: confirmation and reset tokens are single-use and server-side only.
+  - What must not change: BYOK remains required for non-owner model access.
+- OpenRouter OAuth connect:
+  - User-facing behavior: less technical users may connect an OpenRouter account through OAuth PKCE instead of pasting a key.
+  - Data or persistence behavior: full keys stay server-side only; the browser receives only masked status and source.
+  - What must not change: no app-managed billing or Josh-funded model access in this phase.
+- Managed credits beta:
+  - User-facing behavior: users can buy credits, spend them on council runs, and see remaining balance plus per-run cost.
+  - Data or persistence behavior: each managed user has an OpenRouter Management API-provisioned key with a hard spend limit, a local balance ledger, and run-level cost entries tied to `user_id`, OpenRouter key hash, and billing account ID.
+  - Loading, empty, error, and permission states: users are blocked before a run when balance is insufficient or their managed key limit is exhausted.
+  - What must not change: no managed-credit access without explicit owner approval, payment setup, admin visibility, and spend caps.
+  - Verification evidence: Stripe payment test, OpenRouter key provisioning test, balance decrement test, spend-limit block test, and admin reconciliation check against OpenRouter usage.
 - Conversation export to Markdown/PDF.
 - Model performance analytics over time.
 - Custom ranking criteria per question.
@@ -81,8 +98,11 @@ Notes:
 - Multi-user auth and sharing.
 - Public landing/marketing page.
 - Billing or subscription access.
+- Parent-friendly managed-credit onboarding for non-technical users.
 
 ## Completed
 
+- 2026-06-24: Added top-level model bar, richer curated/custom model picker, owner-scoped OpenRouter key handling, cost estimates, and reviewable weekly curation draft endpoints.
+- 2026-06-24: Added no-invite BYOK signup foundation with OpenRouter tutorial, account confirmation, per-user data scoping, key masking, and non-owner server-key fallback protection.
 - 2026-06-24: Added Vercel web branch implementation with Redis storage, private auth, password change, and sync run mode. Commit: `4892cb6`.
 - 2026-06-24: Added project-bootstrap workflow docs and Cursor/GitHub templates.

@@ -13,7 +13,7 @@ LLM Council is a React + FastAPI app that asks multiple LLMs the same user quest
 | Backend | FastAPI | Local uvicorn or Vercel Python Function |
 | Model API | OpenClaw local proxy + OpenRouter direct | OpenClaw first locally; OpenRouter direct for Vercel |
 | Persistence | JSON files locally; Upstash Redis on Vercel | Selected by env |
-| Auth | Single-owner email/password | Required in hosted mode |
+| Auth | Owner email/password plus BYOK user signup | Required in hosted mode |
 | Package managers | `uv` and `npm` | Python backend, JS frontend |
 | Deployment | Local LAN, Vercel | `main` for local/OpenClaw, `web/vercel` for hosted |
 
@@ -34,11 +34,15 @@ docs/                  Agent handoff and brand guidance
 
 | Entity | Purpose | Persistence |
 | --- | --- | --- |
-| Conversation | User-visible thread with messages | `data/conversations/*.json` locally; Redis keys on Vercel |
+| Conversation | User-visible thread with messages, scoped by authenticated email | `data/conversations/*.json` locally; Redis keys on Vercel |
 | Assistant message | Stage 1, Stage 2, Stage 3 output for a run | Embedded in conversation |
 | Run | Durable progress/result snapshot for one council query | `data/runs/*.json` locally; Redis keys on Vercel |
-| Settings | Available models, council selection, chairman, theme | `data/settings.json` locally; Redis key on Vercel |
-| Auth user | Owner email and password hash | `data/auth-users.json` locally; Redis on Vercel |
+| Cost summary | Actual tracked OpenRouter usage/cost for one completed council run | Embedded in run and assistant message when available |
+| Settings | Available models, active council/chairman, custom groups, theme, scoped by user | Owner defaults in `data/settings.json`, user settings in `data/user-settings.json`; Redis keys on Vercel |
+| Integration credential | Per-user OpenRouter API key status and server-side secret | `data/integrations.json` locally; Redis key on Vercel |
+| Model curation state | App-core curator model and promotion history | `data/model-curation-state.json` locally; Redis key on Vercel |
+| Model curation draft | Reviewable weekly curated-preset recommendation | `data/model-curation-drafts.json` locally; Redis keys on Vercel |
+| Auth user | Email, optional name, role, and password hash | `data/auth-users.json` locally; Redis on Vercel |
 | Session | HttpOnly-cookie session backing record | `data/auth-sessions/` locally; Redis with TTL on Vercel |
 
 Persistence changes are high-risk. Do not change storage shape or key format without documenting the migration in `DECISIONS.md`.
@@ -46,13 +50,15 @@ Persistence changes are high-risk. Do not change storage shape or key format wit
 ## Request Flow
 
 1. Frontend calls `/api/auth/me`.
-2. If auth is required and no session exists, show `LoginScreen`.
-3. Authenticated user creates/selects a conversation.
-4. Sending a message creates a run.
-5. Stage 1 queries council models in parallel.
-6. Stage 2 anonymizes Stage 1 answers and asks models to rank responses.
-7. Stage 3 asks chairman to synthesize a final answer.
-8. Frontend displays all stages and metadata.
+2. If auth is required and no session exists, show sign-in/create-account/reset screen.
+3. New users sign up with optional name, required email/password, and required OpenRouter key.
+4. Authenticated user creates/selects a conversation in their own scope.
+5. Sending a message creates a user-scoped run.
+6. Non-owner runs require a saved account OpenRouter key and never fall back to the server owner key.
+7. Stage 1 queries council models in parallel.
+8. Stage 2 anonymizes Stage 1 answers and asks models to rank responses.
+9. Stage 3 asks chairman to synthesize a final answer.
+10. Frontend displays all stages and metadata.
 
 Local mode uses background run tasks and polling. Vercel mode uses `RUN_EXECUTION_MODE=sync`, so the create-run request completes the full council run in one function invocation.
 
@@ -62,11 +68,19 @@ Local mode uses background run tasks and polling. Vercel mode uses `RUN_EXECUTIO
 | --- | --- |
 | `/` | Frontend app |
 | `/api/auth/me` | Auth/session state |
+| `/api/auth/signup` | Create BYOK user account, validate OpenRouter key, create session |
 | `/api/auth/login` | Create session |
 | `/api/auth/logout` | Delete session |
-| `/api/auth/change-password` | Rotate owner password and invalidate old sessions |
+| `/api/auth/change-password` | Rotate password and invalidate old sessions |
 | `/api/auth/reset-password` | Create/reset owner password with recovery code and invalidate old sessions |
-| `/api/settings` | Read/update model and theme settings |
+| `/api/settings` | Read/update active model group, custom groups, chairman, and theme settings |
+| `/api/integrations/openrouter` | Read masked OpenRouter key status and save/clear the current user's account key |
+| `/api/models/status` | Safe model-provider status booleans and catalog reachability |
+| `/api/models/catalog` | OpenRouter text model catalog metadata plus app-level council presets |
+| `/api/model-curation/latest` | Read latest model curation draft and app-core curation state |
+| `/api/model-curation/run` | Owner-triggered curation draft generation |
+| `/api/model-curation/{id}/approve` | Owner approval path for curated preset updates |
+| `/api/cron/model-curation` | Vercel Cron entrypoint for weekly curation drafts |
 | `/api/conversations` | List/create conversations |
 | `/api/conversations/{id}` | Read/delete conversation |
 | `/api/conversations/{id}/runs` | Create council run |
@@ -76,7 +90,11 @@ Local mode uses background run tasks and polling. Vercel mode uses `RUN_EXECUTIO
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `OPENROUTER_API_KEY` | Vercel/direct mode | Direct OpenRouter calls |
+| `OPENROUTER_API_KEY` | Vercel/direct mode | Direct OpenRouter calls, scoped to owner account in hosted mode |
+| `OPENROUTER_OWNER_EMAIL` | Optional hosted | Overrides `ADMIN_EMAIL` as the account allowed to use the server OpenRouter key |
+| `MODEL_CURATION_MODEL` | Optional hosted | Initial curation model override before app-core curation state exists; default is `openrouter/auto` |
+| `MODEL_CURATION_MAX_USD` | Optional hosted | Maximum estimated spend for one curation model call, default `2.00` |
+| `CRON_SECRET` | Hosted cron | Secret Vercel sends as `Authorization: Bearer ...` for weekly curation |
 | `OPENCLAW_GATEWAY_TOKEN` | Optional local | Override OpenClaw gateway token |
 | `OPENCLAW_CONFIG_PATH` | Optional local | Override OpenClaw config path |
 | `STORAGE_BACKEND=redis` | Vercel | Force Redis storage |
@@ -88,6 +106,8 @@ Local mode uses background run tasks and polling. Vercel mode uses `RUN_EXECUTIO
 | `ADMIN_PASSWORD_RESET_TOKEN` | Hosted password recovery | Owner-only recovery code for resetting password from login screen |
 | `AUTH_REQUIRED` | Optional | Force auth on/off locally |
 | `COOKIE_SECURE` | Optional local | Use `false` for local auth smoke over HTTP |
+
+Non-owner users must save their own OpenRouter API key. The server `OPENROUTER_API_KEY` is owner-scoped and is not used for non-owner council runs.
 
 Never print secrets in chat, logs, screenshots, or docs.
 
@@ -123,8 +143,8 @@ Hosted:
 
 | Area | Why risky | Required caution |
 | --- | --- | --- |
-| Auth | Can expose or block private app access | Smoke login/logout/password change |
-| Redis persistence | Can lose conversation/settings state | Verify data survives reload/redeploy |
+| Auth | Can expose or block private app access | Smoke signup/login/logout/password change |
+| Redis persistence | Can lose or cross-contaminate conversation/settings state | Verify user-scoped data survives reload/redeploy and remains isolated |
 | Vercel run mode | Council runs may exceed function duration | Test with realistic model count |
 | Model catalog | OpenClaw aliases and OpenRouter IDs differ | Verify settings output and direct query IDs |
 | Local vs hosted branches | Easy to break one mode while fixing the other | Verify branch intent before editing |

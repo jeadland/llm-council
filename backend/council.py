@@ -1,7 +1,7 @@
 """3-stage LLM Council orchestration."""
 
 from typing import List, Dict, Any, Tuple
-from .openrouter import query_models_parallel, query_model
+from .openrouter import build_cost_call, build_cost_summary, query_models_parallel, query_model
 from .config import COUNCIL_MODELS, CHAIRMAN_MODEL
 
 
@@ -27,7 +27,8 @@ async def stage1_collect_responses(user_query: str, council_models: List[str] = 
         if response is not None:  # Only include successful responses
             stage1_results.append({
                 "model": model,
-                "response": response.get('content', '')
+                "response": response.get('content', ''),
+                "cost_call": build_cost_call("stage1", "individual_response", model, response),
             })
 
     return stage1_results
@@ -109,7 +110,8 @@ Now provide your evaluation and ranking:"""
             stage2_results.append({
                 "model": model,
                 "ranking": full_text,
-                "parsed_ranking": parsed
+                "parsed_ranking": parsed,
+                "cost_call": build_cost_call("stage2", "peer_ranking", model, response),
             })
 
     return stage2_results, label_to_model
@@ -170,6 +172,7 @@ Provide a clear, well-reasoned final answer that represents the council's collec
     # Query the chairman model — with retry and fallback
     response = None
     attempts = [model]
+    cost_calls = []
 
     # If chairman fails, try any council model as fallback
     fallback_models = [m for m in (council_models or []) if m != model]
@@ -179,11 +182,14 @@ Provide a clear, well-reasoned final answer that represents the council's collec
     for attempt_model in attempts:
         response = await query_model(attempt_model, messages, timeout=180.0)
         if response and response.get('content'):
+            cost_calls.append(build_cost_call("stage3", "synthesis", attempt_model, response))
             return {
                 "model": attempt_model,
                 "response": response.get('content', ''),
                 "used_fallback": attempt_model != model,
+                "cost_calls": cost_calls,
             }
+        cost_calls.append(build_cost_call("stage3", "synthesis", attempt_model, response, status="failed" if response is None else None))
         print(f"Chairman synthesis failed on {attempt_model}, trying next…")
 
     # All attempts failed — build a best-effort synthesis from stage1 instead
@@ -197,12 +203,14 @@ Provide a clear, well-reasoned final answer that represents the council's collec
                 + best_response.get('response', '')
             ),
             "used_fallback": True,
+            "cost_calls": cost_calls,
         }
 
     return {
         "model": model,
         "response": "⚠️ Unable to generate synthesis. All council models failed to respond.",
         "used_fallback": True,
+        "cost_calls": cost_calls,
     }
 
 
@@ -325,6 +333,49 @@ Title:"""
     return title
 
 
+def _stage_cost_calls(
+    stage_results: List[Dict[str, Any]],
+    stage: str,
+    call_type: str,
+    attempted_models: List[str],
+) -> List[Dict[str, Any]]:
+    calls = [
+        result["cost_call"]
+        for result in stage_results
+        if isinstance(result, dict) and isinstance(result.get("cost_call"), dict)
+    ]
+    successful = {call.get("requested_model") for call in calls}
+    for model in attempted_models or []:
+        if model not in successful:
+            calls.append(build_cost_call(stage, call_type, model, None, status="failed"))
+    return calls
+
+
+def collect_council_cost_calls(
+    stage1_results: List[Dict[str, Any]],
+    stage2_results: List[Dict[str, Any]],
+    stage3_result: Dict[str, Any],
+    council_models: List[str],
+) -> List[Dict[str, Any]]:
+    """Return all model-call billing records for one council run."""
+    calls = []
+    calls.extend(_stage_cost_calls(stage1_results, "stage1", "individual_response", council_models))
+    calls.extend(_stage_cost_calls(stage2_results, "stage2", "peer_ranking", council_models))
+    calls.extend(stage3_result.get("cost_calls") or [])
+    return calls
+
+
+def build_council_cost_summary(
+    stage1_results: List[Dict[str, Any]],
+    stage2_results: List[Dict[str, Any]],
+    stage3_result: Dict[str, Any],
+    council_models: List[str],
+) -> Dict[str, Any]:
+    return build_cost_summary(
+        collect_council_cost_calls(stage1_results, stage2_results, stage3_result, council_models)
+    )
+
+
 async def run_full_council(user_query: str) -> Tuple[List, List, Dict, Dict]:
     """
     Run the complete 3-stage council process.
@@ -336,7 +387,8 @@ async def run_full_council(user_query: str) -> Tuple[List, List, Dict, Dict]:
         Tuple of (stage1_results, stage2_results, stage3_result, metadata)
     """
     # Stage 1: Collect individual responses
-    stage1_results = await stage1_collect_responses(user_query)
+    council_models = COUNCIL_MODELS
+    stage1_results = await stage1_collect_responses(user_query, council_models=council_models)
 
     # If no models responded successfully, return error
     if not stage1_results:
@@ -346,7 +398,11 @@ async def run_full_council(user_query: str) -> Tuple[List, List, Dict, Dict]:
         }, {}
 
     # Stage 2: Collect rankings
-    stage2_results, label_to_model = await stage2_collect_rankings(user_query, stage1_results)
+    stage2_results, label_to_model = await stage2_collect_rankings(
+        user_query,
+        stage1_results,
+        council_models=council_models,
+    )
 
     # Calculate aggregate rankings
     aggregate_rankings = calculate_aggregate_rankings(stage2_results, label_to_model)
@@ -355,13 +411,21 @@ async def run_full_council(user_query: str) -> Tuple[List, List, Dict, Dict]:
     stage3_result = await stage3_synthesize_final(
         user_query,
         stage1_results,
-        stage2_results
+        stage2_results,
+        council_models=council_models,
+    )
+    cost_summary = build_council_cost_summary(
+        stage1_results,
+        stage2_results,
+        stage3_result,
+        council_models,
     )
 
     # Prepare metadata
     metadata = {
         "label_to_model": label_to_model,
-        "aggregate_rankings": aggregate_rankings
+        "aggregate_rankings": aggregate_rankings,
+        "cost_summary": cost_summary,
     }
 
     return stage1_results, stage2_results, stage3_result, metadata

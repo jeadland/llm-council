@@ -8,7 +8,7 @@ Use this file to transfer context between ChatGPT, Codex, Cursor, GitHub, and hu
 The app is LLM Council, a React + FastAPI multi-model deliberation app.
 The active branch is web/vercel for hosted deployment work.
 main remains the local/OpenClaw/LAN branch.
-The current implementation includes Vercel config, Redis-backed storage, private auth, password change, and sync run mode.
+The current implementation includes Vercel config, Redis-backed storage, private auth, BYOK signup, password change, and sync run mode.
 The next task is Vercel preview deployment and hosted smoke verification.
 ```
 
@@ -20,10 +20,11 @@ Goal: Push/deploy `web/vercel`, configure env vars, and verify hosted private us
 
 Expected behavior:
 
-- Unauthenticated hosted visitors see login.
-- Authenticated owner can use the council.
+- Unauthenticated hosted visitors see sign-in/create-account options.
+- New users can create an account with optional name, required email, password, and required OpenRouter API key.
+- Authenticated owner and BYOK users can use the council.
 - Password can be changed after launch.
-- Data persists through reload/redeploy.
+- Data persists through reload/redeploy and remains scoped by authenticated user.
 
 Scope classification:
 
@@ -43,6 +44,7 @@ Scope classification:
 - `frontend/src/api.js`
 - `frontend/src/components/LoginScreen.jsx`
 - `frontend/src/components/Sidebar.jsx`
+- `tests/test_byok_onboarding.py`
 - `README.md`
 
 ## What Has Been Tried
@@ -51,6 +53,8 @@ Scope classification:
 - Implemented Vercel wiring.
 - Implemented Redis storage with JSON fallback.
 - Implemented private auth and password change.
+- Implemented no-invite BYOK signup with OpenRouter tutorial and account-created confirmation.
+- Implemented per-user conversation/settings/run/integration scoping and non-owner server-key fallback protection.
 - Verified local auth smoke using a temporary local password.
 - Verified compile, lint, and build.
 
@@ -75,9 +79,10 @@ Owner approval is needed before:
 
 ## Acceptance Criteria
 
-- [ ] User-facing behavior: login wall appears on hosted preview.
-- [ ] Data or persistence behavior: conversation/settings survive reload and redeploy.
+- [ ] User-facing behavior: sign-in/create-account wall appears on hosted preview.
+- [ ] Data or persistence behavior: conversation/settings survive reload and redeploy and remain user-scoped.
 - [ ] Loading, empty, error, and permission states: unauthenticated APIs return `401`; bad login shows clear error.
+- [ ] BYOK onboarding: signup validates a user OpenRouter key, shows account-created confirmation, and masks the key afterward.
 - [ ] Mobile/responsive behavior: login and main app are usable at phone width.
 - [ ] What must not change: local OpenClaw flow on `main`.
 - [ ] Verification evidence: Vercel preview URL, auth smoke results, and one small council query.
@@ -88,6 +93,7 @@ Commands run:
 
 ```text
 uv run python -m compileall backend api
+uv run python -m unittest discover tests
 npm --prefix frontend run lint
 npm --prefix frontend run build
 local curl auth smoke with AUTH_REQUIRED=true and temporary password
@@ -97,6 +103,7 @@ Results:
 
 ```text
 compileall passed
+unittest passed
 frontend build passed
 frontend lint passed with 2 hook dependency warnings
 auth smoke: unauth=401, login=200, me=200, change=200, old_login=401, new_login=200

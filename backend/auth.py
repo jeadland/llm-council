@@ -1,4 +1,4 @@
-"""Private single-user auth for hosted LLM Council."""
+"""Private auth for hosted LLM Council."""
 
 import base64
 import hashlib
@@ -21,6 +21,15 @@ PASSWORD_RESET_TTL_SECONDS = 60 * 10
 MAX_PASSWORD_RESET_ATTEMPTS = 8
 
 
+def normalize_email(email: str) -> str:
+    return (email or "").lower().strip()
+
+
+def normalize_name(name: Optional[str]) -> Optional[str]:
+    cleaned = (name or "").strip()
+    return cleaned or None
+
+
 def is_auth_required() -> bool:
     configured = os.getenv("AUTH_REQUIRED")
     if configured is not None:
@@ -30,7 +39,12 @@ def is_auth_required() -> bool:
 
 def admin_email() -> Optional[str]:
     email = os.getenv("ADMIN_EMAIL")
-    return email.lower().strip() if email else None
+    return normalize_email(email) if email else None
+
+
+def is_owner_email(email: Optional[str]) -> bool:
+    expected = admin_email()
+    return bool(expected and normalize_email(email or "") == expected)
 
 
 def cookie_secure() -> bool:
@@ -93,24 +107,47 @@ def ensure_admin_user() -> Optional[Dict[str, Any]]:
 
     user = {
         "email": email,
+        "name": None,
+        "role": "owner",
         "password_hash": hash_password(initial_password),
         "created_at": datetime.utcnow().isoformat(),
         "password_changed_at": None,
+        "onboarding_completed_at": datetime.utcnow().isoformat(),
     }
     storage.save_auth_user(email, user)
     return user
 
 
 def authenticate(email: str, password: str) -> Optional[Dict[str, Any]]:
-    admin = ensure_admin_user()
-    expected_email = admin_email()
-    if not admin or not expected_email:
+    ensure_admin_user()
+    normalized_email = normalize_email(email)
+    user = storage.get_auth_user(normalized_email)
+    if not user:
         return None
-    if email.lower().strip() != expected_email:
+    if not verify_password(password, user.get("password_hash", "")):
         return None
-    if not verify_password(password, admin.get("password_hash", "")):
-        return None
-    return admin
+    return user
+
+
+def create_user(email: str, password: str, name: Optional[str] = None, role: str = "user") -> Dict[str, Any]:
+    normalized_email = normalize_email(email)
+    if not normalized_email:
+        raise ValueError("Email is required")
+    if storage.get_auth_user(normalized_email):
+        raise ValueError("An account already exists for that email")
+
+    now = datetime.utcnow().isoformat()
+    user = {
+        "email": normalized_email,
+        "name": normalize_name(name),
+        "role": "owner" if role == "owner" else "user",
+        "password_hash": hash_password(password),
+        "created_at": now,
+        "password_changed_at": None,
+        "onboarding_completed_at": now,
+    }
+    storage.save_auth_user(normalized_email, user)
+    return user
 
 
 def create_session(email: str) -> str:
@@ -120,7 +157,7 @@ def create_session(email: str) -> str:
     storage.save_session(
         token_hash,
         {
-            "email": email.lower(),
+            "email": normalize_email(email),
             "created_at": datetime.utcnow().isoformat(),
             "expires_at": expires_at.isoformat(),
         },
@@ -153,13 +190,14 @@ def get_user_from_request(request: Request) -> Optional[Dict[str, Any]]:
 
 
 def change_password(email: str, current_password: str, new_password: str) -> bool:
-    user = storage.get_auth_user(email)
+    normalized_email = normalize_email(email)
+    user = storage.get_auth_user(normalized_email)
     if not user or not verify_password(current_password, user.get("password_hash", "")):
         return False
     user["password_hash"] = hash_password(new_password)
     user["password_changed_at"] = datetime.utcnow().isoformat()
-    storage.save_auth_user(email, user)
-    storage.delete_sessions_for_email(email)
+    storage.save_auth_user(normalized_email, user)
+    storage.delete_sessions_for_email(normalized_email)
     return True
 
 
@@ -175,10 +213,14 @@ def reset_password(email: str, reset_token: str, new_password: str) -> bool:
 
     user = storage.get_auth_user(expected_email) or {
         "email": expected_email,
+        "name": None,
+        "role": "owner",
         "created_at": datetime.utcnow().isoformat(),
         "password_changed_at": None,
+        "onboarding_completed_at": datetime.utcnow().isoformat(),
     }
 
+    user.setdefault("role", "owner")
     user["password_hash"] = hash_password(new_password)
     user["password_changed_at"] = datetime.utcnow().isoformat()
     user["password_reset_at"] = datetime.utcnow().isoformat()

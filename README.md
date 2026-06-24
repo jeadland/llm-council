@@ -125,6 +125,8 @@ UPSTASH_REDIS_REST_URL=...
 UPSTASH_REDIS_REST_TOKEN=...
 ADMIN_EMAIL=josh.adland@gmail.com
 ADMIN_INITIAL_PASSWORD=...
+ADMIN_PASSWORD_RESET_TOKEN=...
+CRON_SECRET=...
 ```
 
 `ADMIN_INITIAL_PASSWORD` is only used to bootstrap the admin record when one
@@ -146,6 +148,27 @@ query_model("openrouter/anthropic/claude-sonnet-4.6", ...)
             Fallback when gateway unavailable
             Requires OPENROUTER_API_KEY
 ```
+
+## Model picker
+
+Hosted model selection uses the OpenRouter model catalog:
+
+- `/api/models/status` reports whether `OPENROUTER_API_KEY` is configured and whether the catalog is reachable. It never returns secret values.
+- `/api/models/catalog` returns normalized text-model metadata, recommended council presets, and rough short/normal/long question cost estimates.
+- The app shell shows active model selection in the top bar. The left sidebar is reserved for conversation history and account/settings.
+- Settings persist selected model IDs, the chairman model, custom model groups, and reviewed curated-preset overrides. The full OpenRouter catalog is fetched live and cached briefly in memory, not stored in Redis.
+- Direct `OPENROUTER_API_KEY` use is owner-scoped in hosted mode. Future multi-user support should add per-user key upload instead of sharing the owner key.
+
+Catalog reads are available without an OpenRouter key, but actual council runs in hosted/direct mode require `OPENROUTER_API_KEY`.
+
+## Model curation
+
+Vercel can create a weekly reviewable model curation draft from the live OpenRouter catalog:
+
+- `vercel.json` schedules `/api/cron/model-curation` weekly.
+- Vercel sends `CRON_SECRET` as an `Authorization: Bearer ...` header; the endpoint rejects cron calls if the secret is missing or wrong.
+- Drafts do not update curated presets until approved through `/api/model-curation/{id}/approve`.
+- `MODEL_CURATION_MODEL` defaults to `openai/gpt-5.5`; `MODEL_CURATION_MAX_USD` caps the optional model-review call.
 
 ---
 

@@ -14,22 +14,26 @@ OPENCLAW_PROXY_URL = os.getenv("OPENCLAW_PROXY_URL", "http://127.0.0.1:18789")
 
 # Council members - list of OpenRouter model identifiers
 COUNCIL_MODELS = [
-    "anthropic/claude-opus-4.6",
-    "openai/gpt-5.2",
+    "anthropic/claude-sonnet-4.6",
+    "openai/gpt-5.4",
     "google/gemini-2.5-pro",
-    "x-ai/grok-4",
+    "deepseek/deepseek-v4-pro",
 ]
 
 # Chairman model - synthesizes final response
-CHAIRMAN_MODEL = "anthropic/claude-opus-4.6"
+CHAIRMAN_MODEL = "anthropic/claude-sonnet-4.6"
 
 # Curated premier models list (update over time)
 PREMIER_MODELS = [
-    "anthropic/claude-opus-4.6",
+    "openai/gpt-5.5",
+    "openai/gpt-5.4",
+    "openai/gpt-5.4-mini",
+    "anthropic/claude-opus-4.8",
     "anthropic/claude-sonnet-4.6",
-    "openai/gpt-5.2",
     "google/gemini-2.5-pro",
-    "x-ai/grok-4",
+    "x-ai/grok-4.20",
+    "deepseek/deepseek-v4-pro",
+    "z-ai/glm-5.2",
 ]
 
 # OpenRouter API endpoint (override via env for local proxy mode)

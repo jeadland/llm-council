@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import ReactMarkdown from 'react-markdown';
+import MarkdownContent from './MarkdownContent';
 import './Stage2.css';
 
 function formatModelLabel(model) {
@@ -12,6 +12,8 @@ function formatModelLabel(model) {
     'google/gemini-3.1-pro-preview': 'Gemini 3.1 Pro Preview',
     'google/gemini-2.5-pro': 'Gemini 2.5 Pro',
     'x-ai/grok-4': 'Grok 4',
+    'x-ai/grok-4.20': 'Grok 4.20',
+    'x-ai/grok-4.3': 'Grok 4.3',
     'x-ai/grok-4.1-fast': 'Grok 4.1 Fast',
     'openai/gpt-5.2': 'GPT-5.2',
     'openai/gpt-5.2-chat': 'GPT-5.2 Chat',
@@ -70,11 +72,9 @@ export default function Stage2({ rankings, labelToModel, aggregateRankings, defa
             <div className="ranking-model">
               {formatModelLabel(rankings[activeTab].model)}
             </div>
-            <div className="ranking-content markdown-content">
-              <ReactMarkdown>
-                {deAnonymizeText(rankings[activeTab].ranking, labelToModel)}
-              </ReactMarkdown>
-            </div>
+            <MarkdownContent className="ranking-content">
+              {deAnonymizeText(rankings[activeTab].ranking, labelToModel)}
+            </MarkdownContent>
 
             {rankings[activeTab].parsed_ranking &&
              rankings[activeTab].parsed_ranking.length > 0 && (

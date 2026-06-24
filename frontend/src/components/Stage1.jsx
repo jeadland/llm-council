@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import ReactMarkdown from 'react-markdown';
+import MarkdownContent from './MarkdownContent';
 import './Stage1.css';
 
 function formatModelLabel(model) {
@@ -12,6 +12,8 @@ function formatModelLabel(model) {
     'google/gemini-3.1-pro-preview': 'Gemini 3.1 Pro Preview',
     'google/gemini-2.5-pro': 'Gemini 2.5 Pro',
     'x-ai/grok-4': 'Grok 4',
+    'x-ai/grok-4.20': 'Grok 4.20',
+    'x-ai/grok-4.3': 'Grok 4.3',
     'x-ai/grok-4.1-fast': 'Grok 4.1 Fast',
     'openai/gpt-5.2': 'GPT-5.2',
     'openai/gpt-5.2-chat': 'GPT-5.2 Chat',
@@ -50,9 +52,9 @@ export default function Stage1({ responses, defaultCollapsed = false }) {
 
           <div className="tab-content">
             <div className="model-name">{formatModelLabel(responses[activeTab].model)}</div>
-            <div className="response-text markdown-content">
-              <ReactMarkdown>{responses[activeTab].response}</ReactMarkdown>
-            </div>
+            <MarkdownContent className="response-text">
+              {responses[activeTab].response}
+            </MarkdownContent>
           </div>
         </>
       )}
