@@ -1,3 +1,55 @@
+const NICE_MODEL_NAMES = {
+  'anthropic/claude-opus-4.6': 'Opus 4.6',
+  'anthropic/claude-sonnet-4.6': 'Sonnet 4.6',
+  'anthropic/claude-haiku-4.5': 'Haiku 4.5',
+  'google/gemini-3.1-pro-preview': 'Gemini 3.1 Pro Preview',
+  'google/gemini-2.5-pro': 'Gemini 2.5 Pro',
+  'x-ai/grok-4': 'Grok 4',
+  'x-ai/grok-4.20': 'Grok 4.20',
+  'x-ai/grok-4.3': 'Grok 4.3',
+  'x-ai/grok-4.1-fast': 'Grok 4.1 Fast',
+  'openai/gpt-5.2': 'GPT-5.2',
+  'openai/gpt-5.2-chat': 'GPT-5.2 Chat',
+  'openai/gpt-5.2-pro': 'GPT-5.2 Pro',
+};
+
+// Shared friendly label used across Stage 1/2/3 and the council table.
+export function formatModelLabel(model) {
+  if (!model) return 'Unknown';
+  const raw = model.startsWith('openrouter/') ? model.replace('openrouter/', '') : model;
+  return NICE_MODEL_NAMES[raw] || raw;
+}
+
+const PROVIDER_META = {
+  anthropic: { label: 'Anthropic', color: '#d97757', glyph: 'A' },
+  openai: { label: 'OpenAI', color: '#10a37f', glyph: 'O' },
+  google: { label: 'Google', color: '#4285f4', glyph: 'G' },
+  'x-ai': { label: 'xAI', color: '#1f2937', glyph: 'X' },
+  xai: { label: 'xAI', color: '#1f2937', glyph: 'X' },
+  deepseek: { label: 'DeepSeek', color: '#4d6bfe', glyph: 'D' },
+  'meta-llama': { label: 'Meta', color: '#0866ff', glyph: 'M' },
+  meta: { label: 'Meta', color: '#0866ff', glyph: 'M' },
+  mistralai: { label: 'Mistral', color: '#fa5310', glyph: 'M' },
+  mistral: { label: 'Mistral', color: '#fa5310', glyph: 'M' },
+  qwen: { label: 'Qwen', color: '#6f3df5', glyph: 'Q' },
+  cohere: { label: 'Cohere', color: '#39594d', glyph: 'C' },
+  perplexity: { label: 'Perplexity', color: '#20808d', glyph: 'P' },
+};
+
+// Provider identity for an avatar: brand color + glyph derived from the model id prefix.
+export function providerMeta(modelId) {
+  const raw = (modelId || '').replace(/^openrouter\//, '');
+  const provider = (raw.split('/')[0] || '').toLowerCase();
+  const meta = PROVIDER_META[provider];
+  if (meta) return { provider, ...meta };
+  return {
+    provider,
+    label: provider || 'Model',
+    color: '#64748b',
+    glyph: (provider[0] || '?').toUpperCase(),
+  };
+}
+
 export function shortModelName(modelId) {
   return modelId?.split('/').pop() || modelId || '';
 }

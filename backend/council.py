@@ -3,7 +3,7 @@
 import asyncio
 from datetime import datetime, timezone
 from typing import Awaitable, Callable, List, Dict, Any, Tuple
-from .openrouter import build_cost_call, build_cost_summary, query_models_parallel, query_model, query_model_detailed
+from .openrouter import build_cost_call, build_cost_summary, query_model, query_model_detailed
 from .config import COUNCIL_MODELS, CHAIRMAN_MODEL
 
 STAGE2_MAX_ATTEMPTS = 2
@@ -38,12 +38,42 @@ def _bounded_review_text(text: str, limit: int = STAGE2_REVIEW_RESPONSE_CHAR_LIM
     )
 
 
-async def stage1_collect_responses(user_query: str, council_models: List[str] = None) -> List[Dict[str, Any]]:
+def _ordered_stage1_results(models: List[str], results_by_model: Dict[str, Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Return Stage 1 results in stable council order (not completion order)."""
+    return [results_by_model[model] for model in models if model in results_by_model]
+
+
+def build_stage1_execution_metadata(
+    attempted_models: List[str],
+    results_by_model: Dict[str, Dict[str, Any]],
+    failed_models: List[str],
+    pending_models: List[str],
+) -> Dict[str, Any]:
+    completed_models = [model for model in attempted_models if model in results_by_model]
+    return {
+        "attempted_models": list(attempted_models),
+        "completed_models": completed_models,
+        "failed_models": list(failed_models),
+        "pending_models": list(pending_models),
+        "expected_count": len(attempted_models),
+        "completed_count": len(completed_models),
+        "is_partial": len(completed_models) < len(attempted_models),
+    }
+
+
+async def stage1_collect_responses(
+    user_query: str,
+    council_models: List[str] = None,
+    progress_callback: Callable[[List[Dict[str, Any]], Dict[str, Any]], Awaitable[None]] = None,
+) -> List[Dict[str, Any]]:
     """
     Stage 1: Collect individual responses from all council models.
 
     Args:
         user_query: The user's question
+        council_models: Optional explicit council model list
+        progress_callback: Optional async callback invoked as each model finishes,
+            with (ordered partial results, stage1 execution metadata)
 
     Returns:
         List of dicts with 'model' and 'response' keys
@@ -53,21 +83,37 @@ async def stage1_collect_responses(user_query: str, council_models: List[str] = 
         {"role": "user", "content": user_query},
     ]
 
-    # Query all models in parallel
     models = council_models or COUNCIL_MODELS
-    responses = await query_models_parallel(models, messages, max_tokens=STAGE1_MAX_OUTPUT_TOKENS)
+    results_by_model: Dict[str, Dict[str, Any]] = {}
+    failed_models: List[str] = []
+    pending_models = list(models)
 
-    # Format results
-    stage1_results = []
-    for model, response in responses.items():
+    async def query_one(model: str) -> Tuple[str, Any]:
+        response = await query_model(model, messages, max_tokens=STAGE1_MAX_OUTPUT_TOKENS)
+        return model, response
+
+    # Query all models in parallel, but surface each result the moment it lands so
+    # the UI can show a live per-model race.
+    tasks = [asyncio.create_task(query_one(model)) for model in models]
+    for task in asyncio.as_completed(tasks):
+        model, response = await task
+        pending_models = [pending for pending in pending_models if pending != model]
         if response is not None:  # Only include successful responses
-            stage1_results.append({
+            results_by_model[model] = {
                 "model": model,
                 "response": response.get('content', ''),
                 "cost_call": build_cost_call("stage1", "individual_response", model, response),
-            })
+            }
+        else:
+            failed_models.append(model)
 
-    return stage1_results
+        if progress_callback is not None:
+            await progress_callback(
+                _ordered_stage1_results(models, results_by_model),
+                build_stage1_execution_metadata(models, results_by_model, failed_models, pending_models),
+            )
+
+    return _ordered_stage1_results(models, results_by_model)
 
 
 async def stage2_collect_rankings(

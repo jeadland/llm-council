@@ -1160,18 +1160,50 @@ async def _execute_run(run_id: str):
                 loading={"stage1": True, "stage2": False, "stage3": False},
             )
 
-            # Stage 1
-            stage1_results = await stage1_collect_responses(content, council_models=council_models)
+            # Stage 1 — stream each model's result as it lands for a live per-model race.
+            stage1_execution_metadata = {}
+
+            async def persist_stage1_progress(partial_results, partial_execution_metadata):
+                nonlocal stage1_execution_metadata
+                stage1_execution_metadata = partial_execution_metadata
+                storage.update_run(
+                    run_id,
+                    {
+                        "stage1": {
+                            "status": "running",
+                            "data": partial_results,
+                            "metadata": {"stage1_execution": partial_execution_metadata},
+                        }
+                    },
+                )
+                storage.upsert_assistant_message_for_run(
+                    conversation_id,
+                    run_id,
+                    stage1=partial_results,
+                    metadata={"stage1_execution": partial_execution_metadata},
+                    loading={"stage1": True, "stage2": False, "stage3": False},
+                )
+
+            stage1_results = await stage1_collect_responses(
+                content,
+                council_models=council_models,
+                progress_callback=persist_stage1_progress,
+            )
             storage.update_run(
                 run_id,
                 {
-                    "stage1": {"status": "complete", "data": stage1_results},
+                    "stage1": {
+                        "status": "complete",
+                        "data": stage1_results,
+                        "metadata": {"stage1_execution": stage1_execution_metadata},
+                    },
                 },
             )
             storage.upsert_assistant_message_for_run(
                 conversation_id,
                 run_id,
                 stage1=stage1_results,
+                metadata={"stage1_execution": stage1_execution_metadata},
                 loading={"stage1": False, "stage2": True, "stage3": False},
             )
 
@@ -1184,6 +1216,7 @@ async def _execute_run(run_id: str):
                     "label_to_model": partial_label_to_model,
                     "aggregate_rankings": partial_aggregate,
                     "stage2_execution": partial_execution_metadata,
+                    "stage1_execution": stage1_execution_metadata,
                 }
                 storage.update_run(
                     run_id,
@@ -1214,6 +1247,7 @@ async def _execute_run(run_id: str):
                 "label_to_model": label_to_model,
                 "aggregate_rankings": aggregate_rankings,
                 "stage2_execution": stage2_execution_metadata,
+                "stage1_execution": stage1_execution_metadata,
             }
 
             valid_stage2_count = int(stage2_execution_metadata.get("completed_rankings_count") or 0)

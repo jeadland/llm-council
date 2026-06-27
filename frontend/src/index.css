@@ -105,31 +105,34 @@ body {
 }
 
 .markdown-content pre {
-  background: #f5f5f5;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
   padding: 12px;
-  border-radius: 4px;
+  border-radius: 6px;
   overflow-x: auto;
   margin: 0 0 12px 0;
 }
 
 .markdown-content code {
-  background: #f5f5f5;
-  padding: 2px 6px;
-  border-radius: 3px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 1px 5px;
+  border-radius: 4px;
   font-family: monospace;
   font-size: 0.9em;
 }
 
 .markdown-content pre code {
   background: none;
+  border: none;
   padding: 0;
 }
 
 .markdown-content blockquote {
   margin: 0 0 12px 0;
   padding-left: 16px;
-  border-left: 4px solid #ddd;
-  color: #666;
+  border-left: 4px solid var(--border);
+  color: var(--muted);
 }
 
 .markdown-table-scroll {
@@ -222,4 +225,30 @@ body {
   background: #11151d !important;
   color: var(--text) !important;
   border-color: var(--border) !important;
+}
+
+/* Accessibility: respect reduced-motion. Keep functional spinners (which still
+   convey "loading") but disable decorative/looping motion and big transforms. */
+@media (prefers-reduced-motion: reduce) {
+  .send-button,
+  .input-card.is-loading::before,
+  .stepper-pulse,
+  .agent-card,
+  .agent-avatar,
+  .agent-pulse,
+  .winner-banner,
+  .verdict-hero {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .send-button:hover:not(:disabled),
+  .start-conversation-btn:hover,
+  .agent-card:hover {
+    transform: none !important;
+  }
+
+  html {
+    scroll-behavior: auto !important;
+  }
 }
