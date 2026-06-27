@@ -285,12 +285,17 @@
   }
 
   .model-reviewer-tabs {
-    flex-wrap: nowrap;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow-x: visible;
+    gap: 6px;
+    padding: 6px;
   }
 
   .model-reviewer-tab {
-    flex: 0 0 auto;
-    min-width: 132px;
+    flex: unset;
+    min-width: 0;
+    width: 100%;
   }
 
   .stage-tab-panel {
