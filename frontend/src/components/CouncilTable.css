@@ -18,6 +18,45 @@
   margin-bottom: 10px;
 }
 
+.council-table--race-collapsed .council-table-head,
+.council-table--race-collapsed .council-table-head--toggle {
+  margin-bottom: 0;
+}
+
+.council-table-head--toggle {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.council-table-head--toggle:focus-visible {
+  outline: 2px solid #4a90e2;
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+.council-table-head-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.council-table-chevron {
+  flex-shrink: 0;
+  color: #4a90e2;
+  transition: transform 0.16s ease;
+}
+
+.council-table-head--toggle[aria-expanded='true'] .council-table-chevron {
+  transform: rotate(90deg);
+}
+
 .council-table-title {
   font-size: 11px;
   font-weight: 750;
@@ -461,6 +500,23 @@
   .council-strip--race .agent-card {
     min-width: 0;
     width: 100%;
+  }
+
+  .council-table--race-collapsed {
+    padding-bottom: 10px;
+  }
+
+  .council-table--race .council-table-title {
+    white-space: normal;
+    line-height: 1.25;
+  }
+
+  .council-table-phase {
+    max-width: 58%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: right;
   }
 }
 

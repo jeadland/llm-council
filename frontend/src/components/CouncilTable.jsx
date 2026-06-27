@@ -1,5 +1,5 @@
-import { useLayoutEffect, useRef, useState } from 'react';
-import { AlertTriangle, ArrowDown, ArrowUp, Check, Crown } from 'lucide-react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { AlertTriangle, ArrowDown, ArrowUp, Check, ChevronRight, Crown } from 'lucide-react';
 import { formatModelLabel, resolveModelLabel, providerMeta } from '../modelUtils';
 import {
   deriveCouncilAgents,
@@ -121,6 +121,23 @@ function usePrevious(value) {
   return ref.current;
 }
 
+function useMobileLayout(maxWidth = 720) {
+  const query = `(max-width: ${maxWidth}px)`;
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(query).matches,
+  );
+
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    const onChange = () => setIsMobile(media.matches);
+    onChange();
+    media.addEventListener('change', onChange);
+    return () => media.removeEventListener('change', onChange);
+  }, [query]);
+
+  return isMobile;
+}
+
 function useRankShifts(agents, enabled) {
   const prevAgents = usePrevious(enabled ? agents : null);
   const shifts = {};
@@ -141,11 +158,16 @@ function useRankShifts(agents, enabled) {
 
 export default function CouncilTable({ msg, modelMap, fallbackModels = [] }) {
   const [selectedModel, setSelectedModel] = useState(null);
+  const [raceCollapsed, setRaceCollapsed] = useState(true);
   const stripRef = useRef(null);
+  const isMobile = useMobileLayout();
   const rawAgents = deriveCouncilAgents(msg, fallbackModels);
   const raceActive = isCouncilRaceActive(msg, rawAgents);
   const agents = displayCouncilAgents(msg, rawAgents);
   const rankShifts = useRankShifts(agents, raceActive);
+  const isLiveRace = Boolean(msg.loading?.stage2);
+  const isCollapsibleRace = raceActive && !isLiveRace;
+  const showRaceCollapsed = isMobile && isCollapsibleRace && raceCollapsed;
 
   useFlipReorder(agents, stripRef);
 
@@ -160,6 +182,9 @@ export default function CouncilTable({ msg, modelMap, fallbackModels = [] }) {
   const answeredCount = rawAgents.filter((a) => a.answered).length;
   const rankedCount = rawAgents.filter((a) => a.ranked).length;
 
+  const isRaceComplete = raceActive && !msg.loading?.stage1 && !msg.loading?.stage2 && !msg.loading?.stage3;
+  const raceTitle = 'Peer reviewed response rankings';
+
   const phase = msg.loading?.stage1
     ? `Drafting answers · ${answeredCount}/${agents.length}`
     : msg.loading?.stage2
@@ -169,18 +194,21 @@ export default function CouncilTable({ msg, modelMap, fallbackModels = [] }) {
       : msg.loading?.stage3
         ? 'Synthesizing verdict…'
         : raceActive
-          ? 'Final standings'
+          ? null
           : 'Council complete';
 
-  return (
-    <div className={`council-table${raceActive ? ' council-table--race' : ''}`}>
-      <div className="council-table-head">
-        <span className="council-table-title">
-          {raceActive ? 'The Race' : 'The Council'}
-        </span>
-        <span className="council-table-phase">{phase}</span>
-      </div>
+  const leader = agents.find((agent) => agent.rank === 1);
+  const raceSummary = leader
+    ? `${resolveModelLabel(leader.model, modelMap)} · #${leader.rank}`
+    : null;
+  const phaseDisplay = showRaceCollapsed
+    ? raceSummary
+    : isRaceComplete
+      ? null
+      : phase;
 
+  const raceBody = (
+    <>
       {raceActive && (
         <div className="council-race-hint" aria-hidden="true">
           <span className="council-race-finish">Finish</span>
@@ -205,6 +233,40 @@ export default function CouncilTable({ msg, modelMap, fallbackModels = [] }) {
           </div>
         ))}
       </div>
+    </>
+  );
+
+  return (
+    <div
+      className={`council-table${raceActive ? ' council-table--race' : ''}${showRaceCollapsed ? ' council-table--race-collapsed' : ''}`}
+    >
+      {isCollapsibleRace && isMobile ? (
+        <button
+          type="button"
+          className="council-table-head council-table-head--toggle"
+          aria-expanded={!raceCollapsed}
+          onClick={() => setRaceCollapsed((value) => !value)}
+        >
+          <span className="council-table-head-main">
+            <ChevronRight className="council-table-chevron" size={15} aria-hidden="true" />
+            <span className="council-table-title">{raceTitle}</span>
+          </span>
+          {phaseDisplay && (
+            <span className="council-table-phase">{phaseDisplay}</span>
+          )}
+        </button>
+      ) : (
+        <div className="council-table-head">
+          <span className="council-table-title">
+            {raceActive ? raceTitle : 'The Council'}
+          </span>
+          {phaseDisplay && (
+            <span className="council-table-phase">{phaseDisplay}</span>
+          )}
+        </div>
+      )}
+
+      {!showRaceCollapsed && raceBody}
 
       {selectedAgent && (
         <AgentDetail

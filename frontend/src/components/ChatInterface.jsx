@@ -393,6 +393,7 @@ export default function ChatInterface({
                       costSummary={
                         msg.cost_summary || msg.metadata?.cost_summary
                       }
+                      modelMap={modelMap}
                     />
                   )}
 

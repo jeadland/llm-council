@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { AlertTriangle, Check, ChevronDown, ClipboardCopy, Star } from 'lucide-react';
-import { abbreviateModelName, formatModelLabel, formatMoney, providerMeta } from '../modelUtils';
+import { abbreviateModelName, formatModelLabel, formatMoney, providerMeta, resolveModelLabel } from '../modelUtils';
 import MarkdownContent from './MarkdownContent';
 import './Stage3.css';
 
@@ -59,12 +59,19 @@ function CopyButton({ text }) {
       className={`copy-synthesis-btn${error ? ' copy-error' : ''}`}
       onClick={handleCopy}
       title={error ? 'Copy failed — try selecting text manually' : 'Copy to clipboard'}
+      aria-label={
+        copied
+          ? 'Copied to clipboard'
+          : error
+            ? 'Copy failed — try selecting text manually'
+            : 'Copy verdict to clipboard'
+      }
     >
       {copied
-        ? <><Check size={14} /> Copied!</>
+        ? <><Check size={14} aria-hidden="true" /><span className="copy-synthesis-btn-label">Copied!</span></>
         : error
-          ? <><ClipboardCopy size={14} /> Failed</>
-          : <><ClipboardCopy size={14} /> Copy</>
+          ? <><ClipboardCopy size={14} aria-hidden="true" /><span className="copy-synthesis-btn-label">Failed</span></>
+          : <><ClipboardCopy size={14} aria-hidden="true" /><span className="copy-synthesis-btn-label">Copy</span></>
       }
     </button>
   );
@@ -260,13 +267,16 @@ function CostSummary({ costSummary }) {
   );
 }
 
-export default function Stage3({ finalResponse, costSummary, hero = false }) {
+export default function Stage3({ finalResponse, costSummary, hero = false, modelMap }) {
   if (!finalResponse) {
     return null;
   }
 
   const isFallback = finalResponse.used_fallback ||
     finalResponse.response?.startsWith('⚠️');
+  const chairmanModel = finalResponse.model.split(' (')[0];
+  const chairmanLabel = resolveModelLabel(chairmanModel, modelMap);
+  const chairmanTitle = formatModelLabel(chairmanModel);
 
   return (
     <div className={`stage stage3${hero ? ' stage3--hero' : ''}${isFallback ? ' stage3-fallback' : ''}`}>
@@ -280,9 +290,12 @@ export default function Stage3({ finalResponse, costSummary, hero = false }) {
         </div>
         <div className="stage3-title-group">
           <h3 className="stage-title">{isFallback ? 'Partial Result' : 'Council Verdict'}</h3>
-          <div className="chairman-label">
+          <div
+            className="chairman-label"
+            title={chairmanTitle !== chairmanLabel ? chairmanTitle : undefined}
+          >
             {isFallback ? 'Chairman unavailable — ' : 'Synthesized by '}
-            {formatModelLabel(finalResponse.model.split(' (')[0])}
+            {chairmanLabel}
           </div>
         </div>
         <CopyButton text={finalResponse.response} />

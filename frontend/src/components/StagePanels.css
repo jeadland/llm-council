@@ -274,14 +274,35 @@
 
 @media (max-width: 720px) {
   .collapse-toggle {
-    gap: 8px;
-    min-height: 38px;
+    display: grid;
+    grid-template-rows: auto auto;
+    gap: 3px;
+    align-items: start;
+    min-height: 0;
     padding: 8px 10px;
   }
 
+  .collapse-title {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .collapse-title strong {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+  }
+
   .collapse-summary {
-    max-width: 42%;
+    grid-row: 2;
+    max-width: none;
+    width: 100%;
+    padding-left: 23px;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
     font-size: 11.5px;
+    line-height: 1.35;
   }
 
   .model-reviewer-tabs {

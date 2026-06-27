@@ -29,10 +29,6 @@
   font-size: 17px;
 }
 
-.stage3--hero .final-text {
-  font-size: 15.5px;
-}
-
 :root[data-theme='dark'] .stage3--hero {
   border-color: #2c5a3c !important;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
@@ -339,8 +335,8 @@
 
 .final-text {
   color: #333;
-  line-height: 1.62;
-  font-size: 15px;
+  line-height: 1.5;
+  font-size: 14px;
 }
 
 .final-text.markdown-content {
@@ -497,8 +493,12 @@
 
 @media (max-width: 720px) {
   .stage3-header {
-    align-items: center;
+    align-items: flex-start;
     gap: 8px;
+  }
+
+  .stage3-title-group {
+    padding-top: 1px;
   }
 
   .stage3 {
@@ -516,26 +516,85 @@
   }
 
   .chairman-label {
-    max-width: 180px;
+    max-width: none;
+  }
+
+  .copy-synthesis-btn {
+    min-height: 30px;
+    min-width: 30px;
+    padding: 6px;
+    justify-content: center;
+  }
+
+  .copy-synthesis-btn-label {
+    display: none;
   }
 
   .final-answer-toolbar {
-    padding: 10px;
-    margin-bottom: 9px;
+    padding: 7px 9px;
+    margin-bottom: 8px;
+    border-radius: 8px;
   }
 
   .actual-cost-bar {
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: row;
+    align-items: center;
     gap: 8px;
   }
 
-  .actual-cost-expand-btn {
-    align-self: flex-start;
+  .actual-cost--expanded .actual-cost-bar {
+    align-items: flex-start;
+  }
+
+  .actual-cost-heading {
+    flex: 1;
+    min-width: 0;
+    gap: 1px;
+  }
+
+  .actual-cost-kicker {
+    display: block;
+    font-size: 9px;
+    letter-spacing: 0.03em;
+    line-height: 1.2;
   }
 
   .actual-cost-total {
-    font-size: 18px;
+    display: inline;
+    font-size: 15px;
+    line-height: 1.25;
+  }
+
+  .actual-cost:not(.actual-cost--expanded) .actual-cost-total {
+    font-size: 15px;
+  }
+
+  .actual-cost-meta {
+    display: inline;
+    font-size: 10px;
+    line-height: 1.25;
+  }
+
+  .actual-cost-meta::before {
+    content: '· ';
+  }
+
+  .actual-cost-expand-btn {
+    align-self: center;
+    flex-shrink: 0;
+    min-height: 28px;
+    padding: 4px 8px;
+    font-size: 11px;
+    border-radius: 6px;
+  }
+
+  .actual-cost--expanded .actual-cost-expand-btn {
+    align-self: flex-start;
+  }
+
+  .actual-cost-breakdown {
+    margin-top: 8px;
+    padding-top: 8px;
   }
 
   .actual-cost-stages {
@@ -546,18 +605,8 @@
     font-size: 11px;
   }
 
-  .copy-synthesis-btn {
-    min-height: 30px;
-    padding: 5px 8px;
-  }
-
-  .copy-synthesis-btn svg {
-    width: 13px;
-    height: 13px;
-  }
-
   .final-text {
-    font-size: 14px;
-    line-height: 1.58;
+    font-size: 13.5px;
+    line-height: 1.5;
   }
 }
