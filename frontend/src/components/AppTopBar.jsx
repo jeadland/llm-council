@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, Layers3, Menu, Sparkles } from 'lucide-react';
 import {
   abbreviateModelName,
@@ -23,9 +24,24 @@ export default function AppTopBar({
   const presetEstimate = active.selectionMatchesPreset ? presetNormalCost(active.preset) : null;
   const estimate = presetEstimate || fallbackEstimate?.display || 'Pricing unavailable';
   const catalogLoaded = (modelMap?.size || 0) > 0;
+  const [showOverflow, setShowOverflow] = useState(false);
+  const overflowRef = useRef(null);
+  const visibleModels = selectedModels.slice(0, 4);
+  const overflowModels = selectedModels.slice(4);
   const mobileModelSlots = selectedModels.slice(0, 4);
   const mobileOverflowCount = Math.max(selectedModels.length - mobileModelSlots.length, 0);
   const mobileChairmanLabel = abbreviateModelName(chairman, modelMap) || 'None';
+
+  useEffect(() => {
+    if (!showOverflow) return;
+    const close = (event) => {
+      if (!overflowRef.current?.contains(event.target)) {
+        setShowOverflow(false);
+      }
+    };
+    window.addEventListener('pointerdown', close);
+    return () => window.removeEventListener('pointerdown', close);
+  }, [showOverflow]);
 
   return (
     <header className="app-topbar">
@@ -41,7 +57,6 @@ export default function AppTopBar({
       <div className="app-topbar-command">
         <div className="app-topbar-council-row">
           <div className="app-topbar-title-group">
-            <div className="app-topbar-label">Active council</div>
             <button type="button" className="app-topbar-council-button" onClick={onOpenModels}>
               <span>{active.name}</span>
               <ChevronDown size={16} />
@@ -55,17 +70,6 @@ export default function AppTopBar({
             </div>
           </div>
           <span className="app-topbar-badge">{active.badge}</span>
-        </div>
-
-        <div className="app-topbar-models" aria-label="Selected council models">
-          {selectedModels.map((modelId) => (
-            <span
-              className={`app-topbar-chip${catalogLoaded && !modelMap.has(modelId) ? ' app-topbar-chip-muted' : ''}`}
-              key={modelId}
-            >
-              {displayModelName(modelId, modelMap).replace(/^.*?:\s*/, '')}
-            </span>
-          ))}
         </div>
 
         <div className="app-topbar-mobile-models" aria-label="Selected council models">
@@ -92,17 +96,48 @@ export default function AppTopBar({
         </div>
       </div>
 
-      <div className="app-topbar-detail app-topbar-chairman">
-        <div className="app-topbar-label">Chairman</div>
-        <div className="app-topbar-value chairman">
-          <Sparkles size={18} />
-          <span>{shortModelName(chairman) || 'None'}</span>
-        </div>
+      <div className="app-topbar-models" aria-label="Selected council models">
+        {visibleModels.map((modelId) => (
+          <span
+            className={`app-topbar-chip${catalogLoaded && !modelMap.has(modelId) ? ' app-topbar-chip-muted' : ''}`}
+            key={modelId}
+            title={displayModelName(modelId, modelMap)}
+          >
+            {displayModelName(modelId, modelMap).replace(/^.*?:\s*/, '')}
+          </span>
+        ))}
+        {overflowModels.length > 0 && (
+          <div className="app-topbar-overflow" ref={overflowRef}>
+            <button
+              type="button"
+              className="app-topbar-chip app-topbar-chip-more"
+              onClick={() => setShowOverflow((open) => !open)}
+              aria-expanded={showOverflow}
+              aria-label={`Show ${overflowModels.length} more models`}
+            >
+              +{overflowModels.length}
+            </button>
+            {showOverflow && (
+              <div className="app-topbar-overflow-menu" role="menu">
+                {overflowModels.map((modelId) => (
+                  <div className="app-topbar-overflow-row" key={modelId} role="menuitem">
+                    {displayModelName(modelId, modelMap)}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      <div className="app-topbar-detail app-topbar-cost">
-        <div className="app-topbar-label">Est. cost (normal question)</div>
-        <div className="app-topbar-value">{estimate}</div>
+      <div className="app-topbar-value chairman app-topbar-chairman">
+        <Sparkles size={17} />
+        <span>{shortModelName(chairman) || 'None'}</span>
+      </div>
+
+      <div className="app-topbar-cost">
+        <span>Est.</span>
+        <strong>{estimate}</strong>
       </div>
 
       <button
@@ -112,7 +147,7 @@ export default function AppTopBar({
         aria-label="Open model picker"
       >
         <Layers3 size={17} />
-        <span>Models</span>
+        <span>Edit Council</span>
       </button>
     </header>
   );

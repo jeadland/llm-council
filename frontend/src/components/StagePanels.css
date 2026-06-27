@@ -26,6 +26,16 @@
   border-color: #b8c4d8;
 }
 
+.collapse-toggle--sticky {
+  position: sticky;
+  top: 0;
+  z-index: 7;
+  background: color-mix(in srgb, var(--surface-2) 92%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 5px 14px rgba(36, 48, 70, 0.08);
+}
+
 .collapse-title {
   min-width: 0;
   display: inline-flex;
@@ -251,6 +261,11 @@
 /* Dark mode */
 :root[data-theme='dark'] .collapse-toggle:hover {
   border-color: #3a4a64;
+}
+
+:root[data-theme='dark'] .collapse-toggle--sticky {
+  background: rgba(31, 36, 48, 0.92);
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.24);
 }
 
 :root[data-theme='dark'] .stage-intro--info {
