@@ -7,6 +7,7 @@ import {
   formatCurationList,
   formatCurationText,
   resolveActiveCouncil,
+  resolveModelLabel,
   sameModelSet,
 } from './modelUtils.js';
 
@@ -81,6 +82,18 @@ test('abbreviateModelName produces compact mobile labels', () => {
   assert.equal(abbreviateModelName('anthropic/claude-sonnet-4.6', modelMap), 'Sonnet 4.6');
   assert.equal(abbreviateModelName('x-ai/grok-4', modelMap), 'Grok 4');
   assert.equal(abbreviateModelName('deepseek/deepseek-chat', modelMap), 'DeepSeek');
+  assert.equal(abbreviateModelName('deepseek/deepseek-v4-pro', modelMap), 'DeepSeek 4');
+  assert.equal(abbreviateModelName('z-ai/glm-5.2', modelMap), 'GLM 5.2');
+});
+
+test('resolveModelLabel matches abbreviated labels used in tabs and headers', () => {
+  const modelMap = new Map([
+    ['deepseek/deepseek-v4-pro', { name: 'DeepSeek: DeepSeek V4 Pro' }],
+    ['openai/gpt-5.4', { name: 'OpenAI: GPT-5.4' }],
+  ]);
+
+  assert.equal(resolveModelLabel('deepseek/deepseek-v4-pro', modelMap), 'DeepSeek 4');
+  assert.equal(resolveModelLabel('openai/gpt-5.4', modelMap), 'GPT-5.4');
 });
 
 test('curation display helpers tolerate structured model output', () => {

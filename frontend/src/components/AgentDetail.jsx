@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { X } from 'lucide-react';
 import MarkdownContent from './MarkdownContent';
-import { abbreviateModelName, formatModelLabel, providerMeta } from '../modelUtils';
+import { resolveModelLabel, providerMeta } from '../modelUtils';
 
 const STATE_LABEL = {
   pending: 'Waiting to start',
@@ -13,11 +13,11 @@ const STATE_LABEL = {
   failed: 'No response',
 };
 
-function deAnonymize(text, labelToModel) {
+function deAnonymize(text, labelToModel, modelMap) {
   if (!text || !labelToModel) return text || '';
   let result = text;
   Object.entries(labelToModel).forEach(([label, model]) => {
-    result = result.replace(new RegExp(label, 'g'), `**${formatModelLabel(model)}**`);
+    result = result.replace(new RegExp(label, 'g'), `**${resolveModelLabel(model, modelMap)}**`);
   });
   return result;
 }
@@ -34,10 +34,10 @@ export default function AgentDetail({ agent, labelToModel, modelMap, onClose }) 
   if (!agent) return null;
 
   const meta = providerMeta(agent.model);
-  const name = formatModelLabel(agent.model);
+  const name = resolveModelLabel(agent.model, modelMap);
   const stage1Text = agent.stage1Row?.response || '';
   const rankingRow = agent.rankingRow || null;
-  const rankingText = deAnonymize(rankingRow?.ranking || '', labelToModel);
+  const rankingText = deAnonymize(rankingRow?.ranking || '', labelToModel, modelMap);
   const parsed = rankingRow?.parsed_ranking || [];
 
   return (
@@ -75,13 +75,13 @@ export default function AgentDetail({ agent, labelToModel, modelMap, onClose }) 
 
           {rankingRow && (
             <section className="agent-detail-section">
-              <h4>How {abbreviateModelName(agent.model, modelMap)} scored the council</h4>
+              <h4>How {name} scored the council</h4>
               {parsed.length > 0 && (
                 <ol className="agent-detail-ranking">
                   {parsed.map((label, index) => (
                     <li key={`${label}-${index}`}>
                       {labelToModel && labelToModel[label]
-                        ? formatModelLabel(labelToModel[label])
+                        ? resolveModelLabel(labelToModel[label], modelMap)
                         : label}
                     </li>
                   ))}

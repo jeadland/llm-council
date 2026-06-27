@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import MarkdownContent from './MarkdownContent';
 import AggregateRankings from './AggregateRankings';
-import { formatModelLabel } from '../modelUtils';
+import { resolveModelLabel } from '../modelUtils';
 import {
   ModelReviewerTabs,
   ReviewerContentHeader,
@@ -11,12 +11,12 @@ import {
 import './StagePanels.css';
 import './Stage2.css';
 
-function deAnonymizeText(text, labelToModel) {
+function deAnonymizeText(text, labelToModel, modelMap) {
   if (!labelToModel) return text;
 
   let result = text;
   Object.entries(labelToModel).forEach(([label, model]) => {
-    const modelShortName = formatModelLabel(model);
+    const modelShortName = resolveModelLabel(model, modelMap);
     result = result.replace(new RegExp(label, 'g'), `**${modelShortName}**`);
   });
   return result;
@@ -28,6 +28,7 @@ export default function Stage2({
   aggregateRankings,
   stage2Execution,
   error,
+  modelMap,
   defaultCollapsed = false,
 }) {
   const [activeTab, setActiveTab] = useState(0);
@@ -55,7 +56,7 @@ export default function Stage2({
   const voteLabel = `${completedRankings} of ${expectedRankings} peer ranking${expectedRankings === 1 ? '' : 's'}`;
   const topAggregate = aggregateRankings?.[0];
   const summary = topAggregate
-    ? `${isPartial ? 'Partial · ' : ''}Top: ${formatModelLabel(topAggregate.model)} · ${topAggregate.average_rank.toFixed(2)} avg`
+    ? `${isPartial ? 'Partial · ' : ''}Top: ${resolveModelLabel(topAggregate.model, modelMap)} · ${topAggregate.average_rank.toFixed(2)} avg`
     : `${isPartial ? 'Partial · ' : ''}${voteLabel}`;
 
   const tabItems = completedRankingRows.map((row) => ({
@@ -93,7 +94,7 @@ export default function Stage2({
               <strong>Partial peer review:</strong> this run received {voteLabel}.{' '}
               {missingModels.length > 0 && (
                 <span>
-                  Missing: {missingModels.map(formatModelLabel).join(', ')}.
+                  Missing: {missingModels.map((model) => resolveModelLabel(model, modelMap)).join(', ')}.
                 </span>
               )}
               {maxAttempts > 0 && timeoutSeconds > 0 && (
@@ -104,7 +105,7 @@ export default function Stage2({
                   Attempts:{' '}
                   {missingModels.map((model) => (
                     <span key={model}>
-                      {formatModelLabel(model)} {attemptsByModel[model] || 0}/{maxAttempts}
+                      {resolveModelLabel(model, modelMap)} {attemptsByModel[model] || 0}/{maxAttempts}
                     </span>
                   ))}
                 </div>
@@ -117,7 +118,7 @@ export default function Stage2({
                     const status = diagnostic.status_code ? ` ${diagnostic.status_code}` : '';
                     return (
                       <div key={model} className="stage2-diagnostic-row">
-                        <strong>{formatModelLabel(model)}:</strong>{' '}
+                        <strong>{resolveModelLabel(model, modelMap)}:</strong>{' '}
                         {diagnostic.error_type || 'unknown'}{status} from {diagnostic.provider_source || 'unknown'}
                         {diagnostic.message ? ` - ${diagnostic.message}` : ''}
                       </div>
@@ -141,6 +142,7 @@ export default function Stage2({
                 onChange={setActiveTab}
                 idPrefix="stage2"
                 ariaLabel="Select peer evaluation"
+                modelMap={modelMap}
               />
 
               <div
@@ -152,6 +154,7 @@ export default function Stage2({
                 <ReviewerContentHeader
                   model={activeRow.model}
                   subtitle="Peer evaluation"
+                  modelMap={modelMap}
                 />
                 {activeRow.ranking_valid === false && (
                   <div className="stage2-invalid-alert" role="status">
@@ -166,7 +169,7 @@ export default function Stage2({
                   </div>
                 )}
                 <MarkdownContent className="ranking-content">
-                  {deAnonymizeText(activeRow.ranking, labelToModel)}
+                  {deAnonymizeText(activeRow.ranking, labelToModel, modelMap)}
                 </MarkdownContent>
 
                 {activeRow.parsed_ranking?.length > 0 && (
@@ -176,7 +179,7 @@ export default function Stage2({
                       {activeRow.parsed_ranking.map((label, i) => (
                         <li key={i}>
                           {labelToModel && labelToModel[label]
-                            ? formatModelLabel(labelToModel[label])
+                            ? resolveModelLabel(labelToModel[label], modelMap)
                             : label}
                         </li>
                       ))}
@@ -192,7 +195,7 @@ export default function Stage2({
               <StageIntro title="Combined scoreboard" variant="subtle">
                 Results across {voteLabel}. Lower average rank is better.
               </StageIntro>
-              <AggregateRankings aggregateRankings={aggregateRankings} />
+              <AggregateRankings aggregateRankings={aggregateRankings} modelMap={modelMap} />
             </div>
           )}
         </>

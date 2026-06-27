@@ -79,9 +79,18 @@
 
 .council-strip--race > .council-race-slot {
   flex: 1 1 0;
-  min-width: 158px;
+  min-width: 168px;
   max-width: none;
   will-change: transform;
+}
+
+.council-strip--race .agent-card {
+  padding: 8px 9px 8px 8px;
+}
+
+.council-strip--race .agent-status {
+  white-space: nowrap;
+  font-size: 11px;
 }
 
 .council-race-slot {

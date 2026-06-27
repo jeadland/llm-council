@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { ChevronDown, Crown } from 'lucide-react';
 import AggregateRankings from './AggregateRankings';
-import { formatModelLabel, providerMeta } from '../modelUtils';
+import { resolveModelLabel, providerMeta } from '../modelUtils';
 import './WinnerBanner.css';
 
-export default function WinnerBanner({ aggregateRankings, voteLabel }) {
+export default function WinnerBanner({ aggregateRankings, voteLabel, modelMap }) {
   const [open, setOpen] = useState(false);
 
   if (!aggregateRankings || aggregateRankings.length === 0) return null;
@@ -32,7 +32,7 @@ export default function WinnerBanner({ aggregateRankings, voteLabel }) {
 
         <span className="winner-info">
           <span className="winner-eyebrow">Council winner</span>
-          <span className="winner-name">{formatModelLabel(winner.model)}</span>
+          <span className="winner-name">{resolveModelLabel(winner.model, modelMap)}</span>
         </span>
 
         <span className="winner-meta">
@@ -51,7 +51,7 @@ export default function WinnerBanner({ aggregateRankings, voteLabel }) {
 
       {open && hasMore && (
         <div className="winner-scoreboard">
-          <AggregateRankings aggregateRankings={aggregateRankings} />
+          <AggregateRankings aggregateRankings={aggregateRankings} modelMap={modelMap} />
         </div>
       )}
     </div>

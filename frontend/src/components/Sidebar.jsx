@@ -387,7 +387,20 @@ export default function Sidebar({
                 </div>
                 <div className="account-settings">
                   <div className="account-status success">
-                    Signed in with Google. Sign out from the menu below.
+                    Signed in with Google.
+                  </div>
+                  <div className="account-actions">
+                    <button
+                      type="button"
+                      className="settings-cancel-btn account-logout-btn"
+                      onClick={() => {
+                        setShowSettings(false);
+                        onLogout?.();
+                      }}
+                    >
+                      <LogOut size={16} />
+                      Sign out
+                    </button>
                   </div>
                 </div>
               </>
@@ -567,17 +580,6 @@ export default function Sidebar({
                 <SettingsIcon size={18} />
               </button>
             </div>
-
-            {auth?.auth_required && (
-              <button
-                type="button"
-                className="sidebar-footer-action is-danger"
-                onClick={onLogout}
-              >
-                <LogOut size={16} />
-                <span>Sign out</span>
-              </button>
-            )}
           </div>
         </>
       )}
