@@ -19,9 +19,14 @@ function hitOutputLimit(response) {
   );
 }
 
-export default function Stage1({ responses, modelMap, defaultCollapsed = false }) {
+export default function Stage1({
+  responses,
+  modelMap,
+  defaultCollapsed = false,
+  expandToken = 0,
+}) {
   const [activeTab, setActiveTab] = useState(0);
-  const [collapsed, setCollapsed] = useState(defaultCollapsed);
+  const [collapsed, setCollapsed] = useState(defaultCollapsed && !expandToken);
 
   if (!responses || responses.length === 0) {
     return null;
@@ -39,7 +44,7 @@ export default function Stage1({ responses, modelMap, defaultCollapsed = false }
     <div className="stage stage1">
       <button
         type="button"
-        className="collapse-toggle"
+        className={`collapse-toggle${collapsed ? '' : ' collapse-toggle--sticky'}`}
         aria-expanded={!collapsed}
         onClick={() => setCollapsed((v) => !v)}
       >

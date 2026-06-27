@@ -199,6 +199,7 @@ async def create_model_curation_draft(trigger: str, owner_email: Optional[str]) 
         curation_model = fallback_validation["normalized_model"] if fallback_validation["ok"] else storage.DEFAULT_CURATION_MODEL
         storage.save_model_curation_state({"current_curation_model": curation_model})
     settings = storage.get_settings()
+    current_enhancer_model = settings.get("enhancer_model")
     current_preset_definitions = settings.get("curated_model_presets") or MODEL_PRESETS
     current_resolved_presets = resolve_model_presets(catalog, preset_definitions=current_preset_definitions)
     model_map = {model["id"]: model for model in catalog}
@@ -212,9 +213,11 @@ async def create_model_curation_draft(trigger: str, owner_email: Optional[str]) 
             "Use at most one model per provider/lab in each curated group.",
             "For frontier groups, pick the lab's strongest representative model instead of multiple variants from the same lab.",
             "Recommend one chairman per group.",
-            "Return concise JSON with notes, risks, recommended_next_curation_model, and optional proposed_preset_definitions.",
+            "Recommend one enhancer model used to rewrite/improve a user's draft question before a council run. It should be strong but mid-tier and inexpensive (not a frontier model).",
+            "Return concise JSON with notes, risks, recommended_next_curation_model, recommended_enhancer_model, and optional proposed_preset_definitions.",
         ],
         "current_presets": current_resolved_presets,
+        "current_enhancer_model": current_enhancer_model,
         "catalog_candidates": _compact_catalog(catalog),
     }
     prompt = json.dumps(prompt_payload, indent=2)
@@ -254,6 +257,15 @@ async def create_model_curation_draft(trigger: str, owner_email: Optional[str]) 
     next_validation = validate_next_curation_model(recommended_next, catalog, prompt)
     next_status = "promoted" if status == "ready" and next_validation["ok"] else "not_promoted"
 
+    recommended_enhancer = (
+        llm_json.get("recommended_enhancer_model")
+        or llm_json.get("enhancer_model")
+        or current_enhancer_model
+    )
+    enhancer_validation = validate_next_curation_model(recommended_enhancer, catalog, prompt)
+    if not enhancer_validation["ok"]:
+        recommended_enhancer = current_enhancer_model
+
     draft_id = str(uuid.uuid4())
     fallback_notes = "Draft generated from the live OpenRouter catalog and current preset rules."
     fallback_risks = [
@@ -273,6 +285,9 @@ async def create_model_curation_draft(trigger: str, owner_email: Optional[str]) 
         "recommended_next_curation_model": recommended_next,
         "next_curator_status": next_status,
         "next_curator_validation": next_validation,
+        "current_enhancer_model": current_enhancer_model,
+        "recommended_enhancer_model": recommended_enhancer,
+        "enhancer_model_validation": enhancer_validation,
         "estimated_llm_cost": round(estimated_llm_cost, 4) if estimated_llm_cost is not None else None,
         "max_llm_cost": DEFAULT_MAX_USD,
         "sources": SOURCE_URLS,

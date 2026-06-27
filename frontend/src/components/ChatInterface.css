@@ -682,9 +682,8 @@
   border: 1px solid #d0d8e8;
   border-radius: 12px;
   box-shadow: 0 1px 5px rgba(36, 48, 70, 0.08);
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
+  display: flex;
+  flex-direction: column;
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease;
@@ -769,14 +768,14 @@
 .input-bottom-row {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  padding: 5px 6px 5px 0;
+  justify-content: space-between;
+  padding: 0 6px 6px 12px;
   gap: 8px;
 }
 
 /* Left side: keyboard hint + char counter */
 .input-bottom-left {
-  display: none;
+  display: flex;
   align-items: center;
   gap: 10px;
   flex: 1;
@@ -853,6 +852,13 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+.send-estimate {
+  padding-left: 2px;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 11px;
+  font-weight: 650;
+}
+
 .send-button:hover:not(:disabled) {
   background: #2f7dd4;
   box-shadow: 0 3px 10px rgba(74, 144, 226, 0.4);
@@ -876,6 +882,120 @@
 /* Ready-to-send: steady resting shadow (no perpetual pulse) */
 .send-button:not(:disabled) {
   box-shadow: 0 2px 6px rgba(74, 144, 226, 0.25);
+}
+
+/* ── Improve (AI) button ── */
+
+.improve-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 12px;
+  background: transparent;
+  border: 1px solid rgba(74, 144, 226, 0.45);
+  border-radius: 8px;
+  color: #4a90e2;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.18s,
+    border-color 0.18s,
+    color 0.18s,
+    transform 0.12s;
+  white-space: nowrap;
+  min-height: 32px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.improve-button:hover:not(:disabled) {
+  background: rgba(74, 144, 226, 0.1);
+  border-color: #4a90e2;
+  transform: translateY(-1px);
+}
+
+.improve-button:active:not(:disabled) {
+  transform: scale(0.96) translateY(0);
+}
+
+.improve-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.improve-spinner {
+  animation: improve-spin 0.8s linear infinite;
+}
+
+@keyframes improve-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+:root[data-theme="dark"] .improve-button {
+  color: #8ab8ec;
+  border-color: rgba(138, 184, 236, 0.4);
+}
+
+:root[data-theme="dark"] .improve-button:hover:not(:disabled) {
+  background: rgba(138, 184, 236, 0.14);
+  border-color: #8ab8ec;
+}
+
+/* ── Undo AI edit link + improve error ── */
+
+.undo-improve {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 12px;
+  background: transparent;
+  border: 1px solid rgba(120, 130, 145, 0.45);
+  border-radius: 8px;
+  color: #5b6573;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.18s,
+    border-color 0.18s,
+    color 0.18s,
+    transform 0.12s;
+  white-space: nowrap;
+  min-height: 32px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.undo-improve:hover {
+  background: rgba(120, 130, 145, 0.12);
+  border-color: #5b6573;
+  color: #3c4350;
+  transform: translateY(-1px);
+}
+
+.undo-improve:active {
+  transform: scale(0.96) translateY(0);
+}
+
+:root[data-theme="dark"] .undo-improve {
+  color: #aab4c4;
+  border-color: rgba(170, 180, 196, 0.4);
+}
+
+:root[data-theme="dark"] .undo-improve:hover {
+  background: rgba(170, 180, 196, 0.14);
+  border-color: #aab4c4;
+  color: #cdd5e0;
+}
+
+.improve-error {
+  font-size: 12px;
+  color: #e53e3e;
 }
 
 /* ── Stop button ── */
@@ -1387,6 +1507,10 @@ button,
   .stop-button svg {
     width: 16px;
     height: 16px;
+  }
+
+  .send-estimate {
+    display: none;
   }
 
   .stage-stepper {

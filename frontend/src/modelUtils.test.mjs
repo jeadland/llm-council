@@ -3,9 +3,12 @@ import assert from 'node:assert/strict';
 
 import {
   abbreviateModelName,
+  buildCurationSummary,
+  diffCurationPresets,
   formatCurationCost,
   formatCurationList,
   formatCurationText,
+  formatCurationWarnings,
   resolveActiveCouncil,
   resolveModelLabel,
   sameModelSet,
@@ -99,12 +102,67 @@ test('resolveModelLabel matches abbreviated labels used in tabs and headers', ()
 test('curation display helpers tolerate structured model output', () => {
   assert.equal(
     formatCurationText({ summary: 'Use the updated frontier mix.' }),
-    '{"summary":"Use the updated frontier mix."}',
+    'Use the updated frontier mix.',
+  );
+  assert.equal(
+    formatCurationText({
+      risk: 'Many current preset ids are not in catalog_candidates.',
+      impact: 'Presets may fail at runtime or show unavailable models.',
+    }),
+    'Many current preset ids are not in catalog_candidates. — Presets may fail at runtime or show unavailable models.',
+  );
+  assert.equal(
+    formatCurationText('{"risk":"Catalog drift.","impact":"Stale presets."}'),
+    'Catalog drift. — Stale presets.',
   );
   assert.deepEqual(
     formatCurationList(['Watch cost.', { issue: 'Catalog may change.' }]),
-    ['Watch cost.', '{"issue":"Catalog may change."}'],
+    ['Watch cost.', 'Catalog may change.'],
   );
   assert.equal(formatCurationCost('0.123456'), '$0.1235');
   assert.equal(formatCurationCost('not-a-number'), null);
+  assert.equal(formatCurationCost('-5680'), null);
+});
+
+test('curation review helpers summarize preset diffs and plain warnings', () => {
+  const currentPresets = [
+    {
+      id: 'premium',
+      name: 'Premium Balanced',
+      models: ['model/a', 'model/b'],
+      chairman_model: 'model/a',
+    },
+  ];
+  const proposedPresets = [
+    {
+      id: 'premium',
+      name: 'Premium Balanced',
+      models: ['model/a', 'model/c'],
+      chairman_model: 'model/c',
+      missing: ['model/c'],
+    },
+  ];
+
+  const diffs = diffCurationPresets(currentPresets, proposedPresets);
+  assert.equal(diffs.length, 1);
+  assert.equal(diffs[0].changed, true);
+  assert.deepEqual(diffs[0].addedModels, ['model/c']);
+  assert.deepEqual(diffs[0].removedModels, ['model/b']);
+
+  const summary = buildCurationSummary({
+    draft: { created_at: '2026-06-27T12:00:00.000Z', status: 'ready' },
+    presetDiffs: diffs,
+  });
+  assert.match(summary, /recommends updates to 1 curated preset/);
+
+  const warnings = formatCurationWarnings([
+    {
+      risk: 'Many current preset ids are not in catalog_candidates.',
+      impact: 'Presets may fail at runtime or show unavailable models.',
+    },
+    'Cost estimates exclude optional web-search and provider surcharges.',
+  ]);
+  assert.equal(warnings.length, 2);
+  assert.equal(warnings[0], 'Presets may fail at runtime or show unavailable models.');
+  assert.match(warnings[1], /surcharges/);
 });

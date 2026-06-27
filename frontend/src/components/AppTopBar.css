@@ -1,18 +1,16 @@
 .app-topbar {
-  min-height: 106px;
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  display: grid;
-  grid-template-columns: minmax(360px, 1fr) minmax(150px, auto) minmax(190px, auto) auto;
+  min-height: 56px;
+  display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 14px 20px;
+  gap: 12px;
+  padding: 8px 14px;
   background: #fff;
   border-bottom: 1px solid #e3e7ee;
   color: #182132;
   z-index: 18;
-  overflow: hidden;
 }
 
 .app-topbar .app-topbar-menu {
@@ -20,18 +18,19 @@
 }
 
 .app-topbar-command {
-  min-width: 0;
+  min-width: 150px;
+  flex: 1 1 auto;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 9px;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
 }
 
 .app-topbar-council-row {
   min-width: 0;
   display: flex;
-  align-items: flex-end;
-  gap: 10px;
+  align-items: center;
+  gap: 8px;
 }
 
 .app-topbar-title-group {
@@ -40,28 +39,26 @@
 }
 
 .app-topbar-label {
-  margin-bottom: 4px;
-  color: #788397;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.2;
+  display: none;
 }
 
 .app-topbar-council-button {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  max-width: 100%;
+  gap: 5px;
+  max-width: min(28vw, 300px);
+  min-height: 34px;
   border: none;
+  border-radius: 7px;
   background: transparent;
   color: #172033;
   cursor: pointer;
   font: inherit;
-  font-size: 21px;
+  font-size: 17px;
   font-weight: 760;
   line-height: 1.15;
   letter-spacing: 0;
-  padding: 0;
+  padding: 4px 2px;
 }
 
 .app-topbar-council-button span {
@@ -79,8 +76,7 @@
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  min-height: 24px;
-  margin-bottom: 1px;
+  min-height: 23px;
   padding: 4px 8px;
   border: 1px solid #cfe0ff;
   border-radius: 7px;
@@ -93,10 +89,11 @@
 
 .app-topbar-models {
   min-width: 0;
+  flex: 1 1 260px;
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
   gap: 6px;
+  overflow: visible;
 }
 
 .app-topbar-mobile-summary,
@@ -105,46 +102,80 @@
 }
 
 .app-topbar-chip {
-  max-width: 158px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  max-width: 142px;
+  min-height: 25px;
   display: inline-flex;
   align-items: center;
-  min-height: 25px;
+  justify-content: flex-start;
+  overflow: hidden;
   padding: 3px 8px;
   border: 1px solid #d8e0ec;
   border-radius: 7px;
   background: #fbfcfe;
   color: #344158;
+  font: inherit;
   font-size: 12px;
   font-weight: 660;
   line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .app-topbar-chip-muted {
-  max-width: none;
   color: #66748b;
   background: #f2f5f9;
 }
 
-.app-topbar-detail {
-  min-width: 0;
-  align-self: stretch;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding-left: 18px;
-  border-left: 1px solid #e5e9f1;
+.app-topbar-chip-more {
+  color: #1f65bd;
+  background: #edf4ff;
+  border-color: #cfe0ff;
+  cursor: pointer;
+}
+
+.app-topbar-overflow {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.app-topbar-overflow-menu {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  z-index: 40;
+  width: min(320px, 80vw);
+  max-height: 260px;
+  overflow: auto;
+  padding: 6px;
+  border: 1px solid #d9e0eb;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.18);
+}
+
+.app-topbar-overflow-row {
+  overflow: hidden;
+  padding: 8px 9px;
+  border-radius: 7px;
+  color: #26334a;
+  font-size: 12.5px;
+  font-weight: 650;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-topbar-overflow-row:hover {
+  background: #f1f5fb;
 }
 
 .app-topbar-value {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
   color: #172033;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 760;
   line-height: 1.25;
   white-space: nowrap;
@@ -157,7 +188,32 @@
 }
 
 .app-topbar-value.chairman {
+  flex: 0 1 160px;
+  max-width: 180px;
   color: #c87612;
+}
+
+.app-topbar-cost {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 1px solid #e2e8f1;
+  border-radius: 8px;
+  background: #fbfcfe;
+  color: #66748b;
+  font-size: 11px;
+  font-weight: 720;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.app-topbar-cost strong {
+  color: #172033;
+  font-size: 12px;
+  font-weight: 780;
 }
 
 .app-topbar-models-button,
@@ -166,7 +222,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 38px;
+  min-height: 36px;
   border: 1px solid #2f7dd4;
   border-radius: 8px;
   background: #1f65bd;
@@ -176,8 +232,8 @@
   font-size: 13px;
   font-weight: 760;
   line-height: 1;
-  padding: 9px 13px;
-  box-shadow: 0 6px 16px rgba(47, 125, 212, 0.2);
+  padding: 8px 12px;
+  box-shadow: 0 4px 12px rgba(47, 125, 212, 0.18);
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
@@ -185,21 +241,31 @@
 .app-topbar-models-button:hover,
 .app-topbar-icon:hover {
   background: #1859aa;
-  box-shadow: 0 8px 18px rgba(47, 125, 212, 0.25);
+  box-shadow: 0 6px 14px rgba(47, 125, 212, 0.23);
 }
 
 .app-topbar-icon {
-  width: 40px;
+  width: 38px;
   padding: 0;
 }
 
-@media (max-width: 1160px) {
-  .app-topbar {
-    grid-template-columns: minmax(260px, 1fr) minmax(140px, auto) auto;
+@media (max-width: 1280px) {
+  .app-topbar-chip {
+    max-width: 92px;
   }
 
-  .app-topbar-cost {
+  .app-topbar-value.chairman {
     display: none;
+  }
+}
+
+@media (max-width: 1180px) {
+  .app-topbar-badge {
+    display: none;
+  }
+
+  .app-topbar-council-button {
+    max-width: min(30vw, 240px);
   }
 }
 
@@ -207,18 +273,17 @@
   .app-topbar {
     position: sticky;
     top: 0;
-    min-height: calc(env(safe-area-inset-top) + 70px);
-    grid-template-columns: minmax(0, 1fr);
+    min-height: calc(env(safe-area-inset-top) + 54px);
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) 42px;
     align-items: center;
-    gap: 5px;
-    padding: calc(env(safe-area-inset-top) + 7px) 10px 7px;
+    gap: 6px;
+    padding: calc(env(safe-area-inset-top) + 6px) 8px 6px;
   }
 
   .app-topbar .app-topbar-menu {
     display: inline-flex;
-    position: absolute;
-    top: calc(env(safe-area-inset-top) + 15px);
-    left: 10px;
+    grid-column: 1;
     background: #fff;
     border: 1px solid #d5dce8;
     color: #556276;
@@ -232,15 +297,15 @@
   }
 
   .app-topbar-command {
-    width: min(100%, 300px);
+    grid-column: 2;
+    width: 100%;
     min-width: 0;
-    margin: 0 auto;
-    gap: 4px;
+    justify-content: center;
   }
 
   .app-topbar-council-row {
+    width: 100%;
     min-width: 0;
-    align-items: flex-start;
     justify-content: center;
     text-align: center;
   }
@@ -251,14 +316,10 @@
     overflow: hidden;
   }
 
-  .app-topbar-label,
   .app-topbar-badge,
+  .app-topbar-models,
   .app-topbar-chairman,
   .app-topbar-cost {
-    display: none;
-  }
-
-  .app-topbar-models {
     display: none;
   }
 
@@ -266,11 +327,11 @@
     width: 100%;
     min-width: 0;
     max-width: 100%;
-    min-height: 22px;
+    min-height: 20px;
     justify-content: center;
-    font-size: 15px;
-    font-weight: 760;
-    line-height: 1.2;
+    font-size: 14px;
+    line-height: 1.15;
+    padding: 0;
   }
 
   .app-topbar-council-button span {
@@ -285,12 +346,11 @@
     justify-content: center;
     gap: 5px;
     max-width: 100%;
-    margin-top: 0;
     overflow: hidden;
     color: #728096;
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 680;
-    line-height: 1.15;
+    line-height: 1.1;
     white-space: nowrap;
   }
 
@@ -301,55 +361,8 @@
     text-overflow: ellipsis;
   }
 
-  .app-topbar-mobile-models {
-    display: none;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    min-width: 0;
-    max-width: 100%;
-    overflow: hidden;
-  }
-
-  .app-topbar-mobile-chip {
-    min-width: 0;
-    max-width: 62px;
-    min-height: 22px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex: 1 1 0;
-    padding: 3px 5px;
-    overflow: hidden;
-    border: 1px solid #d8e0ec;
-    border-radius: 7px;
-    background: #fbfcfe;
-    color: #344158;
-    font-size: 10.5px;
-    font-weight: 720;
-    line-height: 1;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .app-topbar-mobile-chip-muted {
-    background: #f2f5f9;
-    color: #66748b;
-  }
-
-  .app-topbar-mobile-more {
-    flex: 0 0 auto;
-    max-width: none;
-    color: #1f65bd;
-    background: #edf4ff;
-    border-color: #cfe0ff;
-  }
-
   .app-topbar-models-button {
-    position: absolute;
-    top: calc(env(safe-area-inset-top) + 15px);
-    right: 10px;
-    z-index: 2;
+    grid-column: 3;
     display: inline-flex;
     min-height: 38px;
     width: 38px;
@@ -367,28 +380,16 @@
 
 @media (max-width: 370px) {
   .app-topbar {
-    gap: 7px;
-    padding-left: 8px;
-    padding-right: 8px;
+    grid-template-columns: 38px minmax(0, 1fr) 38px;
+    gap: 5px;
+    padding-left: 7px;
+    padding-right: 7px;
   }
 
-  .app-topbar .app-topbar-menu {
-    left: 8px;
-  }
-
-  .app-topbar-command {
-    width: min(100%, 252px);
-  }
-
+  .app-topbar-icon,
   .app-topbar-models-button {
-    right: 8px;
-  }
-
-  .app-topbar-mobile-chip {
-    max-width: 48px;
-    padding-left: 4px;
-    padding-right: 4px;
-    font-size: 9.5px;
+    width: 36px;
+    min-height: 36px;
   }
 }
 
@@ -407,20 +408,41 @@
   color: #9ac0f8;
 }
 
-:root[data-theme='dark'] .app-topbar-label {
-  color: #9aa7bc;
-}
-
-:root[data-theme='dark'] .app-topbar-chip {
+:root[data-theme='dark'] .app-topbar-chip,
+:root[data-theme='dark'] .app-topbar-cost {
   background: #11151d;
   border-color: #2d3848;
   color: #c8d0e0;
 }
 
-:root[data-theme='dark'] .app-topbar-badge {
+:root[data-theme='dark'] .app-topbar-chip-muted {
+  background: #1d2430;
+  color: #9aa7bc;
+}
+
+:root[data-theme='dark'] .app-topbar-badge,
+:root[data-theme='dark'] .app-topbar-chip-more {
   background: #11243d;
   border-color: #315d95;
   color: #9ac0f8;
+}
+
+:root[data-theme='dark'] .app-topbar-cost strong {
+  color: #edf1f8;
+}
+
+:root[data-theme='dark'] .app-topbar-overflow-menu {
+  background: #171c26;
+  border-color: #2d3848;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.36);
+}
+
+:root[data-theme='dark'] .app-topbar-overflow-row {
+  color: #edf1f8;
+}
+
+:root[data-theme='dark'] .app-topbar-overflow-row:hover {
+  background: #1f2634;
 }
 
 :root[data-theme='dark'] .app-topbar-mobile-summary {
@@ -429,27 +451,6 @@
 
 :root[data-theme='dark'] .app-topbar-mobile-chairman {
   color: #d59645;
-}
-
-:root[data-theme='dark'] .app-topbar-mobile-chip {
-  background: #11151d;
-  border-color: #2d3848;
-  color: #c8d0e0;
-}
-
-:root[data-theme='dark'] .app-topbar-mobile-chip-muted {
-  background: #1d2430;
-  color: #9aa7bc;
-}
-
-:root[data-theme='dark'] .app-topbar-mobile-more {
-  background: #11243d;
-  border-color: #315d95;
-  color: #9ac0f8;
-}
-
-:root[data-theme='dark'] .app-topbar-detail {
-  border-left-color: #2d3848;
 }
 
 :root[data-theme='dark'] .app-topbar-menu {

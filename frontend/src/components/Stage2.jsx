@@ -30,9 +30,10 @@ export default function Stage2({
   error,
   modelMap,
   defaultCollapsed = false,
+  expandToken = 0,
 }) {
   const [activeTab, setActiveTab] = useState(0);
-  const [collapsed, setCollapsed] = useState(defaultCollapsed);
+  const [collapsed, setCollapsed] = useState(defaultCollapsed && !expandToken);
   const completedRankingRows = rankings || [];
 
   if (!rankings && !stage2Execution && !error) {
@@ -69,7 +70,7 @@ export default function Stage2({
     <div className="stage stage2">
       <button
         type="button"
-        className="collapse-toggle"
+        className={`collapse-toggle${collapsed ? '' : ' collapse-toggle--sticky'}`}
         aria-expanded={!collapsed}
         onClick={() => setCollapsed((v) => !v)}
       >
