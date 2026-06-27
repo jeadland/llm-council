@@ -10,7 +10,7 @@ import httpx
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from pathlib import Path
-from .config import DATA_DIR, COUNCIL_MODELS, CHAIRMAN_MODEL, PREMIER_MODELS
+from .config import DATA_DIR, COUNCIL_MODELS, CHAIRMAN_MODEL, PREMIER_MODELS, ENHANCER_MODEL
 from .openrouter import normalize_model_id
 
 RUNS_DIR = "data/runs"
@@ -233,10 +233,15 @@ def _sanitize_settings(settings: Dict[str, Any]) -> Dict[str, Any]:
     if chairman not in council:
         chairman = council[0]
 
+    enhancer = _canonicalize_model(settings.get("enhancer_model"))
+    if enhancer is None:
+        enhancer = _canonicalize_model(ENHANCER_MODEL) or ENHANCER_MODEL
+
     return {
         "available_models": available,
         "council_models": council,
         "chairman_model": chairman,
+        "enhancer_model": enhancer,
         "theme_mode": theme_mode,
         "active_model_group_id": active_group_id,
         "custom_model_groups": custom_groups,
@@ -689,6 +694,7 @@ def get_settings(owner_email: Optional[str] = None) -> Dict[str, Any]:
         "available_models": PREMIER_MODELS,
         "council_models": COUNCIL_MODELS,
         "chairman_model": CHAIRMAN_MODEL,
+        "enhancer_model": ENHANCER_MODEL,
         "theme_mode": "system",
         "active_model_group_id": "premium-balanced",
         "custom_model_groups": [],

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Sparkles, Undo2, Loader2 } from "lucide-react";
+import { api } from "../api";
 import Stage1 from "./Stage1";
 import Stage2 from "./Stage2";
 import Stage3 from "./Stage3";
@@ -260,6 +261,9 @@ export default function ChatInterface({
   presets,
 }) {
   const [input, setInput] = useState("");
+  const [isImproving, setIsImproving] = useState(false);
+  const [preImproveInput, setPreImproveInput] = useState(null);
+  const [improveError, setImproveError] = useState("");
   const messagesEndRef = useRef(null);
   const containerRef = useRef(null);
   const textareaRef = useRef(null);
@@ -297,12 +301,50 @@ export default function ChatInterface({
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (input.trim() && !isLoading) {
+    if (input.trim() && !isLoading && !isImproving) {
       onSendMessage(input);
       setInput("");
+      setPreImproveInput(null);
+      setImproveError("");
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";
       }
+    }
+  };
+
+  const handleInputChange = (e) => {
+    setInput(e.target.value);
+    if (preImproveInput !== null) setPreImproveInput(null);
+    if (improveError) setImproveError("");
+  };
+
+  const handleImprove = async () => {
+    if (!input.trim() || isLoading || isImproving) return;
+    const original = input;
+    setImproveError("");
+    setIsImproving(true);
+    try {
+      const { improved } = await api.improvePrompt(original);
+      if (improved && improved.trim() && improved.trim() !== original.trim()) {
+        setPreImproveInput(original);
+        setInput(improved);
+        requestAnimationFrame(autoResize);
+      } else {
+        setImproveError("No changes suggested.");
+      }
+    } catch (err) {
+      setImproveError(err?.message || "Couldn't improve the question.");
+    } finally {
+      setIsImproving(false);
+    }
+  };
+
+  const handleUndoImprove = () => {
+    if (preImproveInput !== null) {
+      setInput(preImproveInput);
+      setPreImproveInput(null);
+      setImproveError("");
+      requestAnimationFrame(autoResize);
     }
   };
 
@@ -527,7 +569,7 @@ export default function ChatInterface({
                 isLoading ? "Council is thinking…" : "Ask the council anything…"
               }
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               disabled={isLoading}
               rows={1}
@@ -548,8 +590,41 @@ export default function ChatInterface({
                     {input.length}
                   </span>
                 )}
+                {preImproveInput !== null && (
+                  <button
+                    type="button"
+                    className="undo-improve"
+                    onClick={handleUndoImprove}
+                    title="Restore your original question"
+                  >
+                    <Undo2 size={13} aria-hidden="true" />
+                    Undo AI edit
+                  </button>
+                )}
+                {improveError && (
+                  <span className="improve-error" role="status" aria-live="polite">
+                    {improveError}
+                  </span>
+                )}
               </div>
               <div className="input-actions">
+                {!isLoading && (
+                  <button
+                    type="button"
+                    className="improve-button"
+                    onClick={handleImprove}
+                    disabled={!input.trim() || isImproving}
+                    title="Improve my question with AI"
+                    aria-label="Improve my question with AI"
+                  >
+                    {isImproving ? (
+                      <Loader2 size={15} className="improve-spinner" aria-hidden="true" />
+                    ) : (
+                      <Sparkles size={15} aria-hidden="true" />
+                    )}
+                    {isImproving ? "Improving…" : "Improve"}
+                  </button>
+                )}
                 {isLoading && activeRunId ? (
                   <button
                     type="button"

@@ -18,12 +18,13 @@ from urllib.parse import urlencode
 from . import storage
 from . import auth
 from . import agent_auth
-from .config import OPENROUTER_API_KEY
+from .config import OPENROUTER_API_KEY, ENHANCER_MODEL
 from .council import (
     build_council_cost_summary,
     collect_council_cost_calls,
     run_full_council,
     generate_conversation_title,
+    improve_user_prompt,
     stage1_collect_responses,
     stage2_collect_rankings,
     stage3_synthesize_final,
@@ -144,11 +145,16 @@ class PinConversationRequest(BaseModel):
 class UpdateSettingsRequest(BaseModel):
     council_models: Optional[List[str]] = None
     chairman_model: Optional[str] = None
+    enhancer_model: Optional[str] = None
     theme_mode: Optional[str] = None
     active_model_group_id: Optional[str] = None
     custom_model_groups: Optional[List[Dict[str, Any]]] = None
     curated_model_presets: Optional[List[Dict[str, Any]]] = None
     last_approved_curation_id: Optional[str] = None
+
+
+class ImprovePromptRequest(BaseModel):
+    content: str
 
 
 class UpdateOpenRouterIntegrationRequest(BaseModel):
@@ -711,6 +717,10 @@ async def update_settings(request: Request, payload: UpdateSettingsRequest):
         if not payload.chairman_model.strip():
             raise HTTPException(status_code=400, detail="Select a chairman model")
         patch["chairman_model"] = payload.chairman_model
+    if payload.enhancer_model is not None:
+        if not payload.enhancer_model.strip():
+            raise HTTPException(status_code=400, detail="Select an enhancer model")
+        patch["enhancer_model"] = payload.enhancer_model
     if payload.theme_mode is not None:
         patch["theme_mode"] = payload.theme_mode
     if payload.active_model_group_id is not None:
@@ -723,6 +733,26 @@ async def update_settings(request: Request, payload: UpdateSettingsRequest):
         patch["last_approved_curation_id"] = payload.last_approved_curation_id
     updated = storage.save_settings(patch, _owner_email_for_request(request))
     return updated
+
+
+@app.post("/api/prompt/improve")
+async def improve_prompt(request: Request, payload: ImprovePromptRequest):
+    content = (payload.content or "").strip()
+    if not content:
+        raise HTTPException(status_code=400, detail="Enter a question before improving it.")
+
+    owner_email = _owner_email_for_request(request)
+    openrouter_api_key = _owner_openrouter_api_key(owner_email)
+    if not openrouter_api_key and auth.is_auth_required() and not auth.is_owner_email(owner_email):
+        raise HTTPException(status_code=403, detail="Connect your OpenRouter API key before improving questions.")
+
+    settings = storage.get_settings(owner_email)
+    enhancer_model = settings.get("enhancer_model") or ENHANCER_MODEL
+
+    with use_openrouter_account_scope(owner_email, api_key=openrouter_api_key):
+        improved = await improve_user_prompt(content, enhancer_model)
+
+    return {"improved": improved, "original": content, "model": enhancer_model}
 
 
 def _filter_catalog(
@@ -895,10 +925,15 @@ async def approve_model_curation(draft_id: str, request: Request):
     if draft is None:
         raise HTTPException(status_code=404, detail="Model curation draft not found")
     preset_definitions = draft.get("proposed_preset_definitions") or draft.get("preset_definitions") or []
-    updated = storage.save_settings({
+    settings_patch = {
         "curated_model_presets": preset_definitions,
         "last_approved_curation_id": draft_id,
-    }, owner_email)
+    }
+    enhancer_validation = draft.get("enhancer_model_validation") or {}
+    recommended_enhancer = draft.get("recommended_enhancer_model")
+    if recommended_enhancer and enhancer_validation.get("ok"):
+        settings_patch["enhancer_model"] = enhancer_validation.get("normalized_model") or recommended_enhancer
+    updated = storage.save_settings(settings_patch, owner_email)
     approved_draft = mark_model_curation_draft_approved(draft, owner_email)
     return {
         "ok": True,

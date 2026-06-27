@@ -152,6 +152,20 @@ export const api = {
     return response.json();
   },
 
+  async improvePrompt(content) {
+    const response = await fetch(`${API_BASE}/api/prompt/improve`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content }),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.detail || 'Failed to improve question');
+    }
+    return response.json();
+  },
+
   async getRun(conversationId, runId) {
     const response = await fetch(`${API_BASE}/api/conversations/${conversationId}/runs/${runId}`, { credentials: 'include' });
     if (!response.ok) throw new Error('Failed to get run');

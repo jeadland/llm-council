@@ -23,6 +23,10 @@ COUNCIL_MODELS = [
 # Chairman model - synthesizes final response
 CHAIRMAN_MODEL = "anthropic/claude-sonnet-4.6"
 
+# Enhancer model - rewrites/improves a user's draft question before a council run.
+# Intentionally a strong-but-inexpensive mid-tier model; can be updated via weekly curation.
+ENHANCER_MODEL = "google/gemini-2.5-flash"
+
 # Curated premier models list (update over time)
 PREMIER_MODELS = [
     "openai/gpt-5.5",

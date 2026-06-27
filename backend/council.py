@@ -606,6 +606,48 @@ Title:"""
     return title
 
 
+async def improve_user_prompt(user_query: str, model: str) -> str:
+    """
+    Rewrite a user's draft question to be clearer and more effective for an LLM.
+
+    Args:
+        user_query: The user's original draft question.
+        model: The OpenRouter model id to use as the enhancer.
+
+    Returns:
+        The improved question text, or the original text on failure.
+    """
+    original = (user_query or "").strip()
+    if not original:
+        return original
+
+    system_prompt = (
+        "You are a prompt editor. Rewrite the user's question so it is clearer, "
+        "more specific, and self-contained for a large language model to answer well. "
+        "Preserve the user's original intent, meaning, and language. Do not answer the "
+        "question, add new requirements they did not imply, or invent facts. Keep it "
+        "concise. Return only the rewritten question with no preamble, quotes, or commentary."
+    )
+
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": original},
+    ]
+
+    response = await query_model(model, messages, timeout=45.0)
+
+    if response is None:
+        return original
+
+    improved = (response.get("content") or "").strip()
+    improved = improved.strip('"\'')
+
+    if not improved:
+        return original
+
+    return improved
+
+
 def _stage_cost_calls(
     stage_results: List[Dict[str, Any]],
     stage: str,

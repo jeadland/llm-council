@@ -91,6 +91,7 @@ function CurationTechnicalDetails({ draft, curationState, curationCost }) {
     || technicalRisks.length > 0
     || draft?.curation_model
     || draft?.next_curation_model
+    || draft?.recommended_enhancer_model
     || curationCost,
   );
 
@@ -117,6 +118,9 @@ function CurationTechnicalDetails({ draft, curationState, curationCost }) {
             {draft?.next_curation_model && <span>Next curator model: {draft.next_curation_model}</span>}
             {draft?.next_curator_status && (
               <span>Next curator: {formatCurationText(draft.next_curator_status).replace(/_/g, ' ')}</span>
+            )}
+            {draft?.recommended_enhancer_model && (
+              <span>Recommended enhancer model: {draft.recommended_enhancer_model}</span>
             )}
             {curationState?.current_curation_model && (
               <span>Current curator: {curationState.current_curation_model}</span>
