@@ -3,6 +3,8 @@ import { ChevronDown } from "lucide-react";
 import Stage1 from "./Stage1";
 import Stage2 from "./Stage2";
 import Stage3 from "./Stage3";
+import CouncilTable from "./CouncilTable";
+import WinnerBanner from "./WinnerBanner";
 import MarkdownContent from "./MarkdownContent";
 import {
   displayModelName,
@@ -18,6 +20,17 @@ const promptStarters = [
   "Give me the practical recommendation and caveats.",
   "Stress-test this plan before I act on it.",
 ];
+
+function voteLabelFromExecution(stage2Execution, aggregateRankings) {
+  const expected = Number(
+    stage2Execution?.expected_rankings_count || aggregateRankings?.length || 0,
+  );
+  const completed = Number(
+    stage2Execution?.completed_rankings_count ?? aggregateRankings?.length ?? 0,
+  );
+  if (!expected) return "";
+  return `${completed} of ${expected} vote${expected === 1 ? "" : "s"}`;
+}
 
 function EmptyStartSurface({
   compact = false,
@@ -231,55 +244,6 @@ function OpenRouterSetupSurface({ onOpenIntegrations }) {
   );
 }
 
-function StageStepper({ msg }) {
-  const stages = [
-    { key: "stage1", label: "Responses", num: 1 },
-    { key: "stage2", label: "Rankings", num: 2 },
-    { key: "stage3", label: "Synthesis", num: 3 },
-  ];
-
-  const getStatus = (key) => {
-    if (msg[key]) return "complete";
-    if (msg.loading?.[key]) return "active";
-    return "pending";
-  };
-
-  return (
-    <div className="stage-stepper">
-      {stages.map((stage, i) => {
-        const status = getStatus(stage.key);
-        return (
-          <div key={stage.key} className="stepper-segment">
-            <div className={`stepper-node ${status}`}>
-              {status === "complete" ? (
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                  <path
-                    d="M3 8.5L6.5 12L13 4"
-                    stroke="currentColor"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              ) : status === "active" ? (
-                <div className="stepper-pulse" />
-              ) : (
-                <span>{stage.num}</span>
-              )}
-            </div>
-            <span className={`stepper-label ${status}`}>{stage.label}</span>
-            {i < stages.length - 1 && (
-              <div
-                className={`stepper-connector ${status === "complete" ? "complete" : ""}`}
-              />
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 export default function ChatInterface({
   conversation,
   onSendMessage,
@@ -408,29 +372,43 @@ export default function ChatInterface({
                 <div className="assistant-message">
                   <div className="message-label">LLM Council</div>
 
-                  {/* Progress Stepper — show while any stage is loading */}
-                  {(msg.loading?.stage1 ||
-                    msg.loading?.stage2 ||
-                    msg.loading?.stage3) && <StageStepper msg={msg} />}
+                  {/* Live council table — per-model agent progress and drill-down */}
+                  <CouncilTable
+                    msg={msg}
+                    modelMap={modelMap}
+                    fallbackModels={settings?.council_models || []}
+                  />
 
-                  {/* Stage 1 */}
-                  {msg.loading?.stage1 && (
+                  {/* Stage 3 — Council Verdict, promoted above the working detail */}
+                  {msg.loading?.stage3 && (
                     <div className="stage-loading">
                       <div className="spinner"></div>
-                      <span>Collecting individual responses…</span>
+                      <span>Synthesizing final answer…</span>
                     </div>
                   )}
-                  {msg.stage1 && (
-                    <Stage1 responses={msg.stage1} defaultCollapsed />
+                  {msg.stage3 && (
+                    <Stage3
+                      hero
+                      finalResponse={msg.stage3}
+                      costSummary={
+                        msg.cost_summary || msg.metadata?.cost_summary
+                      }
+                    />
                   )}
 
-                  {/* Stage 2 */}
-                  {msg.loading?.stage2 && (
-                    <div className="stage-loading">
-                      <div className="spinner"></div>
-                      <span>Peer rankings in progress…</span>
-                    </div>
-                  )}
+                  {/* Winner banner — easy-to-find result with expandable scoreboard */}
+                  {!msg.loading?.stage2 &&
+                    msg.metadata?.aggregate_rankings?.length > 0 && (
+                      <WinnerBanner
+                        aggregateRankings={msg.metadata.aggregate_rankings}
+                        voteLabel={voteLabelFromExecution(
+                          msg.metadata?.stage2_execution,
+                          msg.metadata.aggregate_rankings,
+                        )}
+                      />
+                    )}
+
+                  {/* Stage 2 — peer rankings (the "show the work") */}
                   {msg.stage2 && (
                     <Stage2
                       rankings={msg.stage2}
@@ -442,20 +420,9 @@ export default function ChatInterface({
                     />
                   )}
 
-                  {/* Stage 3 */}
-                  {msg.loading?.stage3 && (
-                    <div className="stage-loading">
-                      <div className="spinner"></div>
-                      <span>Synthesizing final answer…</span>
-                    </div>
-                  )}
-                  {msg.stage3 && (
-                    <Stage3
-                      finalResponse={msg.stage3}
-                      costSummary={
-                        msg.cost_summary || msg.metadata?.cost_summary
-                      }
-                    />
+                  {/* Stage 1 — individual responses detail */}
+                  {msg.stage1 && (
+                    <Stage1 responses={msg.stage1} defaultCollapsed />
                   )}
 
                   {/* Error state — run failed before completing */}

@@ -250,9 +250,11 @@ function App() {
       );
       const costSummary =
         run.cost_summary || run.stage2?.metadata?.cost_summary || null;
-      const metadata = costSummary
-        ? { ...(run.stage2?.metadata || {}), cost_summary: costSummary }
-        : run.stage2?.metadata || null;
+      const stage1Execution = run.stage1?.metadata?.stage1_execution || null;
+      const baseMetadata = { ...(run.stage2?.metadata || {}) };
+      if (stage1Execution) baseMetadata.stage1_execution = stage1Execution;
+      if (costSummary) baseMetadata.cost_summary = costSummary;
+      const metadata = Object.keys(baseMetadata).length ? baseMetadata : null;
       const loading = {
         stage1: run.stage1?.status === "running",
         stage2: run.stage2?.status === "running",

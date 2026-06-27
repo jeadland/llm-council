@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { AlertTriangle, Check, ClipboardCopy, Star } from 'lucide-react';
-import { formatMoney } from '../modelUtils';
+import { formatModelLabel, formatMoney } from '../modelUtils';
 import MarkdownContent from './MarkdownContent';
 import './Stage3.css';
 
@@ -68,26 +68,6 @@ function CopyButton({ text }) {
       }
     </button>
   );
-}
-
-function formatModelLabel(model) {
-  if (!model) return 'Unknown';
-  const raw = model.startsWith('openrouter/') ? model.replace('openrouter/', '') : model;
-  const nice = {
-    'anthropic/claude-opus-4.6': 'Opus 4.6',
-    'anthropic/claude-sonnet-4.6': 'Sonnet 4.6',
-    'anthropic/claude-haiku-4.5': 'Haiku 4.5',
-    'google/gemini-3.1-pro-preview': 'Gemini 3.1 Pro Preview',
-    'google/gemini-2.5-pro': 'Gemini 2.5 Pro',
-    'x-ai/grok-4': 'Grok 4',
-    'x-ai/grok-4.20': 'Grok 4.20',
-    'x-ai/grok-4.3': 'Grok 4.3',
-    'x-ai/grok-4.1-fast': 'Grok 4.1 Fast',
-    'openai/gpt-5.2': 'GPT-5.2',
-    'openai/gpt-5.2-chat': 'GPT-5.2 Chat',
-    'openai/gpt-5.2-pro': 'GPT-5.2 Pro',
-  };
-  return nice[raw] || raw;
 }
 
 function formatStageLabel(stage) {
@@ -169,7 +149,7 @@ function CostSummary({ costSummary }) {
   );
 }
 
-export default function Stage3({ finalResponse, costSummary }) {
+export default function Stage3({ finalResponse, costSummary, hero = false }) {
   if (!finalResponse) {
     return null;
   }
@@ -178,7 +158,7 @@ export default function Stage3({ finalResponse, costSummary }) {
     finalResponse.response?.startsWith('⚠️');
 
   return (
-    <div className={`stage stage3${isFallback ? ' stage3-fallback' : ''}`}>
+    <div className={`stage stage3${hero ? ' stage3--hero' : ''}${isFallback ? ' stage3-fallback' : ''}`}>
       <div className="stage3-header">
         <div className="stage3-icon">
           {isFallback ? (

@@ -873,19 +873,9 @@
   transform: none;
 }
 
-/* Ready-to-send: gentle pulse to signal interactivity */
+/* Ready-to-send: steady resting shadow (no perpetual pulse) */
 .send-button:not(:disabled) {
-  animation: sendReady 2.5s ease-in-out infinite;
-}
-
-@keyframes sendReady {
-  0%,
-  100% {
-    box-shadow: 0 2px 6px rgba(74, 144, 226, 0.25);
-  }
-  50% {
-    box-shadow: 0 2px 12px rgba(74, 144, 226, 0.45);
-  }
+  box-shadow: 0 2px 6px rgba(74, 144, 226, 0.25);
 }
 
 /* ── Stop button ── */
