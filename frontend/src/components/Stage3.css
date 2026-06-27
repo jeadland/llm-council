@@ -6,6 +6,42 @@
   border-radius: 10px;
 }
 
+/* Hero verdict: the most prominent element of a completed turn */
+.stage3--hero {
+  margin-top: 12px;
+  padding: 18px;
+  border-width: 1.5px;
+  border-color: #b6e0b6;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(34, 139, 34, 0.1);
+}
+
+.stage3--hero::before {
+  content: "";
+  display: block;
+  height: 3px;
+  margin: -18px -18px 14px;
+  border-radius: 14px 14px 0 0;
+  background: linear-gradient(90deg, #22c55e, #4ade80);
+}
+
+.stage3--hero .stage-title {
+  font-size: 17px;
+}
+
+.stage3--hero .final-text {
+  font-size: 15.5px;
+}
+
+:root[data-theme='dark'] .stage3--hero {
+  border-color: #2c5a3c !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.stage3--hero.stage3-fallback::before {
+  background: linear-gradient(90deg, #f5a623, #f5c060);
+}
+
 /* Fallback/warning state */
 .stage3.stage3-fallback {
   background: #fffaf0 !important;
