@@ -383,11 +383,11 @@ export default function ModelPicker({
 
         <div className="model-picker-tabs" role="tablist" aria-label="Model picker sections">
           {[
-            ['curated', 'Curated presets'],
-            ['custom', 'Custom groups'],
-            ['browse', 'Browse models'],
-            ['review', 'Curation Review'],
-          ].map(([id, label]) => (
+            ['curated', 'Curated presets', 'Presets'],
+            ['custom', 'Custom groups', 'Groups'],
+            ['browse', 'Browse models', 'Browse'],
+            ['review', 'Curation Review', 'Review'],
+          ].map(([id, label, shortLabel]) => (
             <button
               key={id}
               type="button"
@@ -396,7 +396,8 @@ export default function ModelPicker({
               role="tab"
               aria-selected={activeTab === id}
             >
-              {label}
+              <span className="model-picker-tab-label model-picker-tab-label--long">{label}</span>
+              <span className="model-picker-tab-label model-picker-tab-label--short">{shortLabel}</span>
               {id === 'review' && curationPendingReview && <span className="tab-count">1</span>}
             </button>
           ))}

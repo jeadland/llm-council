@@ -65,13 +65,66 @@ export function displayModelName(modelId, modelMap) {
   return model?.name || shortModelName(modelId);
 }
 
+function pickCurationField(obj, keys) {
+  for (const key of keys) {
+    const value = obj[key];
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+  return '';
+}
+
+function formatCurationStructuredValue(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+
+  const risk = pickCurationField(value, ['risk', 'issue', 'warning', 'note']);
+  const impact = pickCurationField(value, ['impact', 'effect', 'consequence']);
+  if (risk && impact) {
+    return `${risk} — ${impact}`;
+  }
+  if (risk) {
+    return risk;
+  }
+
+  const summary = pickCurationField(value, ['summary', 'text', 'message', 'description']);
+  if (summary) {
+    return summary;
+  }
+
+  return null;
+}
+
+function tryParseCurationJsonString(value) {
+  const trimmed = value.trim();
+  if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) {
+    return null;
+  }
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return null;
+  }
+}
+
 export function formatCurationText(value, fallback = '') {
   if (value === null || value === undefined || value === '') return fallback;
-  if (typeof value === 'string') return value;
+  if (typeof value === 'string') {
+    const parsed = tryParseCurationJsonString(value);
+    if (parsed) {
+      const formatted = formatCurationStructuredValue(parsed);
+      if (formatted) return formatted;
+    }
+    return value;
+  }
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
   if (Array.isArray(value)) {
     return value.map((item) => formatCurationText(item)).filter(Boolean).join('; ') || fallback;
   }
+  const formatted = formatCurationStructuredValue(value);
+  if (formatted) return formatted;
   try {
     return JSON.stringify(value);
   } catch {

@@ -99,11 +99,22 @@ test('resolveModelLabel matches abbreviated labels used in tabs and headers', ()
 test('curation display helpers tolerate structured model output', () => {
   assert.equal(
     formatCurationText({ summary: 'Use the updated frontier mix.' }),
-    '{"summary":"Use the updated frontier mix."}',
+    'Use the updated frontier mix.',
+  );
+  assert.equal(
+    formatCurationText({
+      risk: 'Many current preset ids are not in catalog_candidates.',
+      impact: 'Presets may fail at runtime or show unavailable models.',
+    }),
+    'Many current preset ids are not in catalog_candidates. — Presets may fail at runtime or show unavailable models.',
+  );
+  assert.equal(
+    formatCurationText('{"risk":"Catalog drift.","impact":"Stale presets."}'),
+    'Catalog drift. — Stale presets.',
   );
   assert.deepEqual(
     formatCurationList(['Watch cost.', { issue: 'Catalog may change.' }]),
-    ['Watch cost.', '{"issue":"Catalog may change."}'],
+    ['Watch cost.', 'Catalog may change.'],
   );
   assert.equal(formatCurationCost('0.123456'), '$0.1235');
   assert.equal(formatCurationCost('not-a-number'), null);

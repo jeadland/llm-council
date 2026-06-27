@@ -148,6 +148,10 @@
   color: #176bd6;
 }
 
+.model-picker-tab-label--short {
+  display: none;
+}
+
 .tab-count {
   min-width: 18px;
   height: 18px;
@@ -741,8 +745,27 @@
   }
 
   .model-picker-tabs {
-    padding-left: 14px;
-    padding-right: 14px;
+    gap: 0;
+    padding-left: 8px;
+    padding-right: 8px;
+    overflow-x: hidden;
+  }
+
+  .model-picker-tabs button {
+    flex: 1 1 0;
+    min-width: 0;
+    justify-content: center;
+    padding: 8px 4px;
+    font-size: 12px;
+    min-height: 44px;
+  }
+
+  .model-picker-tab-label--long {
+    display: none;
+  }
+
+  .model-picker-tab-label--short {
+    display: inline;
   }
 
   .preset-row,

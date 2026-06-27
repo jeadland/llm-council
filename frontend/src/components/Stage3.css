@@ -570,13 +570,10 @@
   }
 
   .actual-cost-meta {
-    display: inline;
+    display: block;
     font-size: 10px;
     line-height: 1.25;
-  }
-
-  .actual-cost-meta::before {
-    content: '· ';
+    margin-top: 1px;
   }
 
   .actual-cost-expand-btn {
