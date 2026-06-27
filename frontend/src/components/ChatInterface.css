@@ -944,24 +944,47 @@
 .undo-improve {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 6px;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 12px;
   background: transparent;
-  border: none;
-  border-radius: 6px;
-  color: #4a90e2;
-  font-size: 12px;
+  border: 1px solid rgba(120, 130, 145, 0.45);
+  border-radius: 8px;
+  color: #5b6573;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s;
+  transition:
+    background 0.18s,
+    border-color 0.18s,
+    color 0.18s,
+    transform 0.12s;
+  white-space: nowrap;
+  min-height: 32px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .undo-improve:hover {
-  background: rgba(74, 144, 226, 0.12);
+  background: rgba(120, 130, 145, 0.12);
+  border-color: #5b6573;
+  color: #3c4350;
+  transform: translateY(-1px);
+}
+
+.undo-improve:active {
+  transform: scale(0.96) translateY(0);
 }
 
 :root[data-theme="dark"] .undo-improve {
-  color: #8ab8ec;
+  color: #aab4c4;
+  border-color: rgba(170, 180, 196, 0.4);
+}
+
+:root[data-theme="dark"] .undo-improve:hover {
+  background: rgba(170, 180, 196, 0.14);
+  border-color: #aab4c4;
+  color: #cdd5e0;
 }
 
 .improve-error {
