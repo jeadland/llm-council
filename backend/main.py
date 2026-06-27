@@ -32,7 +32,11 @@ from .council import (
 )
 from .openrouter import build_cost_summary, fetch_openrouter_model_catalog, reconcile_cost_calls, resolve_model_presets
 from .openrouter import use_openrouter_account_scope
-from .model_curation import create_model_curation_draft
+from .model_curation import (
+    create_model_curation_draft,
+    is_draft_pending_review,
+    mark_model_curation_draft_approved,
+)
 
 SUBPATH_PREFIX = "/llm-council"
 
@@ -865,9 +869,14 @@ async def model_catalog(
 
 
 @app.get("/api/model-curation/latest")
-async def latest_model_curation():
+async def latest_model_curation(request: Request):
+    owner_email = _owner_email_for_request(request)
+    draft = storage.get_latest_model_curation_draft()
+    settings = storage.get_settings(owner_email)
     return {
-        "draft": storage.get_latest_model_curation_draft(),
+        "draft": draft,
+        "pending_review": is_draft_pending_review(draft, settings),
+        "last_approved_curation_id": settings.get("last_approved_curation_id"),
         "curation_state": storage.get_model_curation_state(),
     }
 
@@ -890,7 +899,13 @@ async def approve_model_curation(draft_id: str, request: Request):
         "curated_model_presets": preset_definitions,
         "last_approved_curation_id": draft_id,
     }, owner_email)
-    return {"ok": True, "settings": updated}
+    approved_draft = mark_model_curation_draft_approved(draft, owner_email)
+    return {
+        "ok": True,
+        "settings": updated,
+        "draft": approved_draft,
+        "pending_review": False,
+    }
 
 
 @app.post("/api/agent/research/prepare")

@@ -195,6 +195,8 @@ class ModelCurationApiTests(TempDataMixin, unittest.TestCase):
     def test_approve_applies_proposed_presets(self):
         draft = storage.save_model_curation_draft({
             "id": "draft-1",
+            "status": "ready",
+            "created_at": "2026-06-24T00:00:00+00:00",
             "proposed_preset_definitions": [{
                 "id": "approved",
                 "slots": [["provider/model-a"]],
@@ -205,9 +207,65 @@ class ModelCurationApiTests(TempDataMixin, unittest.TestCase):
         response = client.post(f"/api/model-curation/{draft['id']}/approve")
 
         self.assertEqual(response.status_code, 200)
-        settings = response.json()["settings"]
+        payload = response.json()
+        settings = payload["settings"]
         self.assertEqual(settings["last_approved_curation_id"], "draft-1")
         self.assertEqual(settings["curated_model_presets"][0]["id"], "approved")
+        self.assertFalse(payload["pending_review"])
+        self.assertIsNotNone(payload["draft"]["approved_at"])
+
+        latest = client.get("/api/model-curation/latest")
+        self.assertEqual(latest.status_code, 200)
+        self.assertFalse(latest.json()["pending_review"])
+
+    def test_latest_marks_unapproved_ready_draft_as_pending(self):
+        storage.save_model_curation_draft({
+            "id": "draft-pending",
+            "status": "ready",
+            "created_at": "2026-06-24T00:00:00+00:00",
+            "proposed_preset_definitions": [{"id": "pending"}],
+        })
+        client = TestClient(app)
+
+        response = client.get("/api/model-curation/latest")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["pending_review"])
+        self.assertEqual(payload["draft"]["id"], "draft-pending")
+
+    def test_latest_treats_last_approved_draft_as_not_pending(self):
+        storage.save_model_curation_draft({
+            "id": "draft-approved",
+            "status": "ready",
+            "created_at": "2026-06-24T00:00:00+00:00",
+            "proposed_preset_definitions": [{"id": "approved"}],
+        })
+        storage.save_settings({"last_approved_curation_id": "draft-approved"})
+        client = TestClient(app)
+
+        response = client.get("/api/model-curation/latest")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()["pending_review"])
+
+    def test_is_draft_pending_review(self):
+        draft = {"id": "draft-1", "status": "ready"}
+        settings = {"last_approved_curation_id": None}
+        self.assertTrue(model_curation.is_draft_pending_review(draft, settings))
+
+        self.assertFalse(model_curation.is_draft_pending_review(
+            {**draft, "approved_at": "2026-06-24T00:00:00+00:00"},
+            settings,
+        ))
+        self.assertFalse(model_curation.is_draft_pending_review(
+            draft,
+            {"last_approved_curation_id": "draft-1"},
+        ))
+        self.assertFalse(model_curation.is_draft_pending_review(
+            {**draft, "status": "failed"},
+            settings,
+        ))
 
     def test_non_owner_cannot_run_or_approve_model_curation(self):
         user = {
@@ -218,6 +276,7 @@ class ModelCurationApiTests(TempDataMixin, unittest.TestCase):
         }
         draft = storage.save_model_curation_draft({
             "id": "draft-1",
+            "status": "ready",
             "proposed_preset_definitions": [{"id": "approved"}],
         })
         client = TestClient(app)

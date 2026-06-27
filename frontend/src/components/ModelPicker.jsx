@@ -176,6 +176,7 @@ export default function ModelPicker({
   const [presets, setPresets] = useState([]);
   const [providers, setProviders] = useState([]);
   const [curationDraft, setCurationDraft] = useState(null);
+  const [curationPendingReview, setCurationPendingReview] = useState(false);
   const [curationState, setCurationState] = useState(null);
   const [loading, setLoading] = useState(false);
   const [curationBusy, setCurationBusy] = useState(false);
@@ -216,6 +217,7 @@ export default function ModelPicker({
         setPresets(catalogData.presets || []);
         setProviders(catalogData.providers || []);
         setCurationDraft(curationData.draft || null);
+        setCurationPendingReview(Boolean(curationData.pending_review));
         setCurationState(curationData.curation_state || null);
       } catch (e) {
         if (!canceled) setError(e.message || 'Failed to load model catalog.');
@@ -313,6 +315,7 @@ export default function ModelPicker({
     try {
       const data = await api.runModelCuration();
       setCurationDraft(data.draft);
+      setCurationPendingReview(data.draft?.status === 'ready');
       setCurationState(data.curation_state || null);
       setActiveTab('review');
     } catch (e) {
@@ -331,7 +334,8 @@ export default function ModelPicker({
       onCurationApproved?.(data.settings);
       const catalogData = await api.getModelCatalog();
       setPresets(catalogData.presets || []);
-      setCurationDraft({ ...curationDraft, approved: true });
+      setCurationDraft(data.draft || { ...curationDraft, approved_at: new Date().toISOString() });
+      setCurationPendingReview(false);
     } catch (e) {
       setError(e.message || 'Failed to approve curation draft.');
     } finally {
@@ -393,7 +397,7 @@ export default function ModelPicker({
               aria-selected={activeTab === id}
             >
               {label}
-              {id === 'review' && curationDraft && <span className="tab-count">1</span>}
+              {id === 'review' && curationPendingReview && <span className="tab-count">1</span>}
             </button>
           ))}
         </div>
@@ -408,7 +412,7 @@ export default function ModelPicker({
 
           {!loading && activeTab === 'curated' && (
             <div className="preset-list">
-              {curationDraft && (
+              {curationPendingReview && (
                 <div className="curation-callout">
                   <div>
                     <strong>Weekly curation draft ready</strong>
@@ -573,8 +577,8 @@ export default function ModelPicker({
                       ))}
                     </div>
                   )}
-                  <button type="button" className="model-picker-primary" onClick={approveCuration} disabled={curationBusy || curationDraft.approved}>
-                    {curationDraft.approved ? 'Approved' : 'Approve curated presets'}
+                  <button type="button" className="model-picker-primary" onClick={approveCuration} disabled={curationBusy || !curationPendingReview}>
+                    {!curationPendingReview ? 'Approved' : 'Approve curated presets'}
                   </button>
                 </div>
               )}

@@ -317,3 +317,31 @@ async def create_model_curation_draft(trigger: str, owner_email: Optional[str]) 
         })
     storage.save_model_curation_state(state_patch)
     return saved
+
+
+def is_draft_pending_review(
+    draft: Optional[Dict[str, Any]],
+    settings: Optional[Dict[str, Any]] = None,
+    owner_email: Optional[str] = None,
+) -> bool:
+    """Return True when the latest draft still needs owner review."""
+    if not draft:
+        return False
+    if draft.get("approved_at"):
+        return False
+    if draft.get("status") != "ready":
+        return False
+    if settings is None:
+        settings = storage.get_settings(owner_email)
+    if draft.get("id") == settings.get("last_approved_curation_id"):
+        return False
+    return True
+
+
+def mark_model_curation_draft_approved(draft: Dict[str, Any], owner_email: Optional[str]) -> Dict[str, Any]:
+    approved = {
+        **draft,
+        "approved_at": datetime.now(timezone.utc).isoformat(),
+        "approved_by": owner_email,
+    }
+    return storage.save_model_curation_draft(approved)
