@@ -68,6 +68,47 @@ Status:
 
 - Active
 
+## 2026-06-27 - Codex MCP agent access is local-first and approval-gated
+
+Decision:
+
+- Codex can call LLM Council through a local MCP server backed by bearer-token protected `/api/agent/research/*` endpoints.
+- MCP preparation is no-spend and creates a durable approval record with a payload hash, preset, model list, and estimated cost.
+- The paid run endpoint consumes the prepared approval, verifies the cost cap and payload hash, and returns required disclosure fields.
+- If the local backend is down, MCP starts only the FastAPI backend on `127.0.0.1:8001`; it does not start the React frontend.
+- Hosted fallback is not part of v1.
+
+Context:
+
+- The owner wants LLM Council available to Codex for difficult research questions, but only with explicit approval and transparent cost reporting.
+- The app already has approved presets, owner-scoped provider access, and run-level cost-summary plumbing.
+
+Rationale:
+
+- A local-first MCP path avoids production routing, hosted auth, and serverless timeout risk while still making the tool generally available to Codex on this Mac.
+- Splitting prepare from run lets Codex show the selected preset and estimate before any paid model calls.
+- Requiring the tool result to include disclosure metadata makes transparency enforceable rather than relying on convention.
+
+Alternatives considered:
+
+- Directly importing council code from MCP, which would bypass the app's auth boundary.
+- Hosted fallback, deferred until production auth and timeout behavior are proven.
+- Manual-only backend startup, rejected because Codex should be able to use the tool without frontend startup steps.
+
+Implications:
+
+- `LLM_COUNCIL_AGENT_TOKEN_HASH` must be configured before agent endpoints work.
+- The raw MCP token must stay outside tracked files, under `~/.codex/secrets/`.
+- Weekly curation drafts remain review-gated and do not affect Codex runs until approved.
+
+Owner approval:
+
+- Approved in chat on 2026-06-27.
+
+Status:
+
+- Active
+
 ## 2026-06-24 - OpenRouter onboarding uses a hybrid path before managed credits
 
 Decision:

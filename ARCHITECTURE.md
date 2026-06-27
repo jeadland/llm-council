@@ -42,6 +42,7 @@ docs/                  Agent handoff and brand guidance
 | Integration credential | Per-user OpenRouter API key status and server-side secret | `data/integrations.json` locally; Redis key on Vercel |
 | Model curation state | App-core curator model and promotion history | `data/model-curation-state.json` locally; Redis key on Vercel |
 | Model curation draft | Reviewable weekly curated-preset recommendation | `data/model-curation-drafts.json` locally; Redis keys on Vercel |
+| Agent research approval | Codex MCP prepared prompt, approved preset, payload hash, cost cap, and linked run | `data/agent-research-approvals.json` locally; Redis keys on Vercel if enabled |
 | Auth user | Email, optional name, role, disabled legacy password hash when present, and OAuth account metadata | `data/auth-users.json` locally; Redis on Vercel |
 | Session | HttpOnly-cookie session backing record | `data/auth-sessions/` locally; Redis with TTL on Vercel |
 
@@ -61,6 +62,21 @@ Persistence changes are high-risk. Do not change storage shape or key format wit
 10. Frontend displays all stages and metadata.
 
 Local mode uses background run tasks and polling. Vercel mode uses `RUN_EXECUTION_MODE=sync`, so the create-run request completes the full council run in one function invocation.
+
+## Codex MCP Agent Access
+
+Codex can call LLM Council through the local MCP server at `mcp/llm_council_server.py`. The MCP server is local-first and talks to the FastAPI backend at `http://127.0.0.1:8001`; if the backend is down, it starts only the backend with `BACKEND_HOST=127.0.0.1 BACKEND_PORT=8001 uv run python -m backend.main`. It does not start the React frontend.
+
+Agent access uses bearer-token auth, separate from browser cookies. The raw token lives outside the repo in `~/.codex/secrets/llm-council-agent.env`; the backend reads only `LLM_COUNCIL_AGENT_TOKEN_HASH`. Agent endpoints are disabled unless that hash is configured.
+
+The agent flow is two-step:
+
+1. `prepare_council_research` calls `/api/agent/research/prepare`, which performs no model calls, selects an approved preset, estimates cost, and stores a payload hash.
+2. `run_council_research` calls `/api/agent/research/run`, which consumes the prepared approval, verifies the cost cap and payload hash, executes the council, and returns disclosure metadata.
+
+Preset selection is deterministic and uses only approved presets: `quick` -> `efficient-daily`, `standard` -> `premium-balanced`, and `hard`/`adversarial` -> `ultra-premium-frontier`. Unapproved weekly curation drafts are never used by the MCP path.
+
+Hosted fallback is intentionally out of scope for v1. Production routing, hosted auth, and serverless timeout behavior must be validated separately before the MCP server can target a hosted backend.
 
 ## Routes
 
@@ -82,6 +98,9 @@ Local mode uses background run tasks and polling. Vercel mode uses `RUN_EXECUTIO
 | `/api/model-curation/latest` | Read latest model curation draft and app-core curation state |
 | `/api/model-curation/run` | Owner-triggered curation draft generation |
 | `/api/model-curation/{id}/approve` | Owner approval path for curated preset updates |
+| `/api/agent/research/prepare` | Bearer-token protected no-spend Codex MCP preparation endpoint |
+| `/api/agent/research/run` | Bearer-token protected approved Codex MCP council run endpoint |
+| `/api/agent/research/runs/{id}` | Bearer-token protected Codex MCP result lookup |
 | `/api/cron/model-curation` | Vercel Cron entrypoint for weekly curation drafts |
 | `/api/conversations` | List/create conversations |
 | `/api/conversations/{id}` | Read/delete conversation |
@@ -101,6 +120,9 @@ Local mode uses background run tasks and polling. Vercel mode uses `RUN_EXECUTIO
 | `ALLOW_OWNER_GOOGLE_OAUTH` | Optional hosted | Defaults off; set true only when intentionally allowing the configured owner email to use Google login |
 | `MODEL_CURATION_MODEL` | Optional hosted | Initial curation model override before app-core curation state exists; default is `openrouter/auto` |
 | `MODEL_CURATION_MAX_USD` | Optional hosted | Maximum estimated spend for one curation model call, default `2.00` |
+| `LLM_COUNCIL_AGENT_TOKEN_HASH` | Local MCP agent | SHA-256 hash of the Codex MCP bearer token; endpoints are disabled when absent |
+| `LLM_COUNCIL_AGENT_OWNER_EMAIL` | Optional local MCP agent | Account scope used for agent runs; defaults to `ADMIN_EMAIL` or local owner scope |
+| `LLM_COUNCIL_AGENT_MAX_USD` | Optional local MCP agent | Maximum estimated/approved spend for one agent run, default `3.00` |
 | `CRON_SECRET` | Hosted cron | Secret Vercel sends as `Authorization: Bearer ...` for weekly curation |
 | `OPENCLAW_GATEWAY_TOKEN` | Optional local | Override OpenClaw gateway token |
 | `OPENCLAW_CONFIG_PATH` | Optional local | Override OpenClaw config path |

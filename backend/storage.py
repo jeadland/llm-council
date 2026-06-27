@@ -20,6 +20,7 @@ AUTH_USERS_PATH = "data/auth-users.json"
 AUTH_SESSIONS_DIR = "data/auth-sessions"
 INTEGRATIONS_PATH = "data/integrations.json"
 MODEL_CURATION_STATE_PATH = "data/model-curation-state.json"
+AGENT_APPROVALS_PATH = "data/agent-research-approvals.json"
 REDIS_PREFIX = os.getenv("REDIS_KEY_PREFIX", "llm-council")
 DEFAULT_CURATION_MODEL = "openrouter/auto"
 
@@ -820,6 +821,44 @@ def get_latest_model_curation_draft() -> Optional[Dict[str, Any]]:
     if not drafts:
         return None
     return sorted(drafts, key=lambda draft: draft.get("created_at", ""), reverse=True)[0]
+
+
+def save_agent_research_approval(approval: Dict[str, Any]) -> Dict[str, Any]:
+    approval_id = approval["approval_id"]
+    if _using_redis():
+        _json_set(_key("agent_research", "approval", approval_id), approval)
+        _redis_command("SADD", _key("agent_research", "approval_ids"), approval_id)
+        return approval
+
+    ensure_data_dir()
+    approvals = []
+    if os.path.exists(AGENT_APPROVALS_PATH):
+        with open(AGENT_APPROVALS_PATH, "r") as f:
+            approvals = json.load(f)
+    approvals = [item for item in approvals if item.get("approval_id") != approval_id]
+    approvals.append(approval)
+    with open(AGENT_APPROVALS_PATH, "w") as f:
+        json.dump(approvals, f, indent=2)
+    return approval
+
+
+def get_agent_research_approval(approval_id: str) -> Optional[Dict[str, Any]]:
+    if _using_redis():
+        return _json_get(_key("agent_research", "approval", approval_id))
+
+    if not os.path.exists(AGENT_APPROVALS_PATH):
+        return None
+    with open(AGENT_APPROVALS_PATH, "r") as f:
+        approvals = json.load(f)
+    return next((item for item in approvals if item.get("approval_id") == approval_id), None)
+
+
+def update_agent_research_approval(approval_id: str, patch: Dict[str, Any]) -> Dict[str, Any]:
+    approval = get_agent_research_approval(approval_id)
+    if approval is None:
+        raise ValueError(f"Agent research approval {approval_id} not found")
+    approval = {**approval, **patch}
+    return save_agent_research_approval(approval)
 
 
 def get_auth_user(email: str) -> Optional[Dict[str, Any]]:

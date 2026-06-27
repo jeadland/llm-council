@@ -4,6 +4,33 @@ Use this file as the lightweight source of truth for current and upcoming work. 
 
 ## Now
 
+### Task: Make LLM Council callable by Codex via MCP
+
+Status: Implemented on `codex/llm-council-mcp`; verification in progress
+
+Goal:
+
+Expose LLM Council as a local Codex MCP tool for hard research questions with bearer-token auth, prepared-run approval, deterministic preset selection, backend auto-start, and required cost/transparency metadata.
+
+Acceptance criteria:
+
+- [x] Agent endpoints require bearer-token auth and are disabled without token hash configuration.
+- [x] `prepare` performs no model call, selects only approved presets, stores a payload hash, and returns cost estimate.
+- [x] `run` consumes a prepared approval, verifies cost cap/hash/expiry, executes synchronously, and returns disclosure fields.
+- [x] MCP server auto-starts the local FastAPI backend only.
+- [x] User-level Codex config exposes the MCP tools.
+- [ ] Manual Codex smoke verifies paid-run approval prompt, run, and disclosure.
+
+Verification:
+
+- [x] `uv run python -m unittest tests.test_agent_research tests.test_mcp_server tests.test_settings_presets tests.test_cost_tracking`
+- [x] `uv run python -m compileall backend api mcp`
+- [x] `uv run python -m unittest discover tests`
+- [x] `npm --prefix frontend run lint`
+- [x] `npm --prefix frontend run build`
+- [x] `codex mcp list`
+- [x] No-spend MCP prepare smoke
+
 ### Task: Deploy and validate Vercel web branch
 
 Status: Not started
