@@ -590,17 +590,6 @@ export default function ChatInterface({
                     {input.length}
                   </span>
                 )}
-                {preImproveInput !== null && (
-                  <button
-                    type="button"
-                    className="undo-improve"
-                    onClick={handleUndoImprove}
-                    title="Restore your original question"
-                  >
-                    <Undo2 size={13} aria-hidden="true" />
-                    Undo AI edit
-                  </button>
-                )}
                 {improveError && (
                   <span className="improve-error" role="status" aria-live="polite">
                     {improveError}
@@ -623,6 +612,18 @@ export default function ChatInterface({
                       <Sparkles size={15} aria-hidden="true" />
                     )}
                     {isImproving ? "Improving…" : "Improve"}
+                  </button>
+                )}
+                {!isLoading && preImproveInput !== null && (
+                  <button
+                    type="button"
+                    className="undo-improve"
+                    onClick={handleUndoImprove}
+                    title="Restore your original question"
+                    aria-label="Undo AI edit"
+                  >
+                    <Undo2 size={15} aria-hidden="true" />
+                    Undo
                   </button>
                 )}
                 {isLoading && activeRunId ? (
