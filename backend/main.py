@@ -10,9 +10,12 @@ import json
 import asyncio
 import os
 import httpx
+import hashlib
+from datetime import datetime, timedelta
 
 from . import storage
 from . import auth
+from . import agent_auth
 from .config import OPENROUTER_API_KEY
 from .council import (
     build_council_cost_summary,
@@ -85,6 +88,8 @@ app.add_middleware(
 async def require_auth_for_api(request: Request, call_next):
     """Protect app APIs while keeping auth bootstrap endpoints public."""
     path = _normalize_request_path(request.url.path)
+    if path.startswith("/api/agent/"):
+        return await call_next(request)
     if path.startswith("/api/") and path not in PUBLIC_API_PATHS and auth.is_auth_required():
         if auth.get_user_from_request(request) is None:
             return JSONResponse({"detail": "Not authenticated"}, status_code=401)
@@ -103,6 +108,18 @@ class SendMessageRequest(BaseModel):
 
 class CreateRunRequest(BaseModel):
     content: str
+
+
+class AgentResearchPrepareRequest(BaseModel):
+    question: str
+    evidence: Optional[str] = None
+    research_depth: str = "hard"
+    max_cost_usd: Optional[float] = None
+
+
+class AgentResearchRunRequest(BaseModel):
+    approval_id: str
+    approved_cost_cap_usd: float
 
 
 class PinConversationRequest(BaseModel):
@@ -218,6 +235,116 @@ def _require_owner_email(request: Request) -> Optional[str]:
 
 def _owner_openrouter_api_key(owner_email: Optional[str]) -> Optional[str]:
     return storage.get_openrouter_api_key(owner_email)
+
+
+RESEARCH_DEPTH_PRESETS = {
+    "quick": "efficient-daily",
+    "standard": "premium-balanced",
+    "hard": "ultra-premium-frontier",
+    "adversarial": "ultra-premium-frontier",
+}
+AGENT_APPROVAL_TTL_MINUTES = 60
+
+
+def _canonical_payload_hash(payload: Dict[str, Any]) -> str:
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _format_agent_question(question: str, evidence: Optional[str]) -> str:
+    question = question.strip()
+    if not evidence or not evidence.strip():
+        return question
+    return (
+        "Use the evidence packet below when answering. Distinguish evidence-backed "
+        "claims from inference, and call out uncertainty.\n\n"
+        f"Question:\n{question}\n\nEvidence packet:\n{evidence.strip()}"
+    )
+
+
+def _estimate_usd_from_preset(preset: Dict[str, Any]) -> Optional[float]:
+    normal = (preset.get("estimated_costs") or {}).get("scenarios", {}).get("normal") or {}
+    if normal.get("available") and normal.get("high") is not None:
+        return float(normal["high"])
+    return None
+
+
+def _cost_warning(cost_summary: Optional[Dict[str, Any]]) -> Optional[str]:
+    if not cost_summary:
+        return "Actual provider usage was unavailable; estimate shown instead."
+    if cost_summary.get("status") in {"unavailable", "partial"}:
+        return "Actual provider usage was incomplete; estimate and available usage are shown."
+    return None
+
+
+def _final_answer_from_run(run: Dict[str, Any]) -> Optional[str]:
+    stage3 = ((run.get("stage3") or {}).get("data") or {})
+    return stage3.get("response")
+
+
+def _disclosure_text(result: Dict[str, Any]) -> str:
+    actual = result.get("actual_cost_usd")
+    actual_text = f"${actual:.4f}" if isinstance(actual, (int, float)) else "Unavailable"
+    estimated = result.get("estimated_cost_usd")
+    estimated_text = f"${estimated:.4f}" if isinstance(estimated, (int, float)) else "Unavailable"
+    return (
+        "I used LLM Council via MCP for this answer. "
+        f"Preset: {result.get('preset_id')}; "
+        f"models: {', '.join(result.get('council_models') or [])}; "
+        f"chairman: {result.get('chairman_model')}; "
+        f"approval id: {result.get('approval_id')}; "
+        f"run id: {result.get('run_id')}; "
+        f"estimated cost: {estimated_text}; actual cost: {actual_text}."
+    )
+
+
+def _agent_run_result(run: Dict[str, Any], approval: Dict[str, Any]) -> Dict[str, Any]:
+    cost_summary = run.get("cost_summary")
+    actual_cost = cost_summary.get("total_usd") if isinstance(cost_summary, dict) else None
+    result = {
+        "used_llm_council_mcp": True,
+        "approval_id": approval["approval_id"],
+        "run_id": run["run_id"],
+        "status": run.get("status"),
+        "preset_id": approval["preset_id"],
+        "council_models": approval["council_models"],
+        "chairman_model": approval["chairman_model"],
+        "estimated_cost_usd": approval.get("estimated_cost_usd"),
+        "actual_cost_usd": actual_cost,
+        "cost_warning": _cost_warning(cost_summary),
+        "cost_summary": cost_summary,
+        "final_answer": _final_answer_from_run(run),
+        "error": run.get("error"),
+    }
+    result["required_disclosure_text"] = _disclosure_text(result)
+    return result
+
+
+async def _resolve_agent_preset(
+    research_depth: str,
+    owner_email: Optional[str],
+) -> Dict[str, Any]:
+    depth = (research_depth or "hard").strip().lower()
+    preset_id = RESEARCH_DEPTH_PRESETS.get(depth)
+    if not preset_id:
+        raise HTTPException(status_code=400, detail="Unsupported research depth")
+
+    try:
+        catalog = await fetch_openrouter_model_catalog()
+    except Exception as e:
+        raise HTTPException(status_code=503, detail="OpenRouter model catalog is temporarily unavailable") from e
+
+    settings = storage.get_settings(owner_email)
+    preset_definitions = settings.get("curated_model_presets") or None
+    presets = resolve_model_presets(catalog, preset_definitions=preset_definitions)
+    preset = next((item for item in presets if item.get("id") == preset_id), None)
+    if not preset:
+        raise HTTPException(status_code=400, detail=f"Approved preset {preset_id} is not available")
+    if not preset.get("models") or not preset.get("chairman_model"):
+        raise HTTPException(status_code=400, detail=f"Approved preset {preset_id} has no routable models")
+    if preset.get("missing"):
+        raise HTTPException(status_code=400, detail=f"Approved preset {preset_id} is missing model slots")
+    return preset
 
 
 def _openrouter_integration_status(owner_email: Optional[str]) -> Dict[str, Any]:
@@ -607,6 +734,154 @@ async def approve_model_curation(draft_id: str, request: Request):
     return {"ok": True, "settings": updated}
 
 
+@app.post("/api/agent/research/prepare")
+async def prepare_agent_research(payload: AgentResearchPrepareRequest, request: Request):
+    owner_email = agent_auth.require_agent(request)
+    question = payload.question.strip()
+    if not question:
+        raise HTTPException(status_code=400, detail="Question is required")
+
+    preset = await _resolve_agent_preset(payload.research_depth, owner_email)
+    estimated_cost = _estimate_usd_from_preset(preset)
+    if estimated_cost is None:
+        raise HTTPException(status_code=400, detail="Estimated cost is unavailable for the selected preset")
+
+    agent_max = agent_auth.max_cost_usd()
+    requested_max = payload.max_cost_usd if payload.max_cost_usd is not None else agent_max
+    cost_cap = min(float(requested_max), agent_max)
+    if estimated_cost > cost_cap:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Estimated cost ${estimated_cost:.4f} exceeds allowed cap ${cost_cap:.4f}",
+        )
+
+    approval_id = str(uuid.uuid4())
+    expires_at = datetime.utcnow() + timedelta(minutes=AGENT_APPROVAL_TTL_MINUTES)
+    question_payload = _format_agent_question(question, payload.evidence)
+    prepared_payload = {
+        "question": question,
+        "evidence": payload.evidence or "",
+        "question_payload": question_payload,
+        "research_depth": (payload.research_depth or "hard").strip().lower(),
+        "preset_id": preset["id"],
+        "council_models": preset["models"],
+        "chairman_model": preset["chairman_model"],
+        "estimated_cost_usd": estimated_cost,
+        "max_cost_usd": cost_cap,
+    }
+    payload_hash = _canonical_payload_hash(prepared_payload)
+    approval = {
+        "approval_id": approval_id,
+        "owner_email": owner_email,
+        "created_at": datetime.utcnow().isoformat(),
+        "expires_at": expires_at.isoformat(),
+        "payload_hash": payload_hash,
+        "status": "prepared",
+        **prepared_payload,
+    }
+    storage.save_agent_research_approval(approval)
+
+    return {
+        "approval_id": approval_id,
+        "expires_at": approval["expires_at"],
+        "payload_hash": payload_hash,
+        "recommended_preset": preset["id"],
+        "preset_id": preset["id"],
+        "preset_name": preset.get("name"),
+        "chairman_model": preset["chairman_model"],
+        "council_models": preset["models"],
+        "research_depth": approval["research_depth"],
+        "estimated_cost_usd": estimated_cost,
+        "approved_cost_cap_usd": cost_cap,
+        "cost_source": "OpenRouter catalog estimate, normal-question high scenario",
+        "reason": preset.get("best_for") or preset.get("summary"),
+        "alternatives": sorted({item for item in RESEARCH_DEPTH_PRESETS.values() if item != preset["id"]}),
+    }
+
+
+@app.post("/api/agent/research/run")
+async def run_agent_research(payload: AgentResearchRunRequest, request: Request):
+    owner_email = agent_auth.require_agent(request)
+    approval = storage.get_agent_research_approval(payload.approval_id)
+    if approval is None or approval.get("owner_email") != owner_email:
+        raise HTTPException(status_code=404, detail="Agent research approval not found")
+    if approval.get("status") == "used":
+        raise HTTPException(status_code=409, detail="Agent research approval has already been used")
+
+    try:
+        expires_at = datetime.fromisoformat(approval.get("expires_at"))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="Agent research approval is invalid") from e
+    if datetime.utcnow() > expires_at:
+        raise HTTPException(status_code=410, detail="Agent research approval has expired")
+
+    prepared_payload = {
+        "question": approval["question"],
+        "evidence": approval.get("evidence") or "",
+        "question_payload": approval["question_payload"],
+        "research_depth": approval["research_depth"],
+        "preset_id": approval["preset_id"],
+        "council_models": approval["council_models"],
+        "chairman_model": approval["chairman_model"],
+        "estimated_cost_usd": approval["estimated_cost_usd"],
+        "max_cost_usd": approval["max_cost_usd"],
+    }
+    if _canonical_payload_hash(prepared_payload) != approval.get("payload_hash"):
+        raise HTTPException(status_code=400, detail="Agent research approval payload hash mismatch")
+
+    approved_cap = float(payload.approved_cost_cap_usd)
+    estimated_cost = float(approval["estimated_cost_usd"])
+    if approved_cap > agent_auth.max_cost_usd():
+        raise HTTPException(status_code=400, detail="Approved cap exceeds configured agent maximum")
+    if estimated_cost > approved_cap:
+        raise HTTPException(status_code=400, detail="Estimated cost exceeds approved cap")
+
+    conversation_id = str(uuid.uuid4())
+    storage.create_conversation(conversation_id, owner_email)
+    storage.update_conversation_title(conversation_id, f"Codex Research {approval['preset_id']}")
+    storage.add_user_message(conversation_id, approval["question_payload"])
+
+    run_id = str(uuid.uuid4())
+    run = storage.create_run(run_id, conversation_id, approval["question_payload"], owner_email)
+    storage.update_run(run_id, {
+        "agent_research": {
+            "approval_id": approval["approval_id"],
+            "payload_hash": approval["payload_hash"],
+            "preset_id": approval["preset_id"],
+            "research_depth": approval["research_depth"],
+            "council_models": approval["council_models"],
+            "chairman_model": approval["chairman_model"],
+            "estimated_cost_usd": approval["estimated_cost_usd"],
+        }
+    })
+    storage.upsert_assistant_message_for_run(conversation_id, run_id)
+    storage.update_agent_research_approval(approval["approval_id"], {
+        "status": "used",
+        "run_id": run_id,
+        "conversation_id": conversation_id,
+        "used_at": datetime.utcnow().isoformat(),
+    })
+    approval = storage.get_agent_research_approval(approval["approval_id"]) or approval
+
+    await _execute_run(run_id)
+    completed = storage.get_run(run_id) or run
+    return _agent_run_result(completed, approval)
+
+
+@app.get("/api/agent/research/runs/{run_id}")
+async def get_agent_research_run(run_id: str, request: Request):
+    owner_email = agent_auth.require_agent(request)
+    run = storage.get_run(run_id)
+    if run is None or run.get("owner_email") != storage._owner_scope(owner_email):
+        raise HTTPException(status_code=404, detail="Agent research run not found")
+    agent_research = run.get("agent_research") or {}
+    approval_id = agent_research.get("approval_id")
+    approval = storage.get_agent_research_approval(approval_id) if approval_id else None
+    if approval is None:
+        raise HTTPException(status_code=404, detail="Agent research approval not found")
+    return _agent_run_result(run, approval)
+
+
 @app.get("/api/cron/model-curation")
 async def cron_model_curation(request: Request):
     configured_secret = os.getenv("CRON_SECRET")
@@ -707,10 +982,11 @@ async def _execute_run(run_id: str):
     content = run["content"]
     owner_email = run.get("owner_email") or auth.admin_email()
     settings = storage.get_settings(owner_email)
-    council_models = settings.get("council_models", [])
-    chairman_model = settings.get("chairman_model")
+    agent_research = run.get("agent_research") or {}
+    council_models = agent_research.get("council_models") or settings.get("council_models", [])
+    chairman_model = agent_research.get("chairman_model") or settings.get("chairman_model")
     openrouter_api_key = _owner_openrouter_api_key(owner_email)
-    if not openrouter_api_key and not auth.is_owner_email(owner_email):
+    if not openrouter_api_key and auth.is_auth_required() and not auth.is_owner_email(owner_email):
         raise RuntimeError("Connect your OpenRouter API key before running the council.")
 
     try:
@@ -836,7 +1112,7 @@ async def create_run(conversation_id: str, request: CreateRunRequest, http_reque
 
     is_first_message = len(conversation["messages"]) == 0
     openrouter_api_key = _owner_openrouter_api_key(owner_email)
-    if not openrouter_api_key and not auth.is_owner_email(owner_email):
+    if not openrouter_api_key and auth.is_auth_required() and not auth.is_owner_email(owner_email):
         raise HTTPException(status_code=403, detail="Connect your OpenRouter API key before running the council.")
 
     storage.add_user_message(conversation_id, request.content)
@@ -904,7 +1180,7 @@ async def send_message(conversation_id: str, request: SendMessageRequest, http_r
 
     is_first_message = len(conversation["messages"]) == 0
     openrouter_api_key = _owner_openrouter_api_key(owner_email)
-    if not openrouter_api_key and not auth.is_owner_email(owner_email):
+    if not openrouter_api_key and auth.is_auth_required() and not auth.is_owner_email(owner_email):
         raise HTTPException(status_code=403, detail="Connect your OpenRouter API key before running the council.")
     storage.add_user_message(conversation_id, request.content)
 
