@@ -7,6 +7,7 @@ import Stage3 from "./Stage3";
 import CouncilTable from "./CouncilTable";
 import WinnerBanner from "./WinnerBanner";
 import MarkdownContent from "./MarkdownContent";
+import CouncilProcessSteps from "./CouncilProcessSteps";
 import {
   displayModelName,
   estimateCouncilCosts,
@@ -21,6 +22,45 @@ const promptStarters = [
   "Give me the practical recommendation and caveats.",
   "Stress-test this plan before I act on it.",
 ];
+
+function processStatesFromMessage(msg) {
+  const error = Boolean(msg?.error);
+  return {
+    stage1: msg?.stage1
+      ? "complete"
+      : msg?.loading?.stage1
+        ? "active"
+        : error
+          ? "error"
+          : "pending",
+    stage2: msg?.stage2
+      ? "complete"
+      : msg?.loading?.stage2
+        ? "active"
+        : error && msg?.stage1
+          ? "error"
+          : "pending",
+    stage3: msg?.stage3
+      ? "complete"
+      : msg?.loading?.stage3
+        ? "active"
+        : error && !msg?.stage3
+          ? "error"
+          : "pending",
+  };
+}
+
+function shouldShowProcessSteps(msg) {
+  return Boolean(
+    msg?.loading?.stage1 ||
+      msg?.loading?.stage2 ||
+      msg?.loading?.stage3 ||
+      msg?.stage1 ||
+      msg?.stage2 ||
+      msg?.stage3 ||
+      msg?.error,
+  );
+}
 
 function voteLabelFromExecution(stage2Execution, aggregateRankings) {
   const expected = Number(
@@ -57,6 +97,7 @@ function EmptyStartSurface({
     presetEstimate || fallbackEstimate?.display || "Pricing unavailable";
   const modelCountLabel = `${selectedModels.length} model${selectedModels.length === 1 ? "" : "s"} active`;
   const catalogLoaded = (modelMap?.size || 0) > 0;
+  const hasConfiguredCouncil = selectedModels.length > 0 && !!chairman;
   const renderModelChips = () =>
     selectedModels.length > 0 ? (
       selectedModels.map((modelId) => (
@@ -132,6 +173,13 @@ function EmptyStartSurface({
               {renderModelChips()}
             </div>
           </details>
+        )}
+
+        {hasConfiguredCouncil && (
+          <CouncilProcessSteps
+            variant="static"
+            title="How your council deliberates"
+          />
         )}
 
         <div className="empty-state-actions">
@@ -264,12 +312,29 @@ export default function ChatInterface({
   const [isImproving, setIsImproving] = useState(false);
   const [preImproveInput, setPreImproveInput] = useState(null);
   const [improveError, setImproveError] = useState("");
+  const [stageExpandRequest, setStageExpandRequest] = useState({
+    messageIndex: null,
+    stage: null,
+    token: 0,
+  });
   const messagesEndRef = useRef(null);
   const containerRef = useRef(null);
   const textareaRef = useRef(null);
   const shouldAutoScrollRef = useRef(true);
   const hasConfiguredCouncil =
     (settings?.council_models?.length || 0) > 0 && !!settings?.chairman_model;
+  const active = resolveActiveCouncil(settings, presets);
+  const fallbackEstimate = estimateCouncilCosts(
+    settings?.council_models || [],
+    settings?.chairman_model || "",
+    modelMap,
+  );
+  const presetEstimate = active.selectionMatchesPreset
+    ? presetNormalCost(active.preset)
+    : null;
+  const normalQuestionEstimate =
+    presetEstimate || fallbackEstimate?.display || "";
+  const showSendEstimate = Boolean(input.trim() && normalQuestionEstimate);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -281,6 +346,23 @@ export default function ChatInterface({
     const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
     shouldAutoScrollRef.current = distanceFromBottom < 120;
   };
+
+  const handleStageStepClick = useCallback((messageIndex, stage) => {
+    shouldAutoScrollRef.current = false;
+    setStageExpandRequest((prev) => ({
+      messageIndex,
+      stage,
+      token: prev.token + 1,
+    }));
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const target = containerRef.current?.querySelector(
+          `[data-stage-anchor="${messageIndex}-${stage}"]`,
+        );
+        target?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+  }, []);
 
   useEffect(() => {
     if (shouldAutoScrollRef.current) {
@@ -421,22 +503,34 @@ export default function ChatInterface({
                     fallbackModels={settings?.council_models || []}
                   />
 
+                  {shouldShowProcessSteps(msg) && (
+                    <CouncilProcessSteps
+                      states={processStatesFromMessage(msg)}
+                      onStepClick={(stage) => handleStageStepClick(index, stage)}
+                    />
+                  )}
+
                   {/* Stage 3 — Council Verdict, promoted above the working detail */}
                   {msg.loading?.stage3 && (
-                    <div className="stage-loading">
+                    <div
+                      className="stage-loading"
+                      data-stage-anchor={`${index}-stage3`}
+                    >
                       <div className="spinner"></div>
                       <span>Synthesizing final answer…</span>
                     </div>
                   )}
                   {msg.stage3 && (
-                    <Stage3
-                      hero
-                      finalResponse={msg.stage3}
-                      costSummary={
-                        msg.cost_summary || msg.metadata?.cost_summary
-                      }
-                      modelMap={modelMap}
-                    />
+                    <div data-stage-anchor={`${index}-stage3`}>
+                      <Stage3
+                        hero
+                        finalResponse={msg.stage3}
+                        costSummary={
+                          msg.cost_summary || msg.metadata?.cost_summary
+                        }
+                        modelMap={modelMap}
+                      />
+                    </div>
                   )}
 
                   {/* Winner banner — easy-to-find result with expandable scoreboard */}
@@ -454,20 +548,52 @@ export default function ChatInterface({
 
                   {/* Stage 2 — peer rankings (the "show the work") */}
                   {msg.stage2 && (
-                    <Stage2
-                      rankings={msg.stage2}
-                      labelToModel={msg.metadata?.label_to_model}
-                      aggregateRankings={msg.metadata?.aggregate_rankings}
-                      stage2Execution={msg.metadata?.stage2_execution}
-                      error={msg.error}
-                      modelMap={modelMap}
-                      defaultCollapsed={!msg.error}
-                    />
+                    <div data-stage-anchor={`${index}-stage2`}>
+                      <Stage2
+                        key={`stage2-${index}-${
+                          stageExpandRequest.messageIndex === index &&
+                          stageExpandRequest.stage === "stage2"
+                            ? stageExpandRequest.token
+                            : 0
+                        }`}
+                        rankings={msg.stage2}
+                        labelToModel={msg.metadata?.label_to_model}
+                        aggregateRankings={msg.metadata?.aggregate_rankings}
+                        stage2Execution={msg.metadata?.stage2_execution}
+                        error={msg.error}
+                        modelMap={modelMap}
+                        defaultCollapsed={!msg.error}
+                        expandToken={
+                          stageExpandRequest.messageIndex === index &&
+                          stageExpandRequest.stage === "stage2"
+                            ? stageExpandRequest.token
+                            : 0
+                        }
+                      />
+                    </div>
                   )}
 
                   {/* Stage 1 — individual responses detail */}
                   {msg.stage1 && (
-                    <Stage1 responses={msg.stage1} modelMap={modelMap} defaultCollapsed />
+                    <div data-stage-anchor={`${index}-stage1`}>
+                      <Stage1
+                        key={`stage1-${index}-${
+                          stageExpandRequest.messageIndex === index &&
+                          stageExpandRequest.stage === "stage1"
+                            ? stageExpandRequest.token
+                            : 0
+                        }`}
+                        responses={msg.stage1}
+                        modelMap={modelMap}
+                        defaultCollapsed
+                        expandToken={
+                          stageExpandRequest.messageIndex === index &&
+                          stageExpandRequest.stage === "stage1"
+                            ? stageExpandRequest.token
+                            : 0
+                        }
+                      />
+                    </div>
                   )}
 
                   {/* Error state — run failed before completing */}
@@ -603,7 +729,7 @@ export default function ChatInterface({
                     className="improve-button"
                     onClick={handleImprove}
                     disabled={!input.trim() || isImproving}
-                    title="Improve my question with AI"
+                    title="Rewrite your prompt for clarity before sending."
                     aria-label="Improve my question with AI"
                   >
                     {isImproving ? (
@@ -667,7 +793,10 @@ export default function ChatInterface({
                       <path d="M22 2L11 13" />
                       <path d="M22 2L15 22L11 13L2 9L22 2Z" />
                     </svg>
-                    Send
+                    <span>Send</span>
+                    {showSendEstimate && (
+                      <span className="send-estimate">~{normalQuestionEstimate}</span>
+                    )}
                   </button>
                 )}
               </div>

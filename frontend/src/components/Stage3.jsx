@@ -280,7 +280,7 @@ export default function Stage3({ finalResponse, costSummary, hero = false, model
 
   return (
     <div className={`stage stage3${hero ? ' stage3--hero' : ''}${isFallback ? ' stage3-fallback' : ''}`}>
-      <div className="stage3-header">
+      <div className="stage3-header stage3-header--sticky">
         <div className="stage3-icon">
           {isFallback ? (
             <AlertTriangle size={16} aria-hidden="true" />
