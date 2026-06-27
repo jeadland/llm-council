@@ -67,6 +67,19 @@
   margin-bottom: 10px;
 }
 
+.stage3-header--sticky {
+  position: sticky;
+  top: 0;
+  z-index: 7;
+  margin: -4px -4px 10px;
+  padding: 4px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 5px 14px rgba(36, 48, 70, 0.08);
+}
+
 .stage3-icon {
   width: 30px;
   height: 30px;
@@ -368,6 +381,11 @@
 
 :root[data-theme='dark'] .stage3-icon {
   background: linear-gradient(135deg, #16a34a, #15803d);
+}
+
+:root[data-theme='dark'] .stage3-header--sticky {
+  background: rgba(17, 21, 29, 0.92);
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.24);
 }
 
 :root[data-theme='dark'] .stage3 .stage-title {
