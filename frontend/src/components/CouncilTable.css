@@ -42,6 +42,138 @@
   min-width: 0;
 }
 
+/* ── Race track (Stage 2 leaderboard evolution) ── */
+
+.council-table--race {
+  background: linear-gradient(180deg, var(--surface-2) 0%, var(--surface) 100%);
+}
+
+.council-race-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -2px 0 8px;
+}
+
+.council-race-finish {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #22c55e;
+}
+
+.council-race-track-line {
+  flex: 1;
+  height: 2px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, #22c55e 0%, rgba(34, 197, 94, 0.15) 55%, transparent 100%);
+}
+
+.council-strip--race {
+  flex-wrap: nowrap;
+  gap: 10px;
+  padding-bottom: 2px;
+}
+
+.council-strip--race > .council-race-slot {
+  flex: 1 1 0;
+  min-width: 158px;
+  max-width: none;
+  will-change: transform;
+}
+
+.council-race-slot {
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.agent-lane-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 1.5px solid var(--border);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.agent-card--leader .agent-lane-badge {
+  background: #fef3c7;
+  border-color: #f0c64a;
+  color: #92400e;
+}
+
+.agent-card--leader {
+  border-color: #f0c64a;
+  box-shadow: 0 0 0 1px rgba(240, 198, 74, 0.35);
+}
+
+.agent-shift-icon--up {
+  color: #16a34a;
+}
+
+.agent-shift-icon--down {
+  color: #dc2626;
+}
+
+.agent-card--surged-up {
+  animation: rankSurgeUp 0.85s ease;
+}
+
+.agent-card--surged-down {
+  animation: rankSurgeDown 0.85s ease;
+}
+
+@keyframes rankSurgeUp {
+  0% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.45);
+  }
+  40% {
+    box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.22);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+  }
+}
+
+@keyframes rankSurgeDown {
+  0% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.35);
+  }
+  40% {
+    box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.15);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+  }
+}
+
+:root[data-theme='dark'] .council-race-finish {
+  color: #4ade80;
+}
+
+:root[data-theme='dark'] .council-race-track-line {
+  background: linear-gradient(90deg, #4ade80 0%, rgba(74, 222, 128, 0.12) 55%, transparent 100%);
+}
+
+:root[data-theme='dark'] .agent-card--leader .agent-lane-badge {
+  background: #2a2208;
+  border-color: #6e5410;
+  color: #f0cc70;
+}
+
+:root[data-theme='dark'] .agent-card--leader {
+  border-color: #6e5410;
+  box-shadow: 0 0 0 1px rgba(110, 84, 16, 0.45);
+}
+
 /* ── Agent card ── */
 
 .agent-card {
@@ -273,7 +405,8 @@
     border-radius: 10px;
   }
 
-  .council-strip {
+  .council-strip,
+  .council-strip--race {
     flex-wrap: nowrap;
     overflow-x: auto;
     scrollbar-width: none;
@@ -286,7 +419,8 @@
     display: none;
   }
 
-  .council-strip > div {
+  .council-strip > div,
+  .council-strip--race > .council-race-slot {
     flex: 0 0 auto;
     max-width: none;
     scroll-snap-align: start;

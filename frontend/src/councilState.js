@@ -87,3 +87,44 @@ export function deriveCouncilAgents(msg, fallbackModels = []) {
 export function councilWinner(agents = []) {
   return agents.find((agent) => agent.isWinner) || null;
 }
+
+/** True once peer scoring begins or a composite leaderboard exists. */
+export function isCouncilRaceActive(msg, agents = []) {
+  const loading = msg?.loading || {};
+  const aggregate = msg?.metadata?.aggregate_rankings;
+  if (loading.stage2) return agents.some((a) => a.answered);
+  return Array.isArray(aggregate) && aggregate.length > 0;
+}
+
+/**
+ * Sort agents for the "horse race" leaderboard: best composite rank leftmost
+ * (finish line on the left). Models still scoring trail at the back.
+ */
+export function sortCouncilAgentsByRace(agents) {
+  const indexed = agents.map((agent, councilIndex) => ({ agent, councilIndex }));
+
+  indexed.sort((a, b) => {
+    const agentA = a.agent;
+    const agentB = b.agent;
+
+    if (agentA.state === 'failed' && agentB.state !== 'failed') return 1;
+    if (agentB.state === 'failed' && agentA.state !== 'failed') return -1;
+
+    if (agentA.rank != null && agentB.rank != null) return agentA.rank - agentB.rank;
+    if (agentA.rank != null) return -1;
+    if (agentB.rank != null) return 1;
+
+    // No composite rank yet — reviewers still scoring trail responders waiting
+    if (agentA.state === 'rating' && agentB.state !== 'rating') return 1;
+    if (agentB.state === 'rating' && agentA.state !== 'rating') return -1;
+
+    return a.councilIndex - b.councilIndex;
+  });
+
+  return indexed.map(({ agent }) => agent);
+}
+
+export function displayCouncilAgents(msg, agents) {
+  if (!isCouncilRaceActive(msg, agents)) return agents;
+  return sortCouncilAgentsByRace(agents);
+}

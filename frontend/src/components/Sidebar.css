@@ -1555,11 +1555,6 @@
   border-right-color: #2d3545 !important;
 }
 
-/* Logo icon in dark mode — use brightness filter to lighten the dark SVG */
-:root[data-theme='dark'] .sidebar-logo-icon {
-  filter: brightness(1.4) saturate(1.2);
-}
-
 :root[data-theme='dark'] .sidebar-chairman-row:hover {
   background: rgba(245, 166, 35, 0.06) !important;
 }

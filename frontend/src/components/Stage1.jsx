@@ -2,6 +2,12 @@ import { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import MarkdownContent from './MarkdownContent';
 import { formatModelLabel } from '../modelUtils';
+import {
+  ModelReviewerTabs,
+  ReviewerContentHeader,
+  StageIntro,
+} from './StagePanels';
+import './StagePanels.css';
 import './Stage1.css';
 
 function hitOutputLimit(response) {
@@ -26,6 +32,9 @@ export default function Stage1({ responses, defaultCollapsed = false }) {
       ? `${formatModelLabel(responses[0].model)} responded`
       : `${responses.length} model responses`;
 
+  const tabItems = responses.map((resp) => ({ model: resp.model }));
+  const active = responses[activeTab];
+
   return (
     <div className="stage stage1">
       <button
@@ -44,27 +53,36 @@ export default function Stage1({ responses, defaultCollapsed = false }) {
 
       {!collapsed && (
         <>
-          <div className="tabs">
-            {responses.map((resp, index) => (
-              <button
-                key={index}
-                className={`tab ${activeTab === index ? 'active' : ''}`}
-                onClick={() => setActiveTab(index)}
-              >
-                {formatModelLabel(resp.model)}
-              </button>
-            ))}
-          </div>
+          <StageIntro title="Before peer review">
+            Each council model answered independently. Compare how different models approached the
+            same question.
+          </StageIntro>
 
-          <div className="tab-content">
-            <div className="model-name">{formatModelLabel(responses[activeTab].model)}</div>
-            {hitOutputLimit(responses[activeTab]) && (
+          <ModelReviewerTabs
+            items={tabItems}
+            activeIndex={activeTab}
+            onChange={setActiveTab}
+            idPrefix="stage1"
+            ariaLabel="Select model response"
+          />
+
+          <div
+            className="stage-tab-panel"
+            role="tabpanel"
+            id={`stage1-panel-${activeTab}`}
+            aria-labelledby={`stage1-tab-${activeTab}`}
+          >
+            <ReviewerContentHeader
+              model={active.model}
+              subtitle="Individual answer"
+            />
+            {hitOutputLimit(active) && (
               <div className="stage1-limit-alert" role="status">
                 This model reached the output limit, so its individual answer may be incomplete.
               </div>
             )}
             <MarkdownContent className="response-text">
-              {responses[activeTab].response}
+              {active.response}
             </MarkdownContent>
           </div>
         </>
