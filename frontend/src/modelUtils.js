@@ -11,6 +11,7 @@ const NICE_MODEL_NAMES = {
   'openai/gpt-5.2': 'GPT-5.2',
   'openai/gpt-5.2-chat': 'GPT-5.2 Chat',
   'openai/gpt-5.2-pro': 'GPT-5.2 Pro',
+  'openai/gpt-5.4': 'GPT-5.4',
 };
 
 // Shared friendly label used across Stage 1/2/3 and the council table.
@@ -18,6 +19,11 @@ export function formatModelLabel(model) {
   if (!model) return 'Unknown';
   const raw = model.startsWith('openrouter/') ? model.replace('openrouter/', '') : model;
   return NICE_MODEL_NAMES[raw] || raw;
+}
+
+// Compact, consistent label for tabs, headers, and race cards.
+export function resolveModelLabel(modelId, modelMap) {
+  return abbreviateModelName(modelId, modelMap) || formatModelLabel(modelId);
 }
 
 const PROVIDER_META = {
@@ -96,7 +102,8 @@ export function abbreviateModelName(modelId, modelMap) {
   if (!label) return '';
 
   const version = label.match(/\b(\d+(?:\.\d+)*)\b/);
-  const versionLabel = version?.[1] || '';
+  const versionSuffix = label.match(/v(\d+(?:\.\d+)*)/i);
+  const versionLabel = version?.[1] || versionSuffix?.[1] || '';
 
   if (normalized.includes('gpt')) {
     return versionLabel ? `GPT-${versionLabel}` : 'GPT';
@@ -119,8 +126,11 @@ export function abbreviateModelName(modelId, modelMap) {
   if (normalized.includes('grok')) {
     return versionLabel ? `Grok ${versionLabel}` : 'Grok';
   }
+  if (normalized.includes('glm')) {
+    return versionLabel ? `GLM ${versionLabel}` : 'GLM';
+  }
   if (normalized.includes('deepseek')) {
-    return 'DeepSeek';
+    return versionLabel ? `DeepSeek ${versionLabel}` : 'DeepSeek';
   }
   if (normalized.includes('llama')) {
     return versionLabel ? `Llama ${versionLabel}` : 'Llama';

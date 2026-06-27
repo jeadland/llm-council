@@ -1,4 +1,4 @@
-import { abbreviateModelName, formatModelLabel, providerMeta } from '../modelUtils';
+import { formatModelLabel, providerMeta, resolveModelLabel } from '../modelUtils';
 import './StagePanels.css';
 
 export function StageIntro({ title, children, variant = 'info' }) {
@@ -16,12 +16,14 @@ export function ModelReviewerTabs({
   onChange,
   idPrefix = 'reviewer',
   ariaLabel = 'Select model',
+  modelMap,
 }) {
   return (
     <div className="model-reviewer-tabs" role="tablist" aria-label={ariaLabel}>
       {items.map((item, index) => {
         const meta = providerMeta(item.model);
-        const label = abbreviateModelName(item.model) || formatModelLabel(item.model);
+        const label = resolveModelLabel(item.model, modelMap);
+        const fullLabel = formatModelLabel(item.model);
         const isActive = index === activeIndex;
         return (
           <button
@@ -33,7 +35,7 @@ export function ModelReviewerTabs({
             aria-controls={`${idPrefix}-panel-${index}`}
             className={`model-reviewer-tab${isActive ? ' model-reviewer-tab--active' : ''}${item.invalid ? ' model-reviewer-tab--invalid' : ''}`}
             onClick={() => onChange(index)}
-            title={formatModelLabel(item.model)}
+            title={fullLabel !== label ? fullLabel : label}
           >
             <span
               className="model-reviewer-tab-avatar"
@@ -50,8 +52,10 @@ export function ModelReviewerTabs({
   );
 }
 
-export function ReviewerContentHeader({ model, subtitle }) {
+export function ReviewerContentHeader({ model, subtitle, modelMap }) {
   const meta = providerMeta(model);
+  const label = resolveModelLabel(model, modelMap);
+  const fullLabel = formatModelLabel(model);
   return (
     <div className="reviewer-content-header">
       <span
@@ -62,7 +66,7 @@ export function ReviewerContentHeader({ model, subtitle }) {
         {meta.glyph}
       </span>
       <div className="reviewer-content-heading">
-        <strong>{formatModelLabel(model)}</strong>
+        <strong title={fullLabel !== label ? fullLabel : undefined}>{label}</strong>
         {subtitle && <span>{subtitle}</span>}
       </div>
     </div>
