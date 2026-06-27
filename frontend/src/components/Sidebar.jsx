@@ -1,10 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import {
-  LogOut,
-  PlugZap,
-  Settings as SettingsIcon,
-  UserCircle,
-} from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { LogOut, Settings as SettingsIcon, UserCircle } from "lucide-react";
 import { api } from "../api";
 import "./Sidebar.css";
 
@@ -28,8 +23,9 @@ export default function Sidebar({
   onResizeStart,
 }) {
   const [showSettings, setShowSettings] = useState(false);
-  const [settingsSection, setSettingsSection] = useState("settings");
   const [isDragging, setIsDragging] = useState(false);
+  const integrationCardRef = useRef(null);
+  const focusIntegrationsRef = useRef(false);
 
   const handleResizeMouseDown = useCallback(
     (e) => {
@@ -66,8 +62,17 @@ export default function Sidebar({
     }
   }, [onOpenRouterStatusChanged]);
 
-  const openSettings = (section = "settings") => {
-    setSettingsSection(section);
+  const scrollToIntegrations = useCallback(() => {
+    requestAnimationFrame(() => {
+      integrationCardRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  }, []);
+
+  const openSettings = ({ focusIntegrations = false } = {}) => {
+    focusIntegrationsRef.current = focusIntegrations;
     setDraftThemeMode(settings?.theme_mode || "system");
     setOpenRouterKey("");
     setOpenRouterStatusMessage("");
@@ -82,14 +87,24 @@ export default function Sidebar({
 
   useEffect(() => {
     if (!settingsRequest) return;
-    openSettings(settingsRequest.section || "settings");
+    const focusIntegrations = settingsRequest.section === "integrations";
+    const wasOpen = showSettings;
+    openSettings({ focusIntegrations });
+    if (focusIntegrations && wasOpen) {
+      focusIntegrationsRef.current = false;
+      scrollToIntegrations();
+    }
     onSettingsRequestHandled?.();
   }, [settingsRequest]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!showSettings) return;
     loadOpenRouterStatus();
-  }, [showSettings, loadOpenRouterStatus]);
+    if (focusIntegrationsRef.current) {
+      focusIntegrationsRef.current = false;
+      scrollToIntegrations();
+    }
+  }, [showSettings, loadOpenRouterStatus, scrollToIntegrations]);
 
   const save = async () => {
     await onSaveSettings({
@@ -189,107 +204,11 @@ export default function Sidebar({
                 />
               </svg>
             </button>
-            <span className="settings-fullpanel-title">
-              {settingsSection === "integrations"
-                ? "API & Integrations"
-                : "Settings"}
-            </span>
-            {/* Static pencil/edit icon — replaces spinning gear */}
-            <div className="settings-fullpanel-editicon" aria-hidden="true">
-              <svg width="17" height="17" viewBox="0 0 20 20" fill="none">
-                <path
-                  d="M14.5 2.5a2.121 2.121 0 0 1 3 3L6.5 16.5l-4 1 1-4L14.5 2.5Z"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </div>
+            <span className="settings-fullpanel-title">Settings</span>
           </div>
 
           {/* Settings body — scrollable */}
           <div className="settings-fullpanel-body">
-            {settingsSection === "integrations" && (
-              <>
-                <div className="settings-subtitle settings-account-subtitle">
-                  <span>API &amp; Integrations</span>
-                  <span className="settings-chairman-hint">
-                    {openRouterStatus?.configured
-                      ? "Configured"
-                      : "Required for hosted direct runs"}
-                  </span>
-                </div>
-                <div className="integration-settings-card">
-                  <div className="integration-card-header">
-                    <div>
-                      <strong>OpenRouter</strong>
-                      <span>
-                        {openRouterStatus?.configured
-                          ? openRouterStatus.source === "environment"
-                            ? "Configured by server environment"
-                            : `Your key is saved (${openRouterStatus.masked_key})`
-                          : "No key saved"}
-                      </span>
-                    </div>
-                    <span
-                      className={`integration-status-pill${openRouterStatus?.configured ? " configured" : ""}`}
-                    >
-                      {openRouterStatus?.configured ? "Ready" : "Needs key"}
-                    </span>
-                  </div>
-                  <p>
-                    Your OpenRouter key pays for your council runs. The full key
-                    is stored server-side only and is never returned to the
-                    browser.
-                  </p>
-                  <label className="account-field">
-                    <span>OpenRouter API key</span>
-                    <input
-                      id="llm-council-settings-openrouter-api-key"
-                      name="openrouter-api-key"
-                      type="password"
-                      autoComplete="off"
-                      value={openRouterKey}
-                      onChange={(e) => setOpenRouterKey(e.target.value)}
-                      placeholder={
-                        openRouterStatus?.configured
-                          ? "Leave blank to keep the saved key"
-                          : "sk-or-v1-..."
-                      }
-                    />
-                  </label>
-                  {openRouterStatusMessage && (
-                    <div
-                      className={`account-status${openRouterStatusMessage.includes("saved") || openRouterStatusMessage.includes("cleared") ? " success" : ""}`}
-                    >
-                      {openRouterStatusMessage}
-                    </div>
-                  )}
-                  <div className="account-actions integration-actions">
-                    <button
-                      type="button"
-                      className="settings-save-btn account-password-btn"
-                      onClick={submitOpenRouterKey}
-                      disabled={openRouterBusy || !openRouterKey.trim()}
-                    >
-                      {openRouterBusy ? "Saving..." : "Save key"}
-                    </button>
-                    <button
-                      type="button"
-                      className="settings-cancel-btn account-logout-btn"
-                      onClick={clearOpenRouterKey}
-                      disabled={
-                        openRouterBusy || openRouterStatus?.source !== "account"
-                      }
-                    >
-                      Clear account key
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-
             <div className="settings-subtitle">Appearance</div>
             <div
               className="appearance-icon-row"
@@ -385,6 +304,81 @@ export default function Sidebar({
               </button>
             </div>
 
+            <div className="settings-subtitle settings-account-subtitle">
+              <span>API &amp; Integrations</span>
+              <span className="settings-chairman-hint">
+                {openRouterStatus?.configured
+                  ? "Configured"
+                  : "Required for hosted direct runs"}
+              </span>
+            </div>
+            <div className="integration-settings-card" ref={integrationCardRef}>
+              <div className="integration-card-header">
+                <div>
+                  <strong>OpenRouter</strong>
+                  <span>
+                    {openRouterStatus?.configured
+                      ? openRouterStatus.source === "environment"
+                        ? "Configured by server environment"
+                        : `Your key is saved (${openRouterStatus.masked_key})`
+                      : "No key saved"}
+                  </span>
+                </div>
+                <span
+                  className={`integration-status-pill${openRouterStatus?.configured ? " configured" : ""}`}
+                >
+                  {openRouterStatus?.configured ? "Ready" : "Needs key"}
+                </span>
+              </div>
+              <p>
+                Your OpenRouter key pays for your council runs. The full key is
+                stored server-side only and is never returned to the browser.
+              </p>
+              <label className="account-field">
+                <span>OpenRouter API key</span>
+                <input
+                  id="llm-council-settings-openrouter-api-key"
+                  name="openrouter-api-key"
+                  type="password"
+                  autoComplete="off"
+                  value={openRouterKey}
+                  onChange={(e) => setOpenRouterKey(e.target.value)}
+                  placeholder={
+                    openRouterStatus?.configured
+                      ? "Leave blank to keep the saved key"
+                      : "sk-or-v1-..."
+                  }
+                />
+              </label>
+              {openRouterStatusMessage && (
+                <div
+                  className={`account-status${openRouterStatusMessage.includes("saved") || openRouterStatusMessage.includes("cleared") ? " success" : ""}`}
+                >
+                  {openRouterStatusMessage}
+                </div>
+              )}
+              <div className="account-actions integration-actions">
+                <button
+                  type="button"
+                  className="settings-save-btn account-password-btn"
+                  onClick={submitOpenRouterKey}
+                  disabled={openRouterBusy || !openRouterKey.trim()}
+                >
+                  {openRouterBusy ? "Saving..." : "Save key"}
+                </button>
+                <button
+                  type="button"
+                  className="settings-cancel-btn account-logout-btn"
+                  onClick={clearOpenRouterKey}
+                  disabled={
+                    openRouterBusy || openRouterStatus?.source !== "account"
+                  }
+                >
+                  Clear account key
+                </button>
+              </div>
+            </div>
+
             {auth?.auth_required && (
               <>
                 <div className="settings-subtitle settings-account-subtitle">
@@ -393,17 +387,7 @@ export default function Sidebar({
                 </div>
                 <div className="account-settings">
                   <div className="account-status success">
-                    Signed in with Google. Google is the only enabled login
-                    method.
-                  </div>
-                  <div className="account-actions">
-                    <button
-                      type="button"
-                      className="settings-cancel-btn account-logout-btn"
-                      onClick={onLogout}
-                    >
-                      Log Out
-                    </button>
+                    Signed in with Google. Sign out from the menu below.
                   </div>
                 </div>
               </>
@@ -573,25 +557,16 @@ export default function Sidebar({
                 <span className="sidebar-owner-title">{accountTitle}</span>
                 <span className="sidebar-owner-email">{accountSubLabel}</span>
               </div>
+              <button
+                type="button"
+                className="sidebar-owner-settings"
+                onClick={() => openSettings()}
+                aria-label="Settings"
+                title="Settings"
+              >
+                <SettingsIcon size={18} />
+              </button>
             </div>
-
-            <button
-              type="button"
-              className="sidebar-footer-action"
-              onClick={() => openSettings("settings")}
-            >
-              <SettingsIcon size={16} />
-              <span>Settings</span>
-            </button>
-
-            <button
-              type="button"
-              className="sidebar-footer-action"
-              onClick={() => openSettings("integrations")}
-            >
-              <PlugZap size={16} />
-              <span>API &amp; Integrations</span>
-            </button>
 
             {auth?.auth_required && (
               <button

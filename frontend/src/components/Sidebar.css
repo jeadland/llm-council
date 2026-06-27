@@ -366,15 +366,6 @@
   letter-spacing: -0.2px;
 }
 
-/* Static pencil/edit icon accent in settings header */
-.settings-fullpanel-editicon {
-  color: #4a90e2;
-  display: flex;
-  align-items: center;
-  opacity: 0.7;
-  flex-shrink: 0;
-}
-
 /* Scrollable body */
 .settings-fullpanel-body {
   flex: 1 1 auto;
@@ -1472,9 +1463,34 @@
 
 .sidebar-owner-copy {
   min-width: 0;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+.sidebar-owner-settings {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #455166;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sidebar-owner-settings:hover,
+.sidebar-owner-settings:focus-visible {
+  background: #fff;
+  border-color: #dce2ec;
+  color: #1a3a72;
 }
 
 .sidebar-owner-title {
@@ -1665,10 +1681,6 @@
   background: linear-gradient(135deg, #1e1a0a 0%, #2a2010 100%) !important;
 }
 
-:root[data-theme='dark'] .settings-fullpanel-editicon {
-  color: #7fb2ff !important;
-}
-
 :root[data-theme='dark'] .settings-fullpanel-header {
   border-bottom-color: #2d3545 !important;
 }
@@ -1732,6 +1744,17 @@
 
 :root[data-theme='dark'] .sidebar-owner-email {
   color: #6d788c !important;
+}
+
+:root[data-theme='dark'] .sidebar-owner-settings {
+  color: #aeb8c9 !important;
+}
+
+:root[data-theme='dark'] .sidebar-owner-settings:hover,
+:root[data-theme='dark'] .sidebar-owner-settings:focus-visible {
+  background: #171c26 !important;
+  border-color: #2d3848 !important;
+  color: #edf1f8 !important;
 }
 
 :root[data-theme='dark'] .sidebar-footer-action {

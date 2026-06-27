@@ -1,27 +1,9 @@
 import { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import MarkdownContent from './MarkdownContent';
+import AggregateRankings from './AggregateRankings';
+import { formatModelLabel } from '../modelUtils';
 import './Stage2.css';
-
-function formatModelLabel(model) {
-  if (!model) return 'Unknown';
-  const raw = model.startsWith('openrouter/') ? model.replace('openrouter/', '') : model;
-  const nice = {
-    'anthropic/claude-opus-4.6': 'Opus 4.6',
-    'anthropic/claude-sonnet-4.6': 'Sonnet 4.6',
-    'anthropic/claude-haiku-4.5': 'Haiku 4.5',
-    'google/gemini-3.1-pro-preview': 'Gemini 3.1 Pro Preview',
-    'google/gemini-2.5-pro': 'Gemini 2.5 Pro',
-    'x-ai/grok-4': 'Grok 4',
-    'x-ai/grok-4.20': 'Grok 4.20',
-    'x-ai/grok-4.3': 'Grok 4.3',
-    'x-ai/grok-4.1-fast': 'Grok 4.1 Fast',
-    'openai/gpt-5.2': 'GPT-5.2',
-    'openai/gpt-5.2-chat': 'GPT-5.2 Chat',
-    'openai/gpt-5.2-pro': 'GPT-5.2 Pro',
-  };
-  return nice[raw] || raw;
-}
 
 function deAnonymizeText(text, labelToModel) {
   if (!labelToModel) return text;
@@ -191,50 +173,15 @@ export default function Stage2({
             </div>
           )}
 
-          {aggregateRankings && aggregateRankings.length > 0 && (() => {
-            const worst = Math.max(...aggregateRankings.map((a) => a.average_rank));
-            const best = Math.min(...aggregateRankings.map((a) => a.average_rank));
-            const range = worst - best || 1;
-            return (
-              <div className="aggregate-rankings">
-                <h4>Aggregate Rankings</h4>
-                <p className="stage-description">
-                  Combined results across {voteLabel} — lower average rank is better.
-                </p>
-                <div className="aggregate-list">
-                  {aggregateRankings.map((agg, index) => {
-                    const pct = ((worst - agg.average_rank) / range) * 100;
-                    return (
-                      <div key={index} className={`aggregate-item ${index < 3 ? 'top-three' : ''}`}>
-                        <span className="rank-medal" aria-label={`Rank ${index + 1}`}>
-                          <span className="rank-num">#{index + 1}</span>
-                        </span>
-                        <div className="rank-info">
-                          <div className="rank-model-row">
-                            <span className="rank-model">
-                              {formatModelLabel(agg.model)}
-                            </span>
-                            <span className="rank-score-badge">
-                              {agg.average_rank.toFixed(2)}
-                            </span>
-                          </div>
-                          <div className="rank-bar-track">
-                            <div
-                              className={`rank-bar-fill rank-bar-${index < 3 ? index : 'rest'}`}
-                              style={{ width: `${Math.max(pct, 6)}%` }}
-                            />
-                          </div>
-                          <span className="rank-count">
-                            {agg.rankings_count} vote{agg.rankings_count !== 1 ? 's' : ''}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })()}
+          {aggregateRankings && aggregateRankings.length > 0 && (
+            <div className="aggregate-rankings">
+              <h4>Aggregate Rankings</h4>
+              <p className="stage-description">
+                Combined results across {voteLabel} — lower average rank is better.
+              </p>
+              <AggregateRankings aggregateRankings={aggregateRankings} />
+            </div>
+          )}
         </>
       )}
     </div>
