@@ -1,13 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, ChevronRight, CopyPlus, Loader2, Search, Sparkles, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, CopyPlus, Loader2, Search, Sparkles, X } from 'lucide-react';
 import { api } from '../api';
 import {
+  buildCurationSummary,
+  diffCurationPresets,
   displayModelName,
   estimateCouncilCosts,
   formatContext,
   formatCurationCost,
+  formatCurationDate,
   formatCurationList,
+  formatCurationStatusLabel,
   formatCurationText,
+  formatCurationWarnings,
   formatMoney,
   makeCustomGroupId,
   presetNormalCost,
@@ -25,28 +30,105 @@ const CAPABILITY_FILTERS = [
   'Free',
 ];
 
-function ModelPill({ modelId, modelMap, muted = false }) {
+function ModelPill({ modelId, modelMap, muted = false, added = false }) {
   const model = modelMap.get(modelId);
   return (
-    <span className={`model-picker-pill${muted ? ' muted' : ''}`}>
+    <span className={`model-picker-pill${muted ? ' muted' : ''}${added ? ' added' : ''}`}>
       {model?.name?.replace(/^.*?:\s*/, '') || shortModelName(modelId)}
       {!model && <span className="model-picker-pill-warning">stale</span>}
     </span>
   );
 }
 
-function CurationPresetPreview({ preset, modelMap }) {
-  const models = preset.models || [];
+function CurationPresetChangeCard({ diff, modelMap }) {
+  const { proposed, changed, chairmanChanged, addedModels, removedModels, missingModels } = diff;
+  const stableModels = (proposed.models || []).filter(
+    (modelId) => !addedModels.includes(modelId),
+  );
 
   return (
-    <div className="curation-preset-card">
-      <strong>{preset.name}</strong>
-      <span>{models.length || 0} models · Chair {shortModelName(preset.chairman_model)}</span>
-      {models.length > 0 && (
-        <div className="curation-preset-models" aria-label={`${preset.name} model lineup`}>
-          {models.map((modelId) => (
-            <ModelPill key={modelId} modelId={modelId} modelMap={modelMap} />
-          ))}
+    <article className={`curation-change-card${changed ? ' curation-change-card--changed' : ''}`}>
+      <header className="curation-change-head">
+        <strong>{diff.name}</strong>
+        <span className={`curation-change-badge${changed ? '' : ' muted'}`}>
+          {changed ? 'Updated' : 'Unchanged'}
+        </span>
+      </header>
+      {chairmanChanged && (
+        <p className="curation-change-line">
+          Chairman: {shortModelName(diff.current?.chairman_model)} → {shortModelName(proposed.chairman_model)}
+        </p>
+      )}
+      <div className="curation-change-models" aria-label={`${diff.name} model lineup`}>
+        {removedModels.map((modelId) => (
+          <ModelPill key={`removed-${modelId}`} modelId={modelId} modelMap={modelMap} muted />
+        ))}
+        {stableModels.map((modelId) => (
+          <ModelPill key={modelId} modelId={modelId} modelMap={modelMap} />
+        ))}
+        {addedModels.map((modelId) => (
+          <ModelPill key={`added-${modelId}`} modelId={modelId} modelMap={modelMap} added />
+        ))}
+        {missingModels.map((modelId) => (
+          <ModelPill key={`missing-${modelId}`} modelId={modelId} modelMap={modelMap} muted />
+        ))}
+      </div>
+      {missingModels.length > 0 && (
+        <p className="curation-change-note">
+          {missingModels.length} proposed model{missingModels.length === 1 ? '' : 's'} not found in the live catalog.
+        </p>
+      )}
+    </article>
+  );
+}
+
+function CurationTechnicalDetails({ draft, curationState, curationCost }) {
+  const [open, setOpen] = useState(false);
+  const technicalNotes = formatCurationText(draft?.notes, '');
+  const technicalRisks = formatCurationList(draft?.risks);
+  const hasDetails = Boolean(
+    technicalNotes
+    || technicalRisks.length > 0
+    || draft?.curation_model
+    || draft?.next_curation_model
+    || curationCost,
+  );
+
+  if (!hasDetails) return null;
+
+  return (
+    <div className={`curation-technical${open ? ' curation-technical--open' : ''}`}>
+      <button
+        type="button"
+        className="curation-technical-toggle"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+      >
+        <span>Technical details</span>
+        <ChevronDown size={14} aria-hidden="true" className="curation-technical-chevron" />
+      </button>
+      {open && (
+        <div className="curation-technical-body">
+          <div className="curation-draft-meta">
+            {draft?.status && <span>Status: {draft.status}</span>}
+            {draft?.trigger && <span>Trigger: {String(draft.trigger).replace(/_/g, ' ')}</span>}
+            {draft?.created_at && <span>Created: {formatCurationDate(draft.created_at)}</span>}
+            {draft?.curation_model && <span>Curator model: {draft.curation_model}</span>}
+            {draft?.next_curation_model && <span>Next curator model: {draft.next_curation_model}</span>}
+            {draft?.next_curator_status && (
+              <span>Next curator: {formatCurationText(draft.next_curator_status).replace(/_/g, ' ')}</span>
+            )}
+            {curationState?.current_curation_model && (
+              <span>Current curator: {curationState.current_curation_model}</span>
+            )}
+            {curationCost && <span>Estimated review cost: {curationCost}</span>}
+          </div>
+          {technicalNotes && <p className="curation-technical-notes">{technicalNotes}</p>}
+          {technicalRisks.length > 0 && (
+            <ul className="curation-technical-risks">
+              {technicalRisks.map((risk) => <li key={risk}>{risk}</li>)}
+            </ul>
+          )}
         </div>
       )}
     </div>
@@ -233,12 +315,26 @@ export default function ModelPicker({
 
   const modelMap = useMemo(() => new Map(catalog.map((model) => [model.id, model])), [catalog]);
   const normalEstimate = estimateCouncilCosts(localCouncil, localChairman, modelMap)?.display;
-  const curationNotes = formatCurationText(
-    curationDraft?.notes,
-    'Review updated model evaluations and lineup suggestions.',
+  const curationPresetDiffs = useMemo(
+    () => diffCurationPresets(presets, curationDraft?.resolved_presets),
+    [presets, curationDraft?.resolved_presets],
   );
-  const curationRisks = formatCurationList(curationDraft?.risks);
+  const curationSummary = useMemo(
+    () => buildCurationSummary({
+      draft: curationDraft,
+      presetDiffs: curationPresetDiffs,
+    }),
+    [curationDraft, curationPresetDiffs],
+  );
+  const curationWarnings = useMemo(
+    () => formatCurationWarnings(curationDraft?.risks),
+    [curationDraft?.risks],
+  );
   const curationCost = formatCurationCost(curationDraft?.estimated_llm_cost);
+  const curationStatusLabel = formatCurationStatusLabel(curationDraft?.status, {
+    approved: Boolean(curationDraft?.approved_at),
+  });
+  const changedPresetCount = curationPresetDiffs.filter((diff) => diff.changed).length;
 
   const filteredModels = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -317,7 +413,7 @@ export default function ModelPicker({
       setCurationDraft(data.draft);
       setCurationPendingReview(data.draft?.status === 'ready');
       setCurationState(data.curation_state || null);
-      setActiveTab('review');
+      setActiveTab('curation');
     } catch (e) {
       setError(e.message || 'Failed to run model curation.');
     } finally {
@@ -386,7 +482,7 @@ export default function ModelPicker({
             ['curated', 'Curated presets', 'Presets'],
             ['custom', 'Custom groups', 'Groups'],
             ['browse', 'Browse models', 'Browse'],
-            ['review', 'Curation Review', 'Review'],
+            ['curation', 'Weekly curation', 'Curation'],
           ].map(([id, label, shortLabel]) => (
             <button
               key={id}
@@ -398,7 +494,7 @@ export default function ModelPicker({
             >
               <span className="model-picker-tab-label model-picker-tab-label--long">{label}</span>
               <span className="model-picker-tab-label model-picker-tab-label--short">{shortLabel}</span>
-              {id === 'review' && curationPendingReview && <span className="tab-count">1</span>}
+              {id === 'curation' && curationPendingReview && <span className="tab-count">1</span>}
             </button>
           ))}
         </div>
@@ -416,11 +512,15 @@ export default function ModelPicker({
               {curationPendingReview && (
                 <div className="curation-callout">
                   <div>
-                    <strong>Weekly curation draft ready</strong>
-                    <span>{curationNotes}</span>
+                    <strong>Preset update ready</strong>
+                    <span>
+                      {changedPresetCount > 0
+                        ? `${changedPresetCount} curated preset${changedPresetCount === 1 ? '' : 's'} have proposed lineup changes.`
+                        : 'A weekly curation draft is ready to review.'}
+                    </span>
                   </div>
-                  <button type="button" className="model-picker-secondary" onClick={() => setActiveTab('review')}>
-                    Review
+                  <button type="button" className="model-picker-secondary" onClick={() => setActiveTab('curation')}>
+                    Open curation
                   </button>
                 </div>
               )}
@@ -536,50 +636,57 @@ export default function ModelPicker({
             </div>
           )}
 
-          {!loading && activeTab === 'review' && (
+          {!loading && activeTab === 'curation' && (
             <div className="curation-review">
               <div className="curation-review-header">
                 <div>
-                  <h3>Curation Review</h3>
-                  <p>Weekly drafts are prepared for review and do not change curated presets until approved.</p>
-                  {curationState?.current_curation_model && (
-                    <p>Current curator: {curationState.current_curation_model}</p>
-                  )}
+                  <h3>Weekly curation</h3>
+                  <p>Review proposed preset updates from the live OpenRouter catalog. Nothing changes until you approve.</p>
                 </div>
                 <button type="button" className="model-picker-primary" onClick={runCuration} disabled={curationBusy}>
                   {curationBusy ? 'Running...' : 'Run draft now'}
                 </button>
               </div>
               {!curationDraft ? (
-                <div className="selected-empty">No curation draft yet.</div>
+                <div className="selected-empty">No curation draft yet. Run a draft to compare proposed preset lineups against what is live today.</div>
               ) : (
                 <div className="curation-draft">
-                  <div className="curation-draft-meta">
-                    <span>Status: {curationDraft.status}</span>
-                    <span>Curation model: {curationDraft.curation_model}</span>
-                    <span>Next curation model: {curationDraft.next_curation_model}</span>
-                    {curationDraft.next_curator_status && (
-                      <span>Next curator: {formatCurationText(curationDraft.next_curator_status).replace(/_/g, ' ')}</span>
-                    )}
-                    {curationCost && (
-                      <span>Estimated review cost: {curationCost}</span>
+                  <div className="curation-status-card">
+                    <span className={`curation-status-badge curation-status-badge--${curationDraft.status || 'unknown'}`}>
+                      {curationStatusLabel}
+                    </span>
+                    <p>{curationSummary}</p>
+                    {curationWarnings.length > 0 && (
+                      <ul className="curation-warning-list">
+                        {curationWarnings.map((warning) => <li key={warning}>{warning}</li>)}
+                      </ul>
                     )}
                   </div>
-                  <p>{curationNotes}</p>
-                  {curationRisks.length > 0 && (
-                    <ul>
-                      {curationRisks.map((risk) => <li key={risk}>{risk}</li>)}
-                    </ul>
+
+                  {curationPresetDiffs.length > 0 && (
+                    <section className="curation-changes" aria-label="Proposed preset changes">
+                      <h4>Proposed preset changes</h4>
+                      <div className="curation-change-list">
+                        {curationPresetDiffs.map((diff) => (
+                          <CurationPresetChangeCard key={diff.id} diff={diff} modelMap={modelMap} />
+                        ))}
+                      </div>
+                    </section>
                   )}
-                  {curationDraft.resolved_presets?.length > 0 && (
-                    <div className="curation-preset-preview">
-                      {curationDraft.resolved_presets.map((preset) => (
-                        <CurationPresetPreview key={preset.id} preset={preset} modelMap={modelMap} />
-                      ))}
-                    </div>
-                  )}
-                  <button type="button" className="model-picker-primary" onClick={approveCuration} disabled={curationBusy || !curationPendingReview}>
-                    {!curationPendingReview ? 'Approved' : 'Approve curated presets'}
+
+                  <CurationTechnicalDetails
+                    draft={curationDraft}
+                    curationState={curationState}
+                    curationCost={curationCost}
+                  />
+
+                  <button
+                    type="button"
+                    className="model-picker-primary curation-approve-btn"
+                    onClick={approveCuration}
+                    disabled={curationBusy || !curationPendingReview}
+                  >
+                    {!curationPendingReview ? 'Approved' : 'Approve preset updates'}
                   </button>
                 </div>
               )}

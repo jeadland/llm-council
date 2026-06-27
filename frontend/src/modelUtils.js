@@ -141,8 +141,139 @@ export function formatCurationList(value) {
 export function formatCurationCost(value) {
   if (value === null || value === undefined || value === '') return null;
   const numericValue = Number(value);
-  if (!Number.isFinite(numericValue)) return null;
+  if (!Number.isFinite(numericValue) || numericValue < 0) return null;
   return `$${numericValue.toFixed(4)}`;
+}
+
+export function formatCurationDate(value) {
+  if (!value) return 'Unknown date';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Unknown date';
+  return date.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+export function formatCurationStatusLabel(status, { approved = false } = {}) {
+  if (approved) return 'Approved';
+  switch (status) {
+    case 'ready':
+      return 'Ready for review';
+    case 'ready_with_warnings':
+      return 'Ready with warnings';
+    case 'skipped_cost_cap':
+      return 'Skipped (cost cap)';
+    default:
+      return status ? String(status).replace(/_/g, ' ') : 'Unknown';
+  }
+}
+
+function modelListsEqual(a, b) {
+  const left = [...(a || [])].sort();
+  const right = [...(b || [])].sort();
+  if (left.length !== right.length) return false;
+  return left.every((id, index) => id === right[index]);
+}
+
+export function diffCurationPresets(currentPresets, proposedPresets) {
+  const currentById = new Map((currentPresets || []).map((preset) => [preset.id, preset]));
+  const proposedById = new Map((proposedPresets || []).map((preset) => [preset.id, preset]));
+  const ids = [...new Set([...currentById.keys(), ...proposedById.keys()])];
+
+  return ids
+    .map((id) => {
+      const current = currentById.get(id);
+      const proposed = proposedById.get(id);
+      if (!proposed) return null;
+
+      const modelsChanged = !modelListsEqual(current?.models, proposed?.models);
+      const chairmanChanged = (current?.chairman_model || '') !== (proposed?.chairman_model || '');
+      const currentModels = new Set(current?.models || []);
+      const proposedModels = proposed?.models || [];
+      const removedModels = (current?.models || []).filter((modelId) => !proposedModels.includes(modelId));
+      const addedModels = proposedModels.filter((modelId) => !currentModels.has(modelId));
+
+      return {
+        id,
+        name: proposed.name || current?.name || id,
+        current,
+        proposed,
+        changed: !current || modelsChanged || chairmanChanged,
+        modelsChanged,
+        chairmanChanged,
+        addedModels,
+        removedModels,
+        missingModels: proposed.missing || [],
+      };
+    })
+    .filter(Boolean);
+}
+
+export function buildCurationSummary({ draft, presetDiffs }) {
+  if (!draft) return '';
+  const createdAt = formatCurationDate(draft.created_at);
+  if (draft.approved_at) {
+    return `Approved preset updates from ${formatCurationDate(draft.approved_at)} are live.`;
+  }
+  const changedCount = (presetDiffs || []).filter((diff) => diff.changed).length;
+  if (changedCount === 0) {
+    return `Draft from ${createdAt}: curator checked the catalog and recommends no preset lineup changes.`;
+  }
+  return `Draft from ${createdAt}: recommends updates to ${changedCount} curated preset${changedCount === 1 ? '' : 's'} based on the current OpenRouter catalog.`;
+}
+
+export function formatCurationWarnings(risks) {
+  const seen = new Set();
+  const warnings = [];
+
+  for (const raw of formatCurationList(risks)) {
+    const warning = humanizeCurationWarning(raw);
+    if (warning && !seen.has(warning)) {
+      seen.add(warning);
+      warnings.push(warning);
+    }
+  }
+
+  return warnings;
+}
+
+function humanizeCurationWarning(text) {
+  const normalized = text.trim();
+  if (!normalized) return null;
+
+  const impact = normalized.includes(' — ')
+    ? normalized.split(' — ').slice(1).join(' — ').trim()
+    : '';
+  const source = normalized.includes(' — ')
+    ? normalized.split(' — ')[0].trim()
+    : normalized;
+
+  if (/catalog_candidates|non-catalog ids|latest-alias|byok presets?/i.test(source)) {
+    return impact || 'Some proposed models may not match the live OpenRouter catalog.';
+  }
+  if (/open-source|open-weights/i.test(normalized)) {
+    return impact || 'Open-source labels are approximate and may not reflect self-hosting options.';
+  }
+  if (/leaderboard|catalog can change|provider catalog/i.test(normalized)) {
+    return 'Model availability can change after this draft was generated.';
+  }
+  if (/cost|surcharge|pricing/i.test(normalized)) {
+    return impact || 'Cost estimates may not include all provider surcharges.';
+  }
+  if (/fail at runtime|unavailable models/i.test(normalized)) {
+    return impact || 'Some proposed models may be unavailable until the draft is revised.';
+  }
+  if (/[{[\]"]/.test(normalized)) {
+    return null;
+  }
+  if (normalized.length > 160) {
+    return impact || null;
+  }
+  return impact || normalized;
 }
 
 export function abbreviateModelName(modelId, modelMap) {
