@@ -161,6 +161,27 @@ class ModelCurationPromotionTests(TempDataMixin, unittest.IsolatedAsyncioTestCas
         self.assertEqual(draft["next_curator_status"], "not_promoted")
         self.assertEqual(state["current_curation_model"], "openrouter/auto")
 
+    async def test_structured_notes_and_risks_are_saved_as_strings(self):
+        async def fake_catalog(force_refresh=False):
+            return _catalog()
+
+        async def fake_query_model(model, messages, timeout=120.0):
+            return {
+                "content": (
+                    '{"notes":{"summary":"Use the updated frontier mix."},'
+                    '"risks":[{"issue":"Catalog may change."}]}'
+                )
+            }
+
+        with patch.object(model_curation, "fetch_openrouter_model_catalog", side_effect=fake_catalog), \
+             patch.object(model_curation, "query_model", side_effect=fake_query_model):
+            draft = await model_curation.create_model_curation_draft(trigger="manual", owner_email="owner@example.com")
+
+        self.assertIsInstance(draft["notes"], str)
+        self.assertIsInstance(draft["risks"][0], str)
+        self.assertIn("Use the updated frontier mix", draft["notes"])
+        self.assertIn("Catalog may change", draft["risks"][0])
+
 
 class ModelCurationApiTests(TempDataMixin, unittest.TestCase):
     def test_cron_rejects_invalid_secret(self):

@@ -5,8 +5,8 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-from backend import storage
-from backend.main import app
+from backend import auth, storage
+from backend.main import GOOGLE_ONLY_AUTH_DETAIL, app
 
 
 class TempDataMixin:
@@ -35,83 +35,71 @@ class TempDataMixin:
         self._tempdir.cleanup()
 
 
-async def _valid_key(api_key: str):
-    return {"label": f"{api_key[:8]}...test", "limit": 25}
+def sign_in_google_user(client, email="person@example.com", key=None):
+    user = auth.upsert_oauth_user("google", email, f"google-sub-{email}", "Person")
+    token = auth.create_session(user["email"])
+    client.cookies.set(auth.SESSION_COOKIE, token)
+    if key:
+        storage.save_openrouter_api_key(user["email"], key)
+    return user
 
 
 class ByokOnboardingApiTests(TempDataMixin, unittest.TestCase):
-    def _signup(self, client, email="person@example.com", key="sk-or-v1-valid-test-key"):
-        with patch("backend.main._validate_openrouter_api_key", side_effect=_valid_key):
-            return client.post(
+    def test_password_signup_login_and_reset_are_disabled(self):
+        client = TestClient(app)
+
+        with patch.dict(os.environ, {"AUTH_REQUIRED": "true", "COOKIE_SECURE": "false"}, clear=False):
+            signup = client.post(
                 "/api/auth/signup",
                 json={
                     "name": "Person",
-                    "email": email,
-                    "password": "correct horse battery",
-                    "openrouter_api_key": key,
-                },
-            )
-
-    def test_signup_creates_session_and_saves_masked_openrouter_status(self):
-        client = TestClient(app)
-
-        with patch.dict(os.environ, {"AUTH_REQUIRED": "true", "COOKIE_SECURE": "false"}, clear=False):
-            response = self._signup(client)
-            me = client.get("/api/auth/me")
-
-        self.assertEqual(response.status_code, 200)
-        payload = response.json()
-        self.assertEqual(payload["email"], "person@example.com")
-        self.assertEqual(payload["name"], "Person")
-        self.assertEqual(payload["role"], "user")
-        self.assertTrue(payload["openrouter"]["configured"])
-        self.assertNotIn("valid-test-key", payload["openrouter"]["masked_key"])
-        self.assertEqual(me.json()["email"], "person@example.com")
-
-    def test_signup_rejects_duplicate_email(self):
-        client = TestClient(app)
-
-        with patch.dict(os.environ, {"AUTH_REQUIRED": "true", "COOKIE_SECURE": "false"}, clear=False):
-            first = self._signup(client, email="person@example.com")
-            second = self._signup(client, email="PERSON@example.com")
-
-        self.assertEqual(first.status_code, 200)
-        self.assertEqual(second.status_code, 409)
-
-    def test_signup_rejects_invalid_openrouter_key(self):
-        client = TestClient(app)
-
-        async def invalid_key(api_key: str):
-            from fastapi import HTTPException
-            raise HTTPException(status_code=400, detail="OpenRouter API key was rejected")
-
-        with patch.dict(os.environ, {"AUTH_REQUIRED": "true", "COOKIE_SECURE": "false"}, clear=False), \
-             patch("backend.main._validate_openrouter_api_key", side_effect=invalid_key):
-            response = client.post(
-                "/api/auth/signup",
-                json={
                     "email": "person@example.com",
                     "password": "correct horse battery",
-                    "openrouter_api_key": "sk-or-v1-invalid-test-key",
+                    "openrouter_api_key": "sk-or-v1-valid-test-key",
+                },
+            )
+            login = client.post(
+                "/api/auth/login",
+                json={"email": "person@example.com", "password": "correct horse battery"},
+            )
+            reset = client.post(
+                "/api/auth/reset-password",
+                json={
+                    "email": "person@example.com",
+                    "reset_token": "test-token",
+                    "new_password": "correct horse battery",
+                },
+            )
+            sign_in_google_user(client)
+            change = client.post(
+                "/api/auth/change-password",
+                json={
+                    "current_password": "correct horse battery",
+                    "new_password": "different horse battery",
                 },
             )
 
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(signup.status_code, 403)
+        self.assertEqual(login.status_code, 403)
+        self.assertEqual(reset.status_code, 403)
+        self.assertEqual(change.status_code, 403)
+        self.assertEqual(signup.json()["detail"], GOOGLE_ONLY_AUTH_DETAIL)
+        self.assertEqual(login.json()["detail"], GOOGLE_ONLY_AUTH_DETAIL)
+        self.assertEqual(reset.json()["detail"], GOOGLE_ONLY_AUTH_DETAIL)
+        self.assertEqual(change.json()["detail"], GOOGLE_ONLY_AUTH_DETAIL)
 
-    def test_user_conversations_and_settings_are_isolated(self):
+    def test_google_user_conversations_and_settings_are_isolated(self):
         first = TestClient(app)
         second = TestClient(app)
 
         with patch.dict(os.environ, {"AUTH_REQUIRED": "true", "COOKIE_SECURE": "false"}, clear=False):
-            first_signup = self._signup(first, email="first@example.com", key="sk-or-v1-first-valid-key")
-            second_signup = self._signup(second, email="second@example.com", key="sk-or-v1-second-valid-key")
+            sign_in_google_user(first, email="first@example.com", key="sk-or-v1-first-valid-key")
+            sign_in_google_user(second, email="second@example.com", key="sk-or-v1-second-valid-key")
             first_conv = first.post("/api/conversations", json={})
             first.patch("/api/settings", json={"theme_mode": "dark"})
             second_convs = second.get("/api/conversations")
             second_settings = second.get("/api/settings")
 
-        self.assertEqual(first_signup.status_code, 200)
-        self.assertEqual(second_signup.status_code, 200)
         self.assertEqual(first_conv.status_code, 200)
         self.assertEqual(second_convs.json(), [])
         self.assertEqual(second_settings.json()["theme_mode"], "system")
@@ -129,15 +117,13 @@ class ByokOnboardingApiTests(TempDataMixin, unittest.TestCase):
             },
             clear=False,
         ):
-            response = self._signup(client)
-            storage.delete_openrouter_api_key("person@example.com")
+            sign_in_google_user(client)
             conversation = client.post("/api/conversations", json={}).json()
             run = client.post(
                 f"/api/conversations/{conversation['id']}/runs",
                 json={"content": "hello"},
             )
 
-        self.assertEqual(response.status_code, 200)
         self.assertEqual(run.status_code, 403)
 
 

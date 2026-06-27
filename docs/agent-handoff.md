@@ -8,7 +8,7 @@ Use this file to transfer context between ChatGPT, Codex, Cursor, GitHub, and hu
 The app is LLM Council, a React + FastAPI multi-model deliberation app.
 The active branch is web/vercel for hosted deployment work.
 main remains the local/OpenClaw/LAN branch.
-The current implementation includes Vercel config, Redis-backed storage, private auth, BYOK signup, password change, and sync run mode.
+The current implementation includes Vercel config, Redis-backed storage, Google-only private auth, BYOK OpenRouter key setup after login, and sync run mode.
 The next task is Vercel preview deployment and hosted smoke verification.
 ```
 
@@ -20,10 +20,10 @@ Goal: Push/deploy `web/vercel`, configure env vars, and verify hosted private us
 
 Expected behavior:
 
-- Unauthenticated hosted visitors see sign-in/create-account options.
-- New users can create an account with optional name, required email, password, and required OpenRouter API key.
+- Unauthenticated hosted visitors see only the Google sign-in button.
+- New users create/sign into an account with Google, then add their own OpenRouter key through API & Integrations before running council requests.
 - Authenticated owner and BYOK users can use the council.
-- Password can be changed after launch.
+- Password signup, login, reset, and change-password routes are intentionally disabled.
 - Data persists through reload/redeploy and remains scoped by authenticated user.
 
 Scope classification:
@@ -52,10 +52,11 @@ Scope classification:
 - Created `web/vercel` from `main`.
 - Implemented Vercel wiring.
 - Implemented Redis storage with JSON fallback.
-- Implemented private auth and password change.
-- Implemented no-invite BYOK signup with OpenRouter tutorial and account-created confirmation.
+- Implemented private Google-only auth.
+- Implemented BYOK OpenRouter setup after login through API & Integrations.
+- Implemented Google OAuth start/callback routes with signed state, verified Google email, email-keyed account linking, owner Google login disabled by default unless explicitly enabled, and OAuth-only account UI handling.
 - Implemented per-user conversation/settings/run/integration scoping and non-owner server-key fallback protection.
-- Verified local auth smoke using a temporary local password.
+- Verified password auth routes are disabled in tests.
 - Verified compile, lint, and build.
 
 ## Known Constraints
@@ -79,10 +80,12 @@ Owner approval is needed before:
 
 ## Acceptance Criteria
 
-- [ ] User-facing behavior: sign-in/create-account wall appears on hosted preview.
+- [ ] User-facing behavior: Google-only login wall appears on hosted preview.
 - [ ] Data or persistence behavior: conversation/settings survive reload and redeploy and remain user-scoped.
-- [ ] Loading, empty, error, and permission states: unauthenticated APIs return `401`; bad login shows clear error.
-- [ ] BYOK onboarding: signup validates a user OpenRouter key, shows account-created confirmation, and masks the key afterward.
+- [ ] Loading, empty, error, and permission states: unauthenticated APIs return `401`; Google auth errors show clear error.
+- [ ] Password routes: signup, login, reset, and change-password return `403`.
+- [ ] BYOK onboarding: Google user is blocked before saving an OpenRouter key, then sees a masked key after saving.
+- [ ] Google OAuth onboarding: disposable Google user can sign in, is blocked before saving an OpenRouter key, then can run after saving a key.
 - [ ] Mobile/responsive behavior: login and main app are usable at phone width.
 - [ ] What must not change: local OpenClaw flow on `main`.
 - [ ] Verification evidence: Vercel preview URL, auth smoke results, and one small council query.
@@ -96,7 +99,7 @@ uv run python -m compileall backend api
 uv run python -m unittest discover tests
 npm --prefix frontend run lint
 npm --prefix frontend run build
-local curl auth smoke with AUTH_REQUIRED=true and temporary password
+local API auth smoke for unauthenticated access, disabled password routes, and Google-created user behavior
 ```
 
 Results:
@@ -106,7 +109,7 @@ compileall passed
 unittest passed
 frontend build passed
 frontend lint passed with 2 hook dependency warnings
-auth smoke: unauth=401, login=200, me=200, change=200, old_login=401, new_login=200
+auth smoke: unauth=401, password auth routes disabled, Google-created users are scoped and key-gated
 ```
 
 Live/runtime evidence:
@@ -137,9 +140,9 @@ If this work resumes after chat reset, context loss, or usage-limit interruption
 Read AGENTS.md, OWNER_OPERATING_GUIDE.md, PRODUCT_SPEC.md, ARCHITECTURE.md, DECISIONS.md, TASKS.md, docs/agent-handoff.md, and the relevant Cursor rules.
 Implement the following task only:
 Goal: Deploy and validate the web/vercel hosted branch for LLM Council.
-User-visible behavior: private login-gated hosted app, password change, persisted conversations/settings, and successful small council query.
+User-visible behavior: private Google-login-gated hosted app, persisted conversations/settings, OpenRouter key gating, and successful small council query.
 Relevant files: vercel.json, api/index.py, backend/auth.py, backend/storage.py, frontend/src/App.jsx, frontend/src/api.js, frontend/src/components/LoginScreen.jsx, frontend/src/components/Sidebar.jsx.
-Acceptance criteria: hosted preview login wall; unauth API 401; login/logout/password change; old password rejected after change; conversation persists; small council query completes.
+Acceptance criteria: hosted preview Google-only login wall; unauth API 401; Google login/logout; password routes return 403; conversation persists; small council query completes.
 Out of scope: multi-user auth, queue-based runs, marketing site, broad visual redesign.
 Approval gates: production branch/domain, paid service setup, secrets, auth behavior.
 Verification: compileall, lint, build, Vercel preview smoke, browser screenshot.

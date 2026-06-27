@@ -4,30 +4,64 @@ Use this file to record important product, architecture, design, and implementat
 
 ## Decision Log
 
-## 2026-06-24 - BYOK signup launches without invite codes or email confirmation
+## 2026-06-24 - Hosted auth is Google-only
 
 Decision:
 
-- Hosted signup is open to anyone with the app URL, but every non-owner account must provide a valid OpenRouter API key during account creation.
-- There is no invite code and no email confirmation in this version.
-- Signup validates OpenRouter keys with the non-generative OpenRouter key endpoint before creating the account.
+- Hosted login uses only the Google button.
+- Email/password signup, login, reset, and password-change routes return `403`.
+- The configured owner email can use Google login only when `ALLOW_OWNER_GOOGLE_OAUTH=true` is set.
+- Google-created non-owner users must save their own OpenRouter API key before running council requests.
+
+Rationale:
+
+- Google gives the simplest hosted sign-in surface and removes password bootstrap/recovery complexity.
+- Email remains the storage and access scope, so Google can prove identity without migrating conversations, settings, sessions, or OpenRouter keys.
+- BYOK protects Josh's owner/server OpenRouter key from becoming shared model access.
+
+Status:
+
+- Active
+
+## 2026-06-24 - Password auth was removed from hosted login
+
+Decision:
+
+- Previous owner password bootstrap, reset, and BYOK email/password signup paths are superseded by Google-only hosted login.
+- Password hashes may remain in existing user records for historical compatibility, but hosted routes do not accept password auth.
+- OpenRouter key setup moved from signup to API & Integrations after Google sign-in.
+
+Rationale:
+
+- A single auth path reduces hosted support and recovery risk.
+- OpenRouter key storage remains server-side and per-user.
+
+Status:
+
+- Active
+
+## 2026-06-24 - BYOK uses post-Google OpenRouter key setup
+
+Decision:
+
+- Hosted account creation comes from Google sign-in.
+- Every non-owner account must save a valid OpenRouter API key through API & Integrations before running the council.
+- Saving an OpenRouter key validates it with the non-generative OpenRouter key endpoint.
 - Non-owner users never fall back to the server `OPENROUTER_API_KEY`; if their account key is missing, council runs are blocked.
 
 Context:
 
-- The desired onboarding path is low-friction: name optional, email required, OpenRouter key required, and an on-screen account-created confirmation.
+- The desired onboarding path is low-friction: Google sign-in first, then key setup only when model access is needed.
 - The app does not yet handle email delivery, email confirmation, managed credits, or billing.
 
 Rationale:
 
 - BYOK keeps model spend attached to the user's own OpenRouter account and avoids Josh-funded access.
-- Requiring a key at signup is the practical gate while email confirmation is intentionally deferred.
-- Removing invite codes avoids a confusing manual distribution step.
+- Requiring a key before a run is the practical gate while managed credits are intentionally deferred.
 
 Implications:
 
 - User conversations, settings, runs, and OpenRouter integration status must be scoped by authenticated email.
-- Account recovery remains owner-only via recovery code until email-based recovery is added.
 - Public deployments should still be treated as sensitive because anyone with the URL can create an account if they bring a valid key.
 
 Status:
@@ -38,7 +72,7 @@ Status:
 
 Decision:
 
-- Near-term hosted onboarding is BYOK for non-owner users: each user can create an account by pasting their own OpenRouter key.
+- Near-term hosted onboarding is Google sign-in plus BYOK for non-owner users: each user signs in with Google, then saves their own OpenRouter key.
 - The owner can still use the server environment key or save an account OpenRouter key through API & Integrations.
 - Future OpenRouter OAuth support can reduce paste-key friction before LLM Council offers Josh-managed paid credits.
 - Josh-managed credits, if built, should provision one OpenRouter API key per LLM Council user through OpenRouter Management API, set hard per-user spend limits, and keep a local cost ledger tied to each run.
@@ -265,7 +299,7 @@ Status:
 Decision:
 
 - Hosted app began with owner email/password auth with password change capability.
-- This is superseded for general access by BYOK user signup, while owner bootstrap and recovery-code reset remain owner-only.
+- This is superseded by Google-only hosted login.
 
 Context:
 
@@ -292,7 +326,7 @@ Owner approval:
 
 Status:
 
-- Superseded for general access by BYOK signup; owner bootstrap behavior remains active.
+- Superseded by Google-only hosted login.
 
 ## 2026-06-24 - Hosted password reset uses owner recovery code
 
@@ -330,4 +364,4 @@ Owner approval:
 
 Status:
 
-- Active
+- Superseded by Google-only hosted login.

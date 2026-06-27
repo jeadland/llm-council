@@ -1,5 +1,6 @@
 import { ChevronDown, Layers3, Menu, Sparkles } from 'lucide-react';
 import {
+  abbreviateModelName,
   displayModelName,
   estimateCouncilCosts,
   presetNormalCost,
@@ -22,6 +23,9 @@ export default function AppTopBar({
   const presetEstimate = active.selectionMatchesPreset ? presetNormalCost(active.preset) : null;
   const estimate = presetEstimate || fallbackEstimate?.display || 'Pricing unavailable';
   const catalogLoaded = (modelMap?.size || 0) > 0;
+  const mobileModelSlots = selectedModels.slice(0, 4);
+  const mobileOverflowCount = Math.max(selectedModels.length - mobileModelSlots.length, 0);
+  const mobileChairmanLabel = abbreviateModelName(chairman, modelMap) || 'None';
 
   return (
     <header className="app-topbar">
@@ -42,6 +46,13 @@ export default function AppTopBar({
               <span>{active.name}</span>
               <ChevronDown size={16} />
             </button>
+            <div className="app-topbar-mobile-summary">
+              <span className="app-topbar-mobile-chairman">Chair: {mobileChairmanLabel}</span>
+              <span aria-hidden="true">·</span>
+              <span>
+                {selectedModels.length} model{selectedModels.length === 1 ? '' : 's'}
+              </span>
+            </div>
           </div>
           <span className="app-topbar-badge">{active.badge}</span>
         </div>
@@ -55,6 +66,29 @@ export default function AppTopBar({
               {displayModelName(modelId, modelMap).replace(/^.*?:\s*/, '')}
             </span>
           ))}
+        </div>
+
+        <div className="app-topbar-mobile-models" aria-label="Selected council models">
+          {mobileModelSlots.length > 0 ? (
+            mobileModelSlots.map((modelId) => (
+              <span
+                className={`app-topbar-mobile-chip${catalogLoaded && !modelMap.has(modelId) ? ' app-topbar-mobile-chip-muted' : ''}`}
+                key={modelId}
+                title={displayModelName(modelId, modelMap)}
+              >
+                {abbreviateModelName(modelId, modelMap)}
+              </span>
+            ))
+          ) : (
+            <span className="app-topbar-mobile-chip app-topbar-mobile-chip-muted">
+              No models
+            </span>
+          )}
+          {mobileOverflowCount > 0 && (
+            <span className="app-topbar-mobile-chip app-topbar-mobile-more">
+              +{mobileOverflowCount}
+            </span>
+          )}
         </div>
       </div>
 

@@ -1,13 +1,13 @@
 .app-topbar {
-  min-height: 128px;
+  min-height: 106px;
   width: 100%;
   min-width: 0;
   max-width: 100%;
   display: grid;
   grid-template-columns: minmax(360px, 1fr) minmax(150px, auto) minmax(190px, auto) auto;
   align-items: center;
-  gap: 18px;
-  padding: 18px 22px;
+  gap: 16px;
+  padding: 14px 20px;
   background: #fff;
   border-bottom: 1px solid #e3e7ee;
   color: #182132;
@@ -24,7 +24,7 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 13px;
+  gap: 9px;
 }
 
 .app-topbar-council-row {
@@ -40,7 +40,7 @@
 }
 
 .app-topbar-label {
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   color: #788397;
   font-size: 12px;
   font-weight: 700;
@@ -57,7 +57,7 @@
   color: #172033;
   cursor: pointer;
   font: inherit;
-  font-size: 23px;
+  font-size: 21px;
   font-weight: 760;
   line-height: 1.15;
   letter-spacing: 0;
@@ -99,6 +99,11 @@
   gap: 6px;
 }
 
+.app-topbar-mobile-summary,
+.app-topbar-mobile-models {
+  display: none;
+}
+
 .app-topbar-chip {
   max-width: 158px;
   overflow: hidden;
@@ -106,8 +111,8 @@
   white-space: nowrap;
   display: inline-flex;
   align-items: center;
-  min-height: 28px;
-  padding: 4px 9px;
+  min-height: 25px;
+  padding: 3px 8px;
   border: 1px solid #d8e0ec;
   border-radius: 7px;
   background: #fbfcfe;
@@ -161,7 +166,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 40px;
+  min-height: 38px;
   border: 1px solid #2f7dd4;
   border-radius: 8px;
   background: #1f65bd;
@@ -171,7 +176,7 @@
   font-size: 13px;
   font-weight: 760;
   line-height: 1;
-  padding: 10px 14px;
+  padding: 9px 13px;
   box-shadow: 0 6px 16px rgba(47, 125, 212, 0.2);
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
@@ -202,14 +207,18 @@
   .app-topbar {
     position: sticky;
     top: 0;
-    min-height: 72px;
-    grid-template-columns: 40px minmax(0, 1fr) 40px;
-    gap: 10px;
-    padding: calc(env(safe-area-inset-top) + 8px) 12px 8px;
+    min-height: calc(env(safe-area-inset-top) + 70px);
+    grid-template-columns: minmax(0, 1fr);
+    align-items: center;
+    gap: 5px;
+    padding: calc(env(safe-area-inset-top) + 7px) 10px 7px;
   }
 
   .app-topbar .app-topbar-menu {
     display: inline-flex;
+    position: absolute;
+    top: calc(env(safe-area-inset-top) + 15px);
+    left: 10px;
     background: #fff;
     border: 1px solid #d5dce8;
     color: #556276;
@@ -223,20 +232,33 @@
   }
 
   .app-topbar-command {
+    width: min(100%, 300px);
     min-width: 0;
-    gap: 0;
+    margin: 0 auto;
+    gap: 4px;
   }
 
   .app-topbar-council-row {
     min-width: 0;
-    align-items: center;
+    align-items: flex-start;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .app-topbar-title-group {
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
   }
 
   .app-topbar-label,
   .app-topbar-badge,
-  .app-topbar-models,
   .app-topbar-chairman,
   .app-topbar-cost {
+    display: none;
+  }
+
+  .app-topbar-models {
     display: none;
   }
 
@@ -244,9 +266,10 @@
     width: 100%;
     min-width: 0;
     max-width: 100%;
-    min-height: 40px;
+    min-height: 22px;
     justify-content: center;
     font-size: 15px;
+    font-weight: 760;
     line-height: 1.2;
   }
 
@@ -256,15 +279,116 @@
     white-space: nowrap;
   }
 
+  .app-topbar-mobile-summary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    max-width: 100%;
+    margin-top: 0;
+    overflow: hidden;
+    color: #728096;
+    font-size: 11px;
+    font-weight: 680;
+    line-height: 1.15;
+    white-space: nowrap;
+  }
+
+  .app-topbar-mobile-chairman {
+    min-width: 0;
+    overflow: hidden;
+    color: #b46a12;
+    text-overflow: ellipsis;
+  }
+
+  .app-topbar-mobile-models {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .app-topbar-mobile-chip {
+    min-width: 0;
+    max-width: 62px;
+    min-height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1 1 0;
+    padding: 3px 5px;
+    overflow: hidden;
+    border: 1px solid #d8e0ec;
+    border-radius: 7px;
+    background: #fbfcfe;
+    color: #344158;
+    font-size: 10.5px;
+    font-weight: 720;
+    line-height: 1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .app-topbar-mobile-chip-muted {
+    background: #f2f5f9;
+    color: #66748b;
+  }
+
+  .app-topbar-mobile-more {
+    flex: 0 0 auto;
+    max-width: none;
+    color: #1f65bd;
+    background: #edf4ff;
+    border-color: #cfe0ff;
+  }
+
   .app-topbar-models-button {
-    min-height: 40px;
-    width: 40px;
+    position: absolute;
+    top: calc(env(safe-area-inset-top) + 15px);
+    right: 10px;
+    z-index: 2;
+    display: inline-flex;
+    min-height: 38px;
+    width: 38px;
     padding: 0;
+    background: #1f65bd !important;
+    border-color: #2f7dd4 !important;
+    color: #fff !important;
     box-shadow: none;
   }
 
   .app-topbar-models-button span {
     display: none;
+  }
+}
+
+@media (max-width: 370px) {
+  .app-topbar {
+    gap: 7px;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .app-topbar .app-topbar-menu {
+    left: 8px;
+  }
+
+  .app-topbar-command {
+    width: min(100%, 252px);
+  }
+
+  .app-topbar-models-button {
+    right: 8px;
+  }
+
+  .app-topbar-mobile-chip {
+    max-width: 48px;
+    padding-left: 4px;
+    padding-right: 4px;
+    font-size: 9.5px;
   }
 }
 
@@ -294,6 +418,31 @@
 }
 
 :root[data-theme='dark'] .app-topbar-badge {
+  background: #11243d;
+  border-color: #315d95;
+  color: #9ac0f8;
+}
+
+:root[data-theme='dark'] .app-topbar-mobile-summary {
+  color: #8f9bb0;
+}
+
+:root[data-theme='dark'] .app-topbar-mobile-chairman {
+  color: #d59645;
+}
+
+:root[data-theme='dark'] .app-topbar-mobile-chip {
+  background: #11151d;
+  border-color: #2d3848;
+  color: #c8d0e0;
+}
+
+:root[data-theme='dark'] .app-topbar-mobile-chip-muted {
+  background: #1d2430;
+  color: #9aa7bc;
+}
+
+:root[data-theme='dark'] .app-topbar-mobile-more {
   background: #11243d;
   border-color: #315d95;
   color: #9ac0f8;

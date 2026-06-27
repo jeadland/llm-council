@@ -13,8 +13,8 @@ LLM Council lets the owner ask one question to a panel of AI models, inspect the
 | User type | Description | Primary needs |
 | --- | --- | --- |
 | Primary user | Josh Adland, private owner/operator | Better answers through model disagreement, transparent ranking, and reusable conversations |
-| Admin/owner | Same as primary user | Private access, model selection, password rotation, safe deployment |
-| BYOK beta users | Invited or trusted users with their own OpenRouter account | Create an account, connect their own API key, and keep private conversations/settings |
+| Admin/owner | Same as primary user | Private Google sign-in, model selection, safe deployment |
+| BYOK beta users | Invited or trusted users with their own OpenRouter account | Sign in with Google, connect their own API key, and keep private conversations/settings |
 
 ## Core Problem
 
@@ -64,35 +64,31 @@ User goal: use the Vercel-hosted app privately.
 Steps:
 
 1. Visit hosted app.
-2. Log in with owner email/password.
+2. Log in with Google.
 3. Use the app.
-4. Change password from Account settings after launch.
-5. If locked out, reset the password with the configured owner recovery code.
 
 Success criteria:
 
 - Unauthenticated users cannot access app APIs.
-- Password change invalidates old password and sessions.
+- Email/password signup, login, reset, and password change endpoints are disabled.
 - Conversations/settings persist through reload and deploy.
 
-### BYOK Account Onboarding
+### Google BYOK Onboarding
 
-User goal: create an account without email confirmation and use the council with the user's own OpenRouter key.
+User goal: sign in with Google and use the council with the user's own OpenRouter key.
 
 Steps:
 
 1. Open the hosted app.
-2. Choose Create account.
-3. Enter optional name, required email, password, and OpenRouter API key.
-4. Use the embedded OpenRouter tutorial links to create or find a key if needed.
-5. See an on-screen account-created confirmation.
-6. Continue into the app.
+2. Choose Continue with Google.
+3. Add an OpenRouter API key through API & Integrations.
+4. Run the council after the key is saved.
 
 Success criteria:
 
-- Email confirmation is not required in this version.
-- OpenRouter key is required before account creation completes.
-- Key validation uses a non-generative OpenRouter key endpoint.
+- Google provides the verified email identity.
+- OpenRouter key is required before non-owner council runs.
+- Key validation uses a non-generative OpenRouter key endpoint when saving the key.
 - Non-owner users cannot use Josh's/server OpenRouter key.
 - Conversations, settings, runs, and integration status are private to the authenticated user.
 
@@ -104,10 +100,9 @@ Success criteria:
 | Transparency | Show raw answers, raw rankings, parsed rankings, aggregate rankings | High | Core trust feature |
 | Settings | Configure council and chairman | High | Persisted |
 | Conversation storage | Store conversation history locally and hosted | High | JSON local, Redis hosted |
-| Private auth | Restrict hosted access to authenticated users | High | Owner plus BYOK users |
-| Password change | Users can rotate passwords | High | Required before public URL use |
-| Password reset | Owner can recover access from login screen | High | Uses server-side recovery code, not email |
-| BYOK signup | Users can create accounts with their own OpenRouter key | High | No invite code and no email confirmation for this version |
+| Private auth | Restrict hosted access to authenticated Google users | High | Owner plus BYOK users |
+| Google-only login | Hosted login uses only the Google button | High | Password signup/login/reset/change routes return 403 |
+| BYOK integration | Users save their own OpenRouter key after Google sign-in | High | Non-owner runs require an account key |
 | Branch split | Keep local/OpenClaw branch separate from Vercel branch | High | `main` vs `web/vercel` |
 
 ## Non-Functional Requirements
@@ -119,12 +114,12 @@ Success criteria:
 | Responsiveness | App should remain usable on desktop and mobile browser widths |
 | Data persistence | Avoid data loss across reload/deploy |
 | Privacy | Do not expose conversations or paid model access publicly |
-| Security | Store password hashes, not plaintext passwords; use HttpOnly cookies |
+| Security | Use verified Google identity, server-side sessions, and HttpOnly cookies |
 | Cost control | Keep model count configurable and avoid accidental public usage |
 
 ## Non-Goals
 
-- Email confirmation, email reset links, billing, managed credits, and role-management UI.
+- Password login, email confirmation, email reset links, billing, managed credits, and role-management UI.
 - Public marketing site.
 - Billing or subscriptions.
 - Full analytics/reporting over model performance.
@@ -134,7 +129,7 @@ Success criteria:
 
 - Tech stack: React/Vite frontend, FastAPI backend.
 - Deployment target: local LAN and Vercel.
-- Authentication: owner email/password plus BYOK user signup for hosted web.
+- Authentication: Google-only hosted sign-in plus BYOK OpenRouter integration.
 - Data storage: local JSON for dev, Upstash Redis for hosted.
 - Approval gates: auth, persistence, paid services, model/vendor changes, and production deployment require explicit owner approval.
 

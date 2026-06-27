@@ -1,14 +1,14 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import Sidebar from './components/Sidebar';
-import ChatInterface from './components/ChatInterface';
-import LoginScreen from './components/LoginScreen';
-import AppTopBar from './components/AppTopBar';
-import ModelPicker from './components/ModelPicker';
-import { api } from './api';
-import './App.css';
+import { useState, useEffect, useRef, useCallback } from "react";
+import Sidebar from "./components/Sidebar";
+import ChatInterface from "./components/ChatInterface";
+import LoginScreen from "./components/LoginScreen";
+import AppTopBar from "./components/AppTopBar";
+import ModelPicker from "./components/ModelPicker";
+import { api } from "./api";
+import "./App.css";
 
-const STORAGE_KEY = 'llm-council-ui-v1';
-const SIDEBAR_WIDTH_KEY = 'llm-council-sidebar-width';
+const STORAGE_KEY = "llm-council-ui-v1";
+const SIDEBAR_WIDTH_KEY = "llm-council-sidebar-width";
 const SIDEBAR_MIN = 240;
 const SIDEBAR_MAX = 480;
 
@@ -24,7 +24,8 @@ function App() {
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [modelCatalog, setModelCatalog] = useState([]);
   const [modelPresets, setModelPresets] = useState([]);
-  const [sendError, setSendError] = useState('');
+  const [openRouterStatus, setOpenRouterStatus] = useState(null);
+  const [sendError, setSendError] = useState("");
   const [authState, setAuthState] = useState({
     loading: true,
     authenticated: false,
@@ -40,50 +41,69 @@ function App() {
         const w = parseInt(saved, 10);
         if (!isNaN(w) && w >= SIDEBAR_MIN && w <= SIDEBAR_MAX) return w;
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     return 300; // default width
   });
   const dragStartX = useRef(null);
   const dragStartWidth = useRef(null);
-  const handleResizeStart = useCallback((e) => {
-    dragStartX.current = e.clientX;
-    // Read current sidebar width from DOM at drag start
-    const sidebarEl = document.querySelector('.sidebar');
-    dragStartWidth.current = sidebarEl ? sidebarEl.getBoundingClientRect().width : (sidebarWidth || 300);
+  const handleResizeStart = useCallback(
+    (e) => {
+      dragStartX.current = e.clientX;
+      // Read current sidebar width from DOM at drag start
+      const sidebarEl = document.querySelector(".sidebar");
+      dragStartWidth.current = sidebarEl
+        ? sidebarEl.getBoundingClientRect().width
+        : sidebarWidth || 300;
 
-    const onMove = (ev) => {
-      const delta = ev.clientX - dragStartX.current;
-      const newWidth = Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, dragStartWidth.current + delta));
-      setSidebarWidth(newWidth);
-    };
+      const onMove = (ev) => {
+        const delta = ev.clientX - dragStartX.current;
+        const newWidth = Math.min(
+          SIDEBAR_MAX,
+          Math.max(SIDEBAR_MIN, dragStartWidth.current + delta),
+        );
+        setSidebarWidth(newWidth);
+      };
 
-    const onUp = () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-      // Persist to localStorage
-      setSidebarWidth((w) => {
-        if (w !== null) {
-          try { localStorage.setItem(SIDEBAR_WIDTH_KEY, String(w)); } catch { /* ignore */ }
-        }
-        return w;
-      });
-      // Remove resize cursor from body
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    };
+      const onUp = () => {
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+        // Persist to localStorage
+        setSidebarWidth((w) => {
+          if (w !== null) {
+            try {
+              localStorage.setItem(SIDEBAR_WIDTH_KEY, String(w));
+            } catch {
+              /* ignore */
+            }
+          }
+          return w;
+        });
+        // Remove resize cursor from body
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      };
 
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    // Prevent text selection and set global resize cursor during drag
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-  }, [sidebarWidth]);
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+      // Prevent text selection and set global resize cursor during drag
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+    },
+    [sidebarWidth],
+  );
 
   const applyTheme = useCallback((mode) => {
     const isDark =
-      mode === 'dark' ||
-      (mode === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+      mode === "dark" ||
+      (mode === "system" &&
+        window.matchMedia &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.setAttribute(
+      "data-theme",
+      isDark ? "dark" : "light",
+    );
   }, []);
 
   useEffect(() => {
@@ -93,23 +113,26 @@ function App() {
       frame = requestAnimationFrame(() => {
         const height = window.visualViewport?.height || window.innerHeight;
         if (height) {
-          document.documentElement.style.setProperty('--app-viewport-height', `${height}px`);
+          document.documentElement.style.setProperty(
+            "--app-viewport-height",
+            `${height}px`,
+          );
         }
       });
     };
 
     syncViewportHeight();
-    window.visualViewport?.addEventListener('resize', syncViewportHeight);
-    window.visualViewport?.addEventListener('scroll', syncViewportHeight);
-    window.addEventListener('resize', syncViewportHeight);
-    window.addEventListener('orientationchange', syncViewportHeight);
+    window.visualViewport?.addEventListener("resize", syncViewportHeight);
+    window.visualViewport?.addEventListener("scroll", syncViewportHeight);
+    window.addEventListener("resize", syncViewportHeight);
+    window.addEventListener("orientationchange", syncViewportHeight);
 
     return () => {
       cancelAnimationFrame(frame);
-      window.visualViewport?.removeEventListener('resize', syncViewportHeight);
-      window.visualViewport?.removeEventListener('scroll', syncViewportHeight);
-      window.removeEventListener('resize', syncViewportHeight);
-      window.removeEventListener('orientationchange', syncViewportHeight);
+      window.visualViewport?.removeEventListener("resize", syncViewportHeight);
+      window.visualViewport?.removeEventListener("scroll", syncViewportHeight);
+      window.removeEventListener("resize", syncViewportHeight);
+      window.removeEventListener("orientationchange", syncViewportHeight);
     };
   }, []);
 
@@ -121,7 +144,7 @@ function App() {
         setCurrentConversationId(convs[0].id);
       }
     } catch (error) {
-      console.error('Failed to load conversations:', error);
+      console.error("Failed to load conversations:", error);
     }
   }
 
@@ -130,7 +153,7 @@ function App() {
       const data = await api.getSettings();
       setSettings(data);
     } catch (error) {
-      console.error('Failed to load settings:', error);
+      console.error("Failed to load settings:", error);
     }
   }
 
@@ -140,7 +163,18 @@ function App() {
       setModelCatalog(data.models || []);
       setModelPresets(data.presets || []);
     } catch (error) {
-      console.error('Failed to load model catalog:', error);
+      console.error("Failed to load model catalog:", error);
+    }
+  }
+
+  async function loadOpenRouterStatus() {
+    try {
+      const status = await api.getOpenRouterIntegration();
+      setOpenRouterStatus(status);
+      return status;
+    } catch (error) {
+      console.error("Failed to load OpenRouter integration:", error);
+      return null;
     }
   }
 
@@ -150,7 +184,7 @@ function App() {
       setSettings(updated);
       return updated;
     } catch (error) {
-      console.error('Failed to save settings:', error);
+      console.error("Failed to save settings:", error);
       throw error;
     }
   };
@@ -158,50 +192,27 @@ function App() {
   const handleSaveCustomGroup = async (group) => {
     const groups = settings?.custom_model_groups || [];
     const existingIndex = groups.findIndex((item) => item.id === group.id);
-    const nextGroups = existingIndex >= 0
-      ? groups.map((item) => (item.id === group.id ? group : item))
-      : [...groups, group];
-    const updated = await handleSaveSettings({ custom_model_groups: nextGroups });
+    const nextGroups =
+      existingIndex >= 0
+        ? groups.map((item) => (item.id === group.id ? group : item))
+        : [...groups, group];
+    const updated = await handleSaveSettings({
+      custom_model_groups: nextGroups,
+    });
     return updated;
   };
 
   const openIntegrationsPanel = () => {
     setShowModelPicker(false);
-    setSidebarSettingsRequest({ section: 'integrations', requestedAt: Date.now() });
+    setSidebarSettingsRequest({
+      section: "integrations",
+      requestedAt: Date.now(),
+    });
     setIsSidebarOpen(true);
   };
 
-  const handleLogin = async (email, password) => {
-    const me = await api.login(email, password);
-    setAuthState({ loading: false, ...me });
-    setCurrentConversationId(null);
-    setCurrentConversation(null);
-    setActiveRunId(null);
-    await loadConversations();
-    await loadSettings();
-    await loadModelCatalog();
-  };
-
-  const handleSignup = async (payload) => {
-    return api.signup(payload);
-  };
-
-  const handleSignupContinue = async (me) => {
-    setAuthState({ loading: false, ...me });
-    setConversations([]);
-    setCurrentConversationId(null);
-    setCurrentConversation(null);
-    setActiveRunId(null);
-    await loadSettings();
-    await loadModelCatalog();
-  };
-
-  const handleResetPassword = async (email, resetToken, newPassword) => {
-    const me = await api.resetPassword(email, resetToken, newPassword);
-    setAuthState({ loading: false, ...me });
-    await loadConversations();
-    await loadSettings();
-    await loadModelCatalog();
+  const handleGoogleLogin = () => {
+    api.loginWithGoogle();
   };
 
   const handleLogout = async () => {
@@ -217,14 +228,8 @@ function App() {
     setCurrentConversation(null);
     setActiveRunId(null);
     setIsLoading(false);
-    setSendError('');
+    setSendError("");
     localStorage.removeItem(STORAGE_KEY);
-  };
-
-  const handleChangePassword = async (currentPassword, newPassword) => {
-    await api.changePassword(currentPassword, newPassword);
-    const me = await api.getAuthMe();
-    setAuthState({ loading: false, ...me });
   };
 
   async function loadConversation(id) {
@@ -232,7 +237,7 @@ function App() {
       const conv = await api.getConversation(id);
       setCurrentConversation(conv);
     } catch (error) {
-      console.error('Failed to load conversation:', error);
+      console.error("Failed to load conversation:", error);
     }
   }
 
@@ -240,19 +245,22 @@ function App() {
     setCurrentConversation((prev) => {
       if (!prev) return prev;
       const messages = [...prev.messages];
-      const idx = messages.findIndex((m) => m.role === 'assistant' && m.run_id === run.run_id);
-      const costSummary = run.cost_summary || run.stage2?.metadata?.cost_summary || null;
+      const idx = messages.findIndex(
+        (m) => m.role === "assistant" && m.run_id === run.run_id,
+      );
+      const costSummary =
+        run.cost_summary || run.stage2?.metadata?.cost_summary || null;
       const metadata = costSummary
         ? { ...(run.stage2?.metadata || {}), cost_summary: costSummary }
-        : (run.stage2?.metadata || null);
+        : run.stage2?.metadata || null;
       const loading = {
-        stage1: run.stage1?.status === 'running',
-        stage2: run.stage2?.status === 'running',
-        stage3: run.stage3?.status === 'running',
+        stage1: run.stage1?.status === "running",
+        stage2: run.stage2?.status === "running",
+        stage3: run.stage3?.status === "running",
       };
 
       const assistantMsg = {
-        role: 'assistant',
+        role: "assistant",
         run_id: run.run_id,
         stage1: run.stage1?.data || null,
         stage2: run.stage2?.data || null,
@@ -260,7 +268,10 @@ function App() {
         metadata,
         cost_summary: costSummary,
         loading,
-        error: run.status === 'failed' ? (run.error || 'An unknown error occurred') : null,
+        error:
+          run.status === "failed"
+            ? run.error || "An unknown error occurred"
+            : null,
       };
 
       if (idx === -1) messages.push(assistantMsg);
@@ -276,7 +287,11 @@ function App() {
 
     await api.waitForRun(conversationId, runId, (run) => {
       syncConversationWithRun(run);
-      if (run.status === 'complete' || run.status === 'failed' || run.status === 'canceled') {
+      if (
+        run.status === "complete" ||
+        run.status === "failed" ||
+        run.status === "canceled"
+      ) {
         setIsLoading(false);
         setActiveRunId(null);
       }
@@ -287,7 +302,7 @@ function App() {
   }
 
   useEffect(() => {
-    applyTheme(settings?.theme_mode || 'system');
+    applyTheme(settings?.theme_mode || "system");
   }, [settings?.theme_mode, applyTheme]);
 
   useEffect(() => {
@@ -299,16 +314,18 @@ function App() {
           loadConversations();
           loadSettings();
           loadModelCatalog();
+          loadOpenRouterStatus();
           try {
-            const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-            if (saved.currentConversationId) setCurrentConversationId(saved.currentConversationId);
+            const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+            if (saved.currentConversationId)
+              setCurrentConversationId(saved.currentConversationId);
             if (saved.activeRunId) setActiveRunId(saved.activeRunId);
           } catch {
             // ignore
           }
         }
       } catch (error) {
-        console.error('Failed to check auth status:', error);
+        console.error("Failed to check auth status:", error);
         setAuthState({
           loading: false,
           authenticated: false,
@@ -324,7 +341,7 @@ function App() {
   useEffect(() => {
     localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ currentConversationId, activeRunId })
+      JSON.stringify({ currentConversationId, activeRunId }),
     );
   }, [currentConversationId, activeRunId]);
 
@@ -342,7 +359,7 @@ function App() {
           await monitorRun(currentConversationId, run.run_id);
         }
       } catch (error) {
-        if (!canceled) console.error('Failed to refresh conversation:', error);
+        if (!canceled) console.error("Failed to refresh conversation:", error);
       }
     };
 
@@ -356,13 +373,18 @@ function App() {
     try {
       const newConv = await api.createConversation();
       setConversations([
-        { id: newConv.id, created_at: newConv.created_at, message_count: 0, title: newConv.title },
+        {
+          id: newConv.id,
+          created_at: newConv.created_at,
+          message_count: 0,
+          title: newConv.title,
+        },
         ...conversations,
       ]);
       setCurrentConversationId(newConv.id);
       setIsSidebarOpen(false);
     } catch (error) {
-      console.error('Failed to create conversation:', error);
+      console.error("Failed to create conversation:", error);
     }
   };
 
@@ -379,12 +401,13 @@ function App() {
         await loadConversation(id);
       }
     } catch (error) {
-      console.error('Failed to pin conversation:', error);
+      console.error("Failed to pin conversation:", error);
     }
   };
 
   const handleDeleteConversation = async (id) => {
-    if (!window.confirm('Delete this conversation? This cannot be undone.')) return;
+    if (!window.confirm("Delete this conversation? This cannot be undone."))
+      return;
 
     try {
       await api.deleteConversation(id);
@@ -394,7 +417,7 @@ function App() {
       }
       await loadConversations();
     } catch (error) {
-      console.error('Failed to delete conversation:', error);
+      console.error("Failed to delete conversation:", error);
     }
   };
 
@@ -407,26 +430,26 @@ function App() {
       await loadConversation(currentConversationId);
       await loadConversations();
     } catch (error) {
-      console.error('Failed to stop run:', error);
+      console.error("Failed to stop run:", error);
     }
   };
 
   const handleSendMessage = async (content) => {
     if (!currentConversationId || isLoading) return;
-    setSendError('');
+    setSendError("");
 
     // Optimistic user message only; assistant progress comes from run snapshots
     setCurrentConversation((prev) => ({
       ...prev,
-      messages: [...(prev?.messages || []), { role: 'user', content }],
+      messages: [...(prev?.messages || []), { role: "user", content }],
     }));
 
     try {
       const created = await api.createRun(currentConversationId, content);
       await monitorRun(currentConversationId, created.run_id);
     } catch (error) {
-      console.error('Failed to send message:', error);
-      setSendError(error.message || 'Failed to send message');
+      console.error("Failed to send message:", error);
+      setSendError(error.message || "Failed to send message");
       setIsLoading(false);
     }
   };
@@ -441,14 +464,7 @@ function App() {
   }
 
   if (authState.auth_required && !authState.authenticated) {
-    return (
-      <LoginScreen
-        onLogin={handleLogin}
-        onSignup={handleSignup}
-        onSignupContinue={handleSignupContinue}
-        onResetPassword={handleResetPassword}
-      />
-    );
+    return <LoginScreen onGoogleLogin={handleGoogleLogin} />;
   }
 
   const modelMap = new Map(modelCatalog.map((model) => [model.id, model]));
@@ -467,7 +483,7 @@ function App() {
         onThemePreview={applyTheme}
         auth={authState}
         onLogout={handleLogout}
-        onChangePassword={handleChangePassword}
+        onOpenRouterStatusChanged={setOpenRouterStatus}
         isOpen={isSidebarOpen}
         settingsRequest={sidebarSettingsRequest}
         onSettingsRequestHandled={() => setSidebarSettingsRequest(null)}
@@ -475,7 +491,12 @@ function App() {
         onResizeStart={handleResizeStart}
       />
 
-      {isSidebarOpen && <div className="mobile-backdrop" onClick={() => setIsSidebarOpen(false)} />}
+      {isSidebarOpen && (
+        <div
+          className="mobile-backdrop"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
 
       <div className="chat-shell">
         <AppTopBar
@@ -497,6 +518,7 @@ function App() {
           settings={settings}
           onOpenModels={() => setShowModelPicker(true)}
           onOpenIntegrations={openIntegrationsPanel}
+          openRouterStatus={openRouterStatus}
           modelMap={modelMap}
           presets={modelPresets}
         />
@@ -505,8 +527,8 @@ function App() {
       <ModelPicker
         open={showModelPicker}
         selectedCouncil={settings?.council_models || []}
-        selectedChairman={settings?.chairman_model || ''}
-        activeGroupId={settings?.active_model_group_id || ''}
+        selectedChairman={settings?.chairman_model || ""}
+        activeGroupId={settings?.active_model_group_id || ""}
         customGroups={settings?.custom_model_groups || []}
         onApply={async (patch) => {
           await handleSaveSettings(patch);

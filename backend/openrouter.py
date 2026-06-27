@@ -726,8 +726,63 @@ def _is_openrouter_model(model: str) -> bool:
 async def query_model(
     model: str,
     messages: List[Dict[str, str]],
-    timeout: float = 120.0
+    timeout: float = 120.0,
+    max_tokens: Optional[int] = None,
 ) -> Optional[Dict[str, Any]]:
+    result = await query_model_detailed(model, messages, timeout=timeout, max_tokens=max_tokens)
+    return result.get("response")
+
+
+def _truncate_error_message(message: Any, limit: int = 500) -> str:
+    text = str(message or "").replace("\n", " ").strip()
+    return text[:limit]
+
+
+def _model_call_diagnostic(
+    model: str,
+    provider_source: str,
+    error_type: str,
+    timeout: float,
+    message: Any = "",
+    status_code: Optional[int] = None,
+    normalized_model: Optional[str] = None,
+    prior_sources: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
+    diagnostic = {
+        "requested_model": model,
+        "provider_source": provider_source,
+        "error_type": error_type,
+        "message": _truncate_error_message(message),
+        "timeout_seconds": timeout,
+    }
+    if normalized_model:
+        diagnostic["normalized_model"] = normalized_model
+    if status_code is not None:
+        diagnostic["status_code"] = status_code
+    if prior_sources:
+        diagnostic["prior_sources"] = prior_sources
+    return diagnostic
+
+
+def _http_error_body(response: httpx.Response) -> str:
+    try:
+        payload = response.json()
+    except Exception:
+        return response.text
+    if isinstance(payload, dict):
+        error = payload.get("error")
+        if isinstance(error, dict):
+            return error.get("message") or error.get("code") or payload
+        return payload.get("message") or payload.get("detail") or payload
+    return str(payload)
+
+
+async def query_model_detailed(
+    model: str,
+    messages: List[Dict[str, str]],
+    timeout: float = 120.0,
+    max_tokens: Optional[int] = None,
+) -> Dict[str, Any]:
     """
     Query a single model — via OpenClaw local proxy if available, else OpenRouter direct.
 
@@ -735,16 +790,39 @@ async def query_model(
         model: Model identifier (openclaw full id, alias, or bare openrouter id)
         messages: List of message dicts with 'role' and 'content'
         timeout: Request timeout in seconds
+        max_tokens: Optional output token cap
 
     Returns:
-        Response dict with 'content' and optional 'reasoning_details', or None if failed
+        Dict with response plus a sanitized failure diagnostic when no response is available.
     """
+    diagnostics = []
+
     # --- Try OpenClaw local proxy first ---
     gateway_token = _get_gateway_token()
     if gateway_token:
-        result = await query_openclaw(model, messages, timeout=timeout)
-        if result is not None:
-            return result
+        try:
+            result = await query_openclaw(model, messages, timeout=timeout, max_tokens=max_tokens)
+            if result is not None:
+                return {"response": result, "diagnostic": None}
+            diagnostics.append(
+                _model_call_diagnostic(
+                    model,
+                    "openclaw_proxy",
+                    "empty_or_failed_response",
+                    timeout,
+                    "OpenClaw proxy returned no usable response.",
+                )
+            )
+        except Exception as e:
+            diagnostics.append(
+                _model_call_diagnostic(
+                    model,
+                    "openclaw_proxy",
+                    type(e).__name__,
+                    timeout,
+                    e,
+                )
+            )
         print(f"[openrouter] OpenClaw proxy failed for {model}, trying OpenRouter direct…")
 
     # --- Fall back to OpenRouter direct API ---
@@ -752,14 +830,34 @@ async def query_model(
     direct_api_key = scoped_api_key or OPENROUTER_API_KEY
     if not direct_api_key:
         print(f"[openrouter] No OPENROUTER_API_KEY and local proxy unavailable — cannot query {model}")
-        return None
+        return {
+            "response": None,
+            "diagnostic": _model_call_diagnostic(
+                model,
+                "openrouter_direct",
+                "missing_api_key",
+                timeout,
+                "No OpenRouter API key was available for this account scope.",
+                prior_sources=diagnostics,
+            ),
+        }
 
     if not scoped_api_key:
         owner_email = (os.getenv("OPENROUTER_OWNER_EMAIL") or os.getenv("ADMIN_EMAIL") or "").lower().strip()
         active_email = (_OPENROUTER_ACCOUNT_SCOPE.get() or "").lower().strip()
         if owner_email and active_email != owner_email:
             print(f"[openrouter] Direct OpenRouter key is owner-scoped; refusing query for {model}")
-            return None
+            return {
+                "response": None,
+                "diagnostic": _model_call_diagnostic(
+                    model,
+                    "openrouter_direct",
+                    "owner_scoped_key_refused",
+                    timeout,
+                    "Server OpenRouter key is owner-scoped and was not available for this account.",
+                    prior_sources=diagnostics,
+                ),
+            }
 
     headers = {
         "Authorization": f"Bearer {direct_api_key}",
@@ -773,6 +871,8 @@ async def query_model(
         "model": normalized_model,
         "messages": messages,
     }
+    if max_tokens is not None:
+        payload["max_tokens"] = max_tokens
 
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
@@ -789,20 +889,90 @@ async def query_model(
             usage = normalize_usage(data.get("usage"))
 
             return {
-                'content': message.get('content'),
-                'reasoning_details': message.get('reasoning_details'),
-                "provider_source": "openrouter_direct",
-                "requested_model": model,
-                "resolved_model": data.get("model") or normalized_model,
-                "generation_id": data.get("id"),
-                "usage": usage,
-                "finish_reason": choice.get("finish_reason"),
-                "native_finish_reason": choice.get("native_finish_reason"),
+                "response": {
+                    'content': message.get('content'),
+                    'reasoning_details': message.get('reasoning_details'),
+                    "provider_source": "openrouter_direct",
+                    "requested_model": model,
+                    "resolved_model": data.get("model") or normalized_model,
+                    "generation_id": data.get("id"),
+                    "usage": usage,
+                    "finish_reason": choice.get("finish_reason"),
+                    "native_finish_reason": choice.get("native_finish_reason"),
+                },
+                "diagnostic": None,
             }
 
+    except httpx.HTTPStatusError as e:
+        print(f"[openrouter] Error querying model {model} direct: {e}")
+        return {
+            "response": None,
+            "diagnostic": _model_call_diagnostic(
+                model,
+                "openrouter_direct",
+                "http_status",
+                timeout,
+                _http_error_body(e.response),
+                status_code=e.response.status_code,
+                normalized_model=normalized_model,
+                prior_sources=diagnostics,
+            ),
+        }
+    except httpx.TimeoutException as e:
+        print(f"[openrouter] Timeout querying model {model} direct: {e}")
+        return {
+            "response": None,
+            "diagnostic": _model_call_diagnostic(
+                model,
+                "openrouter_direct",
+                "timeout",
+                timeout,
+                e or f"Timed out after {timeout} seconds.",
+                normalized_model=normalized_model,
+                prior_sources=diagnostics,
+            ),
+        }
+    except httpx.RequestError as e:
+        print(f"[openrouter] Request error querying model {model} direct: {e}")
+        return {
+            "response": None,
+            "diagnostic": _model_call_diagnostic(
+                model,
+                "openrouter_direct",
+                type(e).__name__,
+                timeout,
+                e,
+                normalized_model=normalized_model,
+                prior_sources=diagnostics,
+            ),
+        }
     except Exception as e:
         print(f"[openrouter] Error querying model {model} direct: {e}")
-        return None
+        return {
+            "response": None,
+            "diagnostic": _model_call_diagnostic(
+                model,
+                "openrouter_direct",
+                type(e).__name__,
+                timeout,
+                e,
+                normalized_model=normalized_model,
+                prior_sources=diagnostics,
+            ),
+        }
+
+    return {
+        "response": None,
+        "diagnostic": _model_call_diagnostic(
+            model,
+            "openrouter_direct",
+            "empty_response",
+            timeout,
+            "OpenRouter returned no usable response.",
+            normalized_model=normalized_model,
+            prior_sources=diagnostics,
+        ),
+    }
 
 
 async def fetch_generation_metadata(
@@ -979,7 +1149,9 @@ async def fetch_available_models() -> List[str]:
 
 async def query_models_parallel(
     models: List[str],
-    messages: List[Dict[str, str]]
+    messages: List[Dict[str, str]],
+    timeout: float = 120.0,
+    max_tokens: Optional[int] = None,
 ) -> Dict[str, Optional[Dict[str, Any]]]:
     """
     Query multiple models in parallel.
@@ -987,6 +1159,8 @@ async def query_models_parallel(
     Args:
         models: List of model identifiers
         messages: List of message dicts to send to each model
+        timeout: Per-model request timeout in seconds
+        max_tokens: Optional output token cap
 
     Returns:
         Dict mapping model identifier to response dict (or None if failed)
@@ -994,7 +1168,7 @@ async def query_models_parallel(
     import asyncio
 
     # Create tasks for all models
-    tasks = [query_model(model, messages) for model in models]
+    tasks = [query_model(model, messages, timeout=timeout, max_tokens=max_tokens) for model in models]
 
     # Wait for all to complete
     responses = await asyncio.gather(*tasks)

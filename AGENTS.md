@@ -21,6 +21,8 @@ Use these files in this order:
 4. `TASKS.md` for active and upcoming work.
 5. `docs/agent-handoff.md` for current state and resume context.
 6. `docs/brand/brand-guidelines.md` for visual identity and brand constraints.
+7. `JOSH_SITE_DEPLOYMENT.md` before changing production routing, Vercel config,
+   auth redirects, hosted storage, or deployment behavior.
 
 If these conflict with code reality, inspect the code and update the docs as part of the work.
 
@@ -69,8 +71,8 @@ Current split:
 - Persists conversations, runs, settings, auth users, sessions, and login attempt counters.
 
 **`auth.py`**
-- Single-owner auth for hosted web use.
-- Uses PBKDF2-SHA256 password hashes, HttpOnly session cookies, session invalidation on password change, and Redis-backed login rate limiting when Redis is active.
+- Google-only auth for hosted web use.
+- Uses verified Google email identity, HttpOnly session cookies, and OAuth state validation. Legacy password routes intentionally return `403`.
 
 **`main.py`**
 - FastAPI app.
@@ -100,7 +102,7 @@ Current split:
 - Final synthesized answer and copy-to-clipboard controls.
 
 **`components/Sidebar.jsx`**
-- Conversations, settings, model picker, chairman picker, theme, and account/password controls.
+- Conversations, settings, model picker, chairman picker, theme, Google account, and OpenRouter integration controls.
 
 ## Key Design Decisions
 
@@ -129,6 +131,9 @@ The parser falls back to extracting `Response X` patterns if a model partially m
 - `main` remains optimized for local OpenClaw/self-hosted LAN usage.
 - `web/vercel` contains the hosted Vercel adaptation.
 - Vercel requires Redis-backed persistence and synchronous council execution.
+- The hosted app is mounted at `https://joshadland.com/llm-council` through the
+  `josh-site` front-door repo. Read `JOSH_SITE_DEPLOYMENT.md` before changing
+  routing or production deployment behavior.
 
 ## Commands
 

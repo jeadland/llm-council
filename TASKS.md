@@ -15,7 +15,7 @@ Push `web/vercel`, configure Vercel/Upstash/OpenRouter environment variables, de
 User-visible behavior:
 
 - Hosted app shows login before any conversation data.
-- Josh can log in, reset/change password, and use the council.
+- Josh can log in with Google and use the council.
 - Conversations/settings persist through reload.
 
 Relevant files:
@@ -31,8 +31,8 @@ Acceptance criteria:
 
 - [ ] User-facing behavior: login wall appears on hosted preview.
 - [ ] Data or persistence behavior: conversation/settings survive reload and redeploy.
-- [ ] Loading, empty, error, and permission states: unauthenticated API returns `401`; failed login shows clear error.
-- [ ] Password recovery: reset form accepts owner recovery code, sets a new password, and rejects the old password.
+- [ ] Loading, empty, error, and permission states: unauthenticated API returns `401`; Google auth errors show clear error.
+- [ ] Password routes: signup, login, reset, and change-password return `403` with the Google-only message.
 - [ ] Mobile/responsive behavior: login and main app usable on phone width.
 - [ ] What must not change: `main` remains local/OpenClaw branch.
 
@@ -61,13 +61,16 @@ Notes:
 
 - Do not commit or print real secrets.
 - Set Vercel production branch to `web/vercel`, not `main`.
-- Set `ADMIN_PASSWORD_RESET_TOKEN` to a long random secret before relying on hosted password recovery.
+- Do not rely on `ADMIN_PASSWORD_RESET_TOKEN`; hosted password recovery is superseded by Google-only login.
 
 ## Next
 
+- Configure Google OAuth env vars in Vercel and register callback URLs in Google Cloud.
+- Smoke Google OAuth with a disposable non-owner account: login, OpenRouter missing-key block, key save, run unblocked.
 - Validate the redesigned top model bar and curated/custom picker on hosted preview.
 - Validate weekly model curation cron on hosted preview: draft creation, app-core curator promotion, Redis state persistence, and review-gated preset approval.
-- Validate BYOK signup on hosted preview with a disposable OpenRouter key.
+- Validate OpenRouter key save on hosted preview with a disposable account key.
+- Add durable council-run resume/queueing so incomplete Stage 2 reviewers can continue after process restarts, browser disconnects, or Vercel function timeouts.
 - Add automated backend tests for auth hash/session behavior.
 - Add a documented Vercel deploy checklist with exact env var setup steps.
 - Decide whether hosted runs need queue/progress architecture if sync runs time out.
@@ -75,7 +78,7 @@ Notes:
 ## Later
 
 - Email confirmation and recovery:
-  - User-facing behavior: users confirm email and recover passwords without owner intervention.
+  - User-facing behavior: users confirm email and recover account access without owner intervention if a non-Google auth path is reintroduced.
   - Data or persistence behavior: confirmation and reset tokens are single-use and server-side only.
   - What must not change: BYOK remains required for non-owner model access.
 - OpenRouter OAuth connect:
@@ -102,7 +105,8 @@ Notes:
 
 ## Completed
 
+- 2026-06-24: Switched hosted auth to Google-only while preserving BYOK model-access gating.
 - 2026-06-24: Added top-level model bar, richer curated/custom model picker, owner-scoped OpenRouter key handling, cost estimates, and reviewable weekly curation draft endpoints.
-- 2026-06-24: Added no-invite BYOK signup foundation with OpenRouter tutorial, account confirmation, per-user data scoping, key masking, and non-owner server-key fallback protection.
-- 2026-06-24: Added Vercel web branch implementation with Redis storage, private auth, password change, and sync run mode. Commit: `4892cb6`.
+- 2026-06-24: Added no-invite BYOK foundation with per-user data scoping, key masking, and non-owner server-key fallback protection.
+- 2026-06-24: Added Vercel web branch implementation with Redis storage, private auth, and sync run mode. Commit: `4892cb6`.
 - 2026-06-24: Added project-bootstrap workflow docs and Cursor/GitHub templates.

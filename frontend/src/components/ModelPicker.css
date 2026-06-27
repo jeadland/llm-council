@@ -664,7 +664,7 @@
 }
 
 .curation-draft-meta span,
-.curation-preset-preview div {
+.curation-preset-card {
   padding: 9px;
   border: 1px solid #edf1f6;
   border-radius: 7px;
@@ -681,6 +681,13 @@
 .curation-preset-preview span {
   margin-top: 4px;
   color: #6f7a8e;
+}
+
+.curation-preset-models {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
 }
 
 .curation-draft ul {
@@ -856,7 +863,7 @@
 :root[data-theme='dark'] .model-picker-pill,
 :root[data-theme='dark'] .model-row-tags span,
 :root[data-theme='dark'] .curation-draft-meta span,
-:root[data-theme='dark'] .curation-preset-preview div,
+:root[data-theme='dark'] .curation-preset-card,
 :root[data-theme='dark'] .model-filters input,
 :root[data-theme='dark'] .model-filters select {
   background: #11151d;

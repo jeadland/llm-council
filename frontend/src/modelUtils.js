@@ -7,6 +7,87 @@ export function displayModelName(modelId, modelMap) {
   return model?.name || shortModelName(modelId);
 }
 
+export function formatCurationText(value, fallback = '') {
+  if (value === null || value === undefined || value === '') return fallback;
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) {
+    return value.map((item) => formatCurationText(item)).filter(Boolean).join('; ') || fallback;
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return fallback;
+  }
+}
+
+export function formatCurationList(value) {
+  if (value === null || value === undefined || value === '') return [];
+  const values = Array.isArray(value) ? value : [value];
+  return values.map((item) => formatCurationText(item)).filter(Boolean);
+}
+
+export function formatCurationCost(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return null;
+  return `$${numericValue.toFixed(4)}`;
+}
+
+export function abbreviateModelName(modelId, modelMap) {
+  const label = displayModelName(modelId, modelMap)
+    .replace(/^.*?:\s*/, '')
+    .replace(/\s*\([^)]*\)\s*/g, ' ')
+    .trim();
+  const normalized = label.toLowerCase();
+
+  if (!label) return '';
+
+  const version = label.match(/\b(\d+(?:\.\d+)*)\b/);
+  const versionLabel = version?.[1] || '';
+
+  if (normalized.includes('gpt')) {
+    return versionLabel ? `GPT-${versionLabel}` : 'GPT';
+  }
+  if (normalized.includes('gemini')) {
+    return versionLabel ? `Gemini ${versionLabel}` : 'Gemini';
+  }
+  if (normalized.includes('claude')) {
+    if (normalized.includes('sonnet')) {
+      return versionLabel ? `Sonnet ${versionLabel}` : 'Sonnet';
+    }
+    if (normalized.includes('opus')) {
+      return versionLabel ? `Opus ${versionLabel}` : 'Opus';
+    }
+    if (normalized.includes('haiku')) {
+      return versionLabel ? `Haiku ${versionLabel}` : 'Haiku';
+    }
+    return 'Claude';
+  }
+  if (normalized.includes('grok')) {
+    return versionLabel ? `Grok ${versionLabel}` : 'Grok';
+  }
+  if (normalized.includes('deepseek')) {
+    return 'DeepSeek';
+  }
+  if (normalized.includes('llama')) {
+    return versionLabel ? `Llama ${versionLabel}` : 'Llama';
+  }
+  if (normalized.includes('mistral')) {
+    return 'Mistral';
+  }
+  if (normalized.includes('qwen')) {
+    return 'Qwen';
+  }
+
+  const fallback = shortModelName(modelId) || label;
+  return fallback
+    .replace(/[-_]+/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+    .slice(0, 18)
+    .trim();
+}
+
 export function sameModelSet(left = [], right = []) {
   const leftSet = new Set(left);
   const rightSet = new Set(right);

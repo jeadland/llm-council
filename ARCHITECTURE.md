@@ -13,7 +13,7 @@ LLM Council is a React + FastAPI app that asks multiple LLMs the same user quest
 | Backend | FastAPI | Local uvicorn or Vercel Python Function |
 | Model API | OpenClaw local proxy + OpenRouter direct | OpenClaw first locally; OpenRouter direct for Vercel |
 | Persistence | JSON files locally; Upstash Redis on Vercel | Selected by env |
-| Auth | Owner email/password plus BYOK user signup | Required in hosted mode |
+| Auth | Google-only hosted sign-in plus BYOK OpenRouter integration | Required in hosted mode |
 | Package managers | `uv` and `npm` | Python backend, JS frontend |
 | Deployment | Local LAN, Vercel | `main` for local/OpenClaw, `web/vercel` for hosted |
 
@@ -42,7 +42,7 @@ docs/                  Agent handoff and brand guidance
 | Integration credential | Per-user OpenRouter API key status and server-side secret | `data/integrations.json` locally; Redis key on Vercel |
 | Model curation state | App-core curator model and promotion history | `data/model-curation-state.json` locally; Redis key on Vercel |
 | Model curation draft | Reviewable weekly curated-preset recommendation | `data/model-curation-drafts.json` locally; Redis keys on Vercel |
-| Auth user | Email, optional name, role, and password hash | `data/auth-users.json` locally; Redis on Vercel |
+| Auth user | Email, optional name, role, disabled legacy password hash when present, and OAuth account metadata | `data/auth-users.json` locally; Redis on Vercel |
 | Session | HttpOnly-cookie session backing record | `data/auth-sessions/` locally; Redis with TTL on Vercel |
 
 Persistence changes are high-risk. Do not change storage shape or key format without documenting the migration in `DECISIONS.md`.
@@ -50,14 +50,14 @@ Persistence changes are high-risk. Do not change storage shape or key format wit
 ## Request Flow
 
 1. Frontend calls `/api/auth/me`.
-2. If auth is required and no session exists, show sign-in/create-account/reset screen.
-3. New users sign up with optional name, required email/password, and required OpenRouter key.
+2. If auth is required and no session exists, show the Google-only sign-in screen.
+3. Users sign in with Google; non-owner users add an OpenRouter key later through API & Integrations.
 4. Authenticated user creates/selects a conversation in their own scope.
 5. Sending a message creates a user-scoped run.
 6. Non-owner runs require a saved account OpenRouter key and never fall back to the server owner key.
 7. Stage 1 queries council models in parallel.
-8. Stage 2 anonymizes Stage 1 answers and asks models to rank responses.
-9. Stage 3 asks chairman to synthesize a final answer.
+8. Stage 2 anonymizes Stage 1 answers, asks every configured council model to rank responses, retries missing reviewers, and persists progress as rankings arrive.
+9. Stage 3 asks chairman to synthesize a final answer only after every expected Stage 2 reviewer returns a usable ranking.
 10. Frontend displays all stages and metadata.
 
 Local mode uses background run tasks and polling. Vercel mode uses `RUN_EXECUTION_MODE=sync`, so the create-run request completes the full council run in one function invocation.
@@ -68,11 +68,13 @@ Local mode uses background run tasks and polling. Vercel mode uses `RUN_EXECUTIO
 | --- | --- |
 | `/` | Frontend app |
 | `/api/auth/me` | Auth/session state |
-| `/api/auth/signup` | Create BYOK user account, validate OpenRouter key, create session |
-| `/api/auth/login` | Create session |
+| `/api/auth/signup` | Disabled; returns 403 because hosted auth is Google-only |
+| `/api/auth/login` | Disabled; returns 403 because hosted auth is Google-only |
+| `/api/auth/oauth/google/start` | Redirect unauthenticated users to Google OAuth |
+| `/api/auth/oauth/google/callback` | Exchange Google OAuth code, verify email, link/create non-owner account, create session |
 | `/api/auth/logout` | Delete session |
-| `/api/auth/change-password` | Rotate password and invalidate old sessions |
-| `/api/auth/reset-password` | Create/reset owner password with recovery code and invalidate old sessions |
+| `/api/auth/change-password` | Disabled; returns 403 because hosted auth is Google-only |
+| `/api/auth/reset-password` | Disabled; returns 403 because hosted auth is Google-only |
 | `/api/settings` | Read/update active model group, custom groups, chairman, and theme settings |
 | `/api/integrations/openrouter` | Read masked OpenRouter key status and save/clear the current user's account key |
 | `/api/models/status` | Safe model-provider status booleans and catalog reachability |
@@ -92,6 +94,11 @@ Local mode uses background run tasks and polling. Vercel mode uses `RUN_EXECUTIO
 | --- | --- | --- |
 | `OPENROUTER_API_KEY` | Vercel/direct mode | Direct OpenRouter calls, scoped to owner account in hosted mode |
 | `OPENROUTER_OWNER_EMAIL` | Optional hosted | Overrides `ADMIN_EMAIL` as the account allowed to use the server OpenRouter key |
+| `GOOGLE_OAUTH_CLIENT_ID` | Hosted Google login | Google OAuth client ID |
+| `GOOGLE_OAUTH_CLIENT_SECRET` | Hosted Google login | Google OAuth client secret |
+| `GOOGLE_OAUTH_REDIRECT_URI` | Hosted Google login | Callback URL, usually `https://joshadland.com/llm-council/api/auth/oauth/google/callback` |
+| `OAUTH_STATE_SECRET` | Hosted Google login | HMAC secret for OAuth state validation |
+| `ALLOW_OWNER_GOOGLE_OAUTH` | Optional hosted | Defaults off; set true only when intentionally allowing the configured owner email to use Google login |
 | `MODEL_CURATION_MODEL` | Optional hosted | Initial curation model override before app-core curation state exists; default is `openrouter/auto` |
 | `MODEL_CURATION_MAX_USD` | Optional hosted | Maximum estimated spend for one curation model call, default `2.00` |
 | `CRON_SECRET` | Hosted cron | Secret Vercel sends as `Authorization: Bearer ...` for weekly curation |
@@ -102,8 +109,8 @@ Local mode uses background run tasks and polling. Vercel mode uses `RUN_EXECUTIO
 | `UPSTASH_REDIS_REST_TOKEN` or `KV_REST_API_TOKEN` | Vercel | Redis token |
 | `RUN_EXECUTION_MODE=sync` | Vercel | Avoid serverless background tasks |
 | `ADMIN_EMAIL` | Hosted auth | Single allowed owner email |
-| `ADMIN_INITIAL_PASSWORD` | Hosted auth bootstrap | Used only to create first password hash |
-| `ADMIN_PASSWORD_RESET_TOKEN` | Hosted password recovery | Owner-only recovery code for resetting password from login screen |
+| `ADMIN_INITIAL_PASSWORD` | Legacy password bootstrap | Ignored by hosted Google-only login routes |
+| `ADMIN_PASSWORD_RESET_TOKEN` | Legacy password recovery | Ignored by hosted Google-only login routes |
 | `AUTH_REQUIRED` | Optional | Force auth on/off locally |
 | `COOKIE_SECURE` | Optional local | Use `false` for local auth smoke over HTTP |
 
@@ -136,14 +143,14 @@ Hosted:
 
 - `web/vercel`
 - Vercel project production branch should be `web/vercel`.
-- Required Vercel env vars: OpenRouter, Upstash Redis, admin email/password bootstrap, sync run mode.
+- Required Vercel env vars: OpenRouter, Upstash Redis, Google OAuth, sync run mode.
 - Validate preview before production.
 
 ## High-Risk Areas
 
 | Area | Why risky | Required caution |
 | --- | --- | --- |
-| Auth | Can expose or block private app access | Smoke signup/login/logout/password change |
+| Auth | Can expose or block private app access | Smoke Google login/logout, disabled password routes, and user-scoped data |
 | Redis persistence | Can lose or cross-contaminate conversation/settings state | Verify user-scoped data survives reload/redeploy and remains isolated |
 | Vercel run mode | Council runs may exceed function duration | Test with realistic model count |
 | Model catalog | OpenClaw aliases and OpenRouter IDs differ | Verify settings output and direct query IDs |

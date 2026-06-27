@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { ClipboardCopy, Check } from 'lucide-react';
+import { AlertTriangle, Check, ClipboardCopy, Star } from 'lucide-react';
 import { formatMoney } from '../modelUtils';
 import MarkdownContent from './MarkdownContent';
 import './Stage3.css';
@@ -11,13 +11,11 @@ function CopyButton({ text }) {
   const handleCopy = useCallback(async () => {
     setError(false);
     const content = text || '';
-    console.log('[CopyButton] Attempting copy, text length:', content.length);
 
     // Try modern Clipboard API first (requires secure context: HTTPS or localhost)
     if (navigator.clipboard && window.isSecureContext) {
       try {
         await navigator.clipboard.writeText(content);
-        console.log('[CopyButton] Clipboard API succeeded');
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
         return;
@@ -43,7 +41,6 @@ function CopyButton({ text }) {
       const ok = document.execCommand('copy');
       document.body.removeChild(ta);
       if (ok) {
-        console.log('[CopyButton] execCommand fallback succeeded');
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       } else {
@@ -58,6 +55,7 @@ function CopyButton({ text }) {
 
   return (
     <button
+      type="button"
       className={`copy-synthesis-btn${error ? ' copy-error' : ''}`}
       onClick={handleCopy}
       title={error ? 'Copy failed — try selecting text manually' : 'Copy to clipboard'}
@@ -184,36 +182,27 @@ export default function Stage3({ finalResponse, costSummary }) {
       <div className="stage3-header">
         <div className="stage3-icon">
           {isFallback ? (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/>
-              <line x1="12" y1="9" x2="12" y2="13"/>
-              <line x1="12" y1="17" x2="12.01" y2="17"/>
-            </svg>
+            <AlertTriangle size={16} aria-hidden="true" />
           ) : (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
-            </svg>
+            <Star size={16} aria-hidden="true" />
           )}
         </div>
-        <div>
+        <div className="stage3-title-group">
           <h3 className="stage-title">{isFallback ? 'Partial Result' : 'Council Verdict'}</h3>
           <div className="chairman-label">
             {isFallback ? 'Chairman unavailable — ' : 'Synthesized by '}
             {formatModelLabel(finalResponse.model.split(' (')[0])}
           </div>
         </div>
+        <CopyButton text={finalResponse.response} />
       </div>
       <div className="final-response">
         <div className="final-answer-toolbar">
           <CostSummary costSummary={costSummary} />
-          <CopyButton text={finalResponse.response} />
         </div>
         <MarkdownContent className="final-text">
           {finalResponse.response}
         </MarkdownContent>
-        <div className="copy-row copy-row-bottom">
-          <CopyButton text={finalResponse.response} />
-        </div>
       </div>
     </div>
   );

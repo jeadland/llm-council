@@ -163,6 +163,31 @@ def _extract_json_object(text: str) -> Dict[str, Any]:
         return {}
 
 
+def _stringify_review_value(value: Any, fallback: str = "") -> str:
+    if value is None or value == "":
+        return fallback
+    if isinstance(value, str):
+        return value
+    if isinstance(value, (int, float, bool)):
+        return str(value)
+    if isinstance(value, list):
+        return "; ".join(
+            item for item in (_stringify_review_value(item) for item in value) if item
+        ) or fallback
+    try:
+        return json.dumps(value, sort_keys=True)
+    except Exception:
+        return fallback
+
+
+def _stringify_review_list(value: Any, fallback: List[str]) -> List[str]:
+    if value is None or value == "":
+        return fallback
+    values = value if isinstance(value, list) else [value]
+    converted = [_stringify_review_value(item) for item in values]
+    return [item for item in converted if item] or fallback
+
+
 async def create_model_curation_draft(trigger: str, owner_email: Optional[str]) -> Dict[str, Any]:
     curation_state = storage.get_model_curation_state()
     curation_model = curation_state["current_curation_model"]
@@ -230,6 +255,12 @@ async def create_model_curation_draft(trigger: str, owner_email: Optional[str]) 
     next_status = "promoted" if status == "ready" and next_validation["ok"] else "not_promoted"
 
     draft_id = str(uuid.uuid4())
+    fallback_notes = "Draft generated from the live OpenRouter catalog and current preset rules."
+    fallback_risks = [
+        "External leaderboards and provider catalogs can change after this draft is generated.",
+        "Cost estimates exclude optional web-search and provider surcharges.",
+    ]
+
     draft = {
         "id": draft_id,
         "status": status,
@@ -245,11 +276,8 @@ async def create_model_curation_draft(trigger: str, owner_email: Optional[str]) 
         "estimated_llm_cost": round(estimated_llm_cost, 4) if estimated_llm_cost is not None else None,
         "max_llm_cost": DEFAULT_MAX_USD,
         "sources": SOURCE_URLS,
-        "notes": llm_json.get("notes") or "Draft generated from the live OpenRouter catalog and current preset rules.",
-        "risks": llm_json.get("risks") or [
-            "External leaderboards and provider catalogs can change after this draft is generated.",
-            "Cost estimates exclude optional web-search and provider surcharges.",
-        ],
+        "notes": _stringify_review_value(llm_json.get("notes"), fallback_notes),
+        "risks": _stringify_review_list(llm_json.get("risks"), fallback_risks),
         "current_preset_definitions": current_preset_definitions,
         "proposed_preset_definitions": proposed_preset_definitions,
         "preset_definitions": proposed_preset_definitions,

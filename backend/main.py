@@ -2,14 +2,16 @@
 
 from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import uuid
 import json
 import asyncio
 import os
+import hmac
 import httpx
+from urllib.parse import urlencode
 
 from . import storage
 from . import auth
@@ -23,6 +25,7 @@ from .council import (
     stage2_collect_rankings,
     stage3_synthesize_final,
     calculate_aggregate_rankings,
+    format_stage2_incomplete_error,
 )
 from .openrouter import build_cost_summary, fetch_openrouter_model_catalog, reconcile_cost_calls, resolve_model_presets
 from .openrouter import use_openrouter_account_scope
@@ -62,6 +65,8 @@ app.add_middleware(SubpathPrefixMiddleware)
 RUN_TASKS: Dict[str, asyncio.Task] = {}
 PUBLIC_API_PATHS = {
     "/api/health",
+    "/api/auth/oauth/google/start",
+    "/api/auth/oauth/google/callback",
     "/api/auth/signup",
     "/api/auth/login",
     "/api/auth/logout",
@@ -70,6 +75,12 @@ PUBLIC_API_PATHS = {
     "/api/cron/model-curation",
 }
 OPENROUTER_KEY_INFO_URL = "https://openrouter.ai/api/v1/key"
+GOOGLE_AUTHORIZATION_URL = "https://accounts.google.com/o/oauth2/v2/auth"
+GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+GOOGLE_USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo"
+GOOGLE_OAUTH_PROVIDER = "google"
+GOOGLE_OAUTH_STATE_COOKIE = "llm_council_google_oauth_state"
+GOOGLE_ONLY_AUTH_DETAIL = "Email/password login is disabled. Use Google sign-in."
 
 # Enable CORS for local development
 app.add_middleware(
@@ -199,6 +210,79 @@ def _clear_session_cookie(response: Response):
     )
 
 
+def _set_oauth_state_cookie(response: Response, state: str):
+    response.set_cookie(
+        GOOGLE_OAUTH_STATE_COOKIE,
+        auth.hash_token(state),
+        max_age=auth.OAUTH_STATE_TTL_SECONDS,
+        httponly=True,
+        secure=auth.cookie_secure(),
+        samesite="lax",
+        path="/",
+    )
+
+
+def _clear_oauth_state_cookie(response: Response):
+    response.delete_cookie(
+        GOOGLE_OAUTH_STATE_COOKIE,
+        httponly=True,
+        secure=auth.cookie_secure(),
+        samesite="lax",
+        path="/",
+    )
+
+
+def _google_oauth_config() -> Dict[str, str]:
+    config = {
+        "client_id": os.getenv("GOOGLE_OAUTH_CLIENT_ID", "").strip(),
+        "client_secret": os.getenv("GOOGLE_OAUTH_CLIENT_SECRET", "").strip(),
+        "redirect_uri": os.getenv("GOOGLE_OAUTH_REDIRECT_URI", "").strip(),
+    }
+    missing = [key for key, value in config.items() if not value]
+    if missing:
+        raise HTTPException(status_code=503, detail=f"Google sign-in is missing configuration: {', '.join(missing)}")
+    if not os.getenv("OAUTH_STATE_SECRET", "").strip():
+        raise HTTPException(status_code=503, detail="Google sign-in is missing OAuth state configuration")
+    return config
+
+
+def _auth_error_redirect(message: str) -> RedirectResponse:
+    return RedirectResponse(f"{SUBPATH_PREFIX}?{urlencode({'auth_error': message})}", status_code=303)
+
+
+async def _exchange_google_code(code: str, redirect_uri: str) -> Dict[str, Any]:
+    config = _google_oauth_config()
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.post(
+            GOOGLE_TOKEN_URL,
+            data={
+                "code": code,
+                "client_id": config["client_id"],
+                "client_secret": config["client_secret"],
+                "redirect_uri": redirect_uri,
+                "grant_type": "authorization_code",
+            },
+            headers={"Accept": "application/json"},
+        )
+    if response.status_code >= 400:
+        raise HTTPException(status_code=401, detail="Google sign-in could not be completed")
+    return response.json()
+
+
+async def _fetch_google_profile(access_token: str) -> Dict[str, Any]:
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(
+            GOOGLE_USERINFO_URL,
+            headers={
+                "Accept": "application/json",
+                "Authorization": f"Bearer {access_token}",
+            },
+        )
+    if response.status_code >= 400:
+        raise HTTPException(status_code=401, detail="Google profile could not be verified")
+    return response.json()
+
+
 def _owner_email_for_request(request: Request) -> Optional[str]:
     user = auth.get_user_from_request(request)
     return user.get("email") if user else auth.admin_email()
@@ -258,6 +342,8 @@ def _auth_payload(user: Optional[Dict[str, Any]], authenticated: bool = True) ->
         "role": user.get("role") or ("owner" if auth.is_owner_email(user.get("email")) else "user"),
         "configured": True,
         "onboarding_completed": bool(user.get("onboarding_completed_at")),
+        "auth_methods": user.get("auth_methods") or (["password"] if user.get("password_hash") else []),
+        "password_auth_enabled": bool(user.get("password_hash")),
     }
 
 
@@ -294,8 +380,78 @@ async def auth_me(request: Request):
     return _auth_payload(user, authenticated=user is not None)
 
 
+@app.get("/api/auth/oauth/google/start")
+async def auth_google_start():
+    if not auth.is_auth_required():
+        raise HTTPException(status_code=400, detail="Google sign-in is available only when auth is enabled")
+
+    config = _google_oauth_config()
+    try:
+        state = auth.create_oauth_state(GOOGLE_OAUTH_PROVIDER)
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+
+    authorization_params = {
+        'client_id': config['client_id'],
+        'redirect_uri': config['redirect_uri'],
+        'response_type': 'code',
+        'scope': 'openid email profile',
+        'state': state,
+        'prompt': 'select_account',
+    }
+    authorization_url = f"{GOOGLE_AUTHORIZATION_URL}?{urlencode(authorization_params)}"
+    response = RedirectResponse(authorization_url, status_code=303)
+    _set_oauth_state_cookie(response, state)
+    return response
+
+
+@app.get("/api/auth/oauth/google/callback")
+async def auth_google_callback(request: Request, response: Response, code: Optional[str] = None, state: Optional[str] = None, error: Optional[str] = None):
+    redirect = _auth_error_redirect("Google sign-in could not be completed")
+    try:
+        if error:
+            return _auth_error_redirect("Google sign-in was canceled")
+        if not code or not state:
+            return _auth_error_redirect("Google sign-in returned an incomplete response")
+        expected_state_hash = request.cookies.get(GOOGLE_OAUTH_STATE_COOKIE)
+        if not expected_state_hash or not hmac.compare_digest(expected_state_hash, auth.hash_token(state)):
+            return _auth_error_redirect("Google sign-in state could not be verified")
+        if not auth.verify_oauth_state(state, GOOGLE_OAUTH_PROVIDER):
+            return _auth_error_redirect("Google sign-in state expired")
+
+        config = _google_oauth_config()
+        token = await _exchange_google_code(code, config["redirect_uri"])
+        access_token = token.get("access_token")
+        if not access_token:
+            return _auth_error_redirect("Google sign-in did not return an access token")
+
+        profile = await _fetch_google_profile(access_token)
+        email = auth.normalize_email(str(profile.get("email") or ""))
+        subject = str(profile.get("sub") or "")
+        name = profile.get("name")
+        email_verified = profile.get("email_verified")
+        if isinstance(email_verified, str):
+            email_verified = email_verified.lower() == "true"
+        if not email or not subject or not email_verified:
+            return _auth_error_redirect("Google account email could not be verified")
+        if auth.is_owner_email(email) and not auth.owner_oauth_enabled():
+            return _auth_error_redirect("Owner Google sign-in is not enabled")
+
+        user = auth.upsert_oauth_user(GOOGLE_OAUTH_PROVIDER, email, subject, str(name) if name else None)
+        session_token = auth.create_session(user["email"])
+        redirect = RedirectResponse(SUBPATH_PREFIX, status_code=303)
+        _set_session_cookie(redirect, session_token)
+        _clear_oauth_state_cookie(redirect)
+        return redirect
+    except HTTPException as e:
+        return _auth_error_redirect(str(e.detail))
+    except Exception:
+        return redirect
+
+
 @app.post("/api/auth/signup")
 async def auth_signup(payload: SignupRequest, response: Response):
+    raise HTTPException(status_code=403, detail=GOOGLE_ONLY_AUTH_DETAIL)
     if not auth.is_auth_required():
         raise HTTPException(status_code=400, detail="Signup is available only when auth is enabled")
     if len(payload.password) < 12:
@@ -325,6 +481,7 @@ async def auth_signup(payload: SignupRequest, response: Response):
 
 @app.post("/api/auth/login")
 async def auth_login(request: LoginRequest, response: Response):
+    raise HTTPException(status_code=403, detail=GOOGLE_ONLY_AUTH_DETAIL)
     if not auth.is_auth_required():
         return {"authenticated": True, "auth_required": False, "email": None}
 
@@ -357,6 +514,7 @@ async def auth_logout(request: Request, response: Response):
 
 @app.post("/api/auth/change-password")
 async def auth_change_password(request: Request, payload: ChangePasswordRequest, response: Response):
+    raise HTTPException(status_code=403, detail=GOOGLE_ONLY_AUTH_DETAIL)
     user = auth.get_user_from_request(request)
     if user is None:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -374,6 +532,7 @@ async def auth_change_password(request: Request, payload: ChangePasswordRequest,
 
 @app.post("/api/auth/reset-password")
 async def auth_reset_password(payload: ResetPasswordRequest, response: Response):
+    raise HTTPException(status_code=403, detail=GOOGLE_ONLY_AUTH_DETAIL)
     if not auth.is_auth_required():
         return {"authenticated": True, "auth_required": False, "email": None}
     if not os.getenv("ADMIN_PASSWORD_RESET_TOKEN"):
@@ -742,12 +901,71 @@ async def _execute_run(run_id: str):
 
             # Stage 2
             storage.update_run(run_id, {"stage2": {"status": "running"}})
-            stage2_results, label_to_model = await stage2_collect_rankings(content, stage1_results, council_models=council_models)
+
+            async def persist_stage2_progress(partial_results, partial_label_to_model, partial_execution_metadata):
+                partial_aggregate = calculate_aggregate_rankings(partial_results, partial_label_to_model)
+                partial_metadata = {
+                    "label_to_model": partial_label_to_model,
+                    "aggregate_rankings": partial_aggregate,
+                    "stage2_execution": partial_execution_metadata,
+                }
+                storage.update_run(
+                    run_id,
+                    {
+                        "stage2": {
+                            "status": "running",
+                            "data": partial_results,
+                            "metadata": partial_metadata,
+                        }
+                    },
+                )
+                storage.upsert_assistant_message_for_run(
+                    conversation_id,
+                    run_id,
+                    stage2=partial_results,
+                    metadata=partial_metadata,
+                    loading={"stage1": False, "stage2": True, "stage3": False},
+                )
+
+            stage2_results, label_to_model, stage2_execution_metadata = await stage2_collect_rankings(
+                content,
+                stage1_results,
+                council_models=council_models,
+                progress_callback=persist_stage2_progress,
+            )
             aggregate_rankings = calculate_aggregate_rankings(stage2_results, label_to_model)
             stage2_metadata = {
                 "label_to_model": label_to_model,
                 "aggregate_rankings": aggregate_rankings,
+                "stage2_execution": stage2_execution_metadata,
             }
+
+            valid_stage2_count = int(stage2_execution_metadata.get("completed_rankings_count") or 0)
+            minimum_valid_stage2 = int(stage2_execution_metadata.get("minimum_valid_rankings_to_synthesize") or 2)
+            if valid_stage2_count < minimum_valid_stage2:
+                error_message = format_stage2_incomplete_error(stage2_execution_metadata)
+                storage.update_run(
+                    run_id,
+                    {
+                        "stage2": {
+                            "status": "failed",
+                            "data": stage2_results,
+                            "metadata": stage2_metadata,
+                        },
+                    },
+                )
+                storage.upsert_assistant_message_for_run(
+                    conversation_id,
+                    run_id,
+                    stage2=stage2_results,
+                    metadata=stage2_metadata,
+                    loading={"stage1": False, "stage2": False, "stage3": False},
+                    error=error_message,
+                )
+                raise RuntimeError(error_message)
+            if stage2_execution_metadata.get("is_partial"):
+                stage2_metadata["stage2_warning"] = format_stage2_incomplete_error(stage2_execution_metadata)
+
             storage.update_run(
                 run_id,
                 {

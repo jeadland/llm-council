@@ -7,7 +7,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: calc(24px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom));
+  padding: calc(24px + env(safe-area-inset-top)) 24px
+    calc(24px + env(safe-area-inset-bottom));
   background: var(--bg);
   color: var(--text);
   overflow: auto;
@@ -17,20 +18,12 @@
   width: min(100%, 380px);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
   padding: 28px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
   box-shadow: 0 20px 60px rgba(15, 23, 42, 0.12);
-}
-
-.login-panel-wide {
-  width: min(100%, 560px);
-}
-
-.login-panel-confirm {
-  width: min(100%, 420px);
 }
 
 .login-logo {
@@ -52,113 +45,29 @@
 }
 
 .login-panel p {
-  margin-top: -8px;
-  color: var(--muted);
-}
-
-.login-heading-row p {
   margin-top: 2px;
-}
-
-.login-mode-tabs {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-  padding: 4px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface-2);
-}
-
-.login-mode-tabs button {
-  min-height: 36px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
   color: var(--muted);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
 }
 
-.login-mode-tabs button.active {
+.login-google-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   background: var(--surface);
   color: var(--text);
-  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
-}
-
-.openrouter-guide {
-  display: grid;
-  gap: 10px;
-  padding: 14px;
-  border: 1px solid #bfd7f4;
-  border-radius: 8px;
-  background: #f4f8fd;
-  color: var(--text);
-}
-
-.openrouter-guide strong {
-  display: block;
-  font-size: 14px;
-}
-
-.openrouter-guide p {
-  margin: 2px 0 0;
-  font-size: 13px;
-}
-
-.openrouter-guide ol {
-  margin: 0;
-  padding-left: 20px;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-.openrouter-guide a,
-.openrouter-guide-link {
-  color: #2f6fb6;
-  font-weight: 700;
-  text-decoration: none;
-}
-
-.openrouter-guide a:hover,
-.openrouter-guide a:focus-visible,
-.openrouter-guide-link:hover,
-.openrouter-guide-link:focus-visible {
-  text-decoration: underline;
-}
-
-.login-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 650;
-}
-
-.login-field input {
-  width: 100%;
-  min-height: 42px;
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 10px 12px;
-  font: inherit;
-  color: var(--text);
-  background: var(--surface-2);
 }
 
-.login-field input:focus {
-  outline: 2px solid rgba(74, 144, 226, 0.28);
+.google-logo {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.login-google-button:hover,
+.login-google-button:focus-visible {
   border-color: #4a90e2;
-}
-
-.login-field em {
-  color: var(--muted);
-  font-style: normal;
-  font-weight: 600;
 }
 
 .login-error {
@@ -186,89 +95,20 @@
   cursor: wait;
 }
 
-.login-link-button {
-  min-height: 34px;
-  border: none;
-  background: transparent;
-  color: #2f6fb6;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.login-link-button:disabled {
-  opacity: 0.72;
-  cursor: wait;
-}
-
-.login-confirm-badge {
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  background: #e7f6ed;
-  color: #1b7f42;
-  font-size: 22px;
-  font-weight: 800;
-}
-
-.login-confirm-detail {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface-2);
-  font-size: 13px;
-}
-
-.login-confirm-detail span {
-  color: var(--muted);
-}
-
-.login-confirm-detail strong {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  color: var(--text);
-}
-
-:root[data-theme='dark'] .login-error {
+:root[data-theme="dark"] .login-error {
   background: #351f25;
   border-color: #70404b;
   color: #ffb4c0;
 }
 
-:root[data-theme='dark'] .login-link-button {
-  color: #8abfff;
-}
-
-:root[data-theme='dark'] .openrouter-guide {
-  background: #172335;
-  border-color: #2a4a70;
-}
-
-:root[data-theme='dark'] .openrouter-guide a,
-:root[data-theme='dark'] .openrouter-guide-link {
-  color: #8abfff;
-}
-
-:root[data-theme='dark'] .login-confirm-badge {
-  background: #173524;
-  color: #80d39b;
-}
-
 @media (max-width: 640px) {
   .login-screen {
     align-items: flex-start;
-    padding: calc(16px + env(safe-area-inset-top)) 14px calc(16px + env(safe-area-inset-bottom));
+    padding: calc(16px + env(safe-area-inset-top)) 14px
+      calc(16px + env(safe-area-inset-bottom));
   }
 
-  .login-panel,
-  .login-panel-wide,
-  .login-panel-confirm {
+  .login-panel {
     width: 100%;
     padding: 20px;
   }

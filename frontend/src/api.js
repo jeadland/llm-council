@@ -253,6 +253,10 @@ export const api = {
     return response.json();
   },
 
+  loginWithGoogle() {
+    window.location.assign(`${API_BASE}/api/auth/oauth/google/start`);
+  },
+
   async signup({ name, email, password, openRouterApiKey }) {
     const response = await fetch(`${API_BASE}/api/auth/signup`, {
       method: 'POST',

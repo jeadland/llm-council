@@ -5,6 +5,9 @@ import {
   displayModelName,
   estimateCouncilCosts,
   formatContext,
+  formatCurationCost,
+  formatCurationList,
+  formatCurationText,
   formatMoney,
   makeCustomGroupId,
   presetNormalCost,
@@ -29,6 +32,24 @@ function ModelPill({ modelId, modelMap, muted = false }) {
       {model?.name?.replace(/^.*?:\s*/, '') || shortModelName(modelId)}
       {!model && <span className="model-picker-pill-warning">stale</span>}
     </span>
+  );
+}
+
+function CurationPresetPreview({ preset, modelMap }) {
+  const models = preset.models || [];
+
+  return (
+    <div className="curation-preset-card">
+      <strong>{preset.name}</strong>
+      <span>{models.length || 0} models · Chair {shortModelName(preset.chairman_model)}</span>
+      {models.length > 0 && (
+        <div className="curation-preset-models" aria-label={`${preset.name} model lineup`}>
+          {models.map((modelId) => (
+            <ModelPill key={modelId} modelId={modelId} modelMap={modelMap} />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -210,6 +231,12 @@ export default function ModelPicker({
 
   const modelMap = useMemo(() => new Map(catalog.map((model) => [model.id, model])), [catalog]);
   const normalEstimate = estimateCouncilCosts(localCouncil, localChairman, modelMap)?.display;
+  const curationNotes = formatCurationText(
+    curationDraft?.notes,
+    'Review updated model evaluations and lineup suggestions.',
+  );
+  const curationRisks = formatCurationList(curationDraft?.risks);
+  const curationCost = formatCurationCost(curationDraft?.estimated_llm_cost);
 
   const filteredModels = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -385,7 +412,7 @@ export default function ModelPicker({
                 <div className="curation-callout">
                   <div>
                     <strong>Weekly curation draft ready</strong>
-                    <span>{curationDraft.notes || 'Review updated model evaluations and lineup suggestions.'}</span>
+                    <span>{curationNotes}</span>
                   </div>
                   <button type="button" className="model-picker-secondary" onClick={() => setActiveTab('review')}>
                     Review
@@ -527,25 +554,22 @@ export default function ModelPicker({
                     <span>Curation model: {curationDraft.curation_model}</span>
                     <span>Next curation model: {curationDraft.next_curation_model}</span>
                     {curationDraft.next_curator_status && (
-                      <span>Next curator: {curationDraft.next_curator_status.replace(/_/g, ' ')}</span>
+                      <span>Next curator: {formatCurationText(curationDraft.next_curator_status).replace(/_/g, ' ')}</span>
                     )}
-                    {curationDraft.estimated_llm_cost !== null && (
-                      <span>Estimated review cost: ${Number(curationDraft.estimated_llm_cost).toFixed(4)}</span>
+                    {curationCost && (
+                      <span>Estimated review cost: {curationCost}</span>
                     )}
                   </div>
-                  <p>{curationDraft.notes}</p>
-                  {curationDraft.risks?.length > 0 && (
+                  <p>{curationNotes}</p>
+                  {curationRisks.length > 0 && (
                     <ul>
-                      {curationDraft.risks.map((risk) => <li key={risk}>{risk}</li>)}
+                      {curationRisks.map((risk) => <li key={risk}>{risk}</li>)}
                     </ul>
                   )}
                   {curationDraft.resolved_presets?.length > 0 && (
                     <div className="curation-preset-preview">
                       {curationDraft.resolved_presets.map((preset) => (
-                        <div key={preset.id}>
-                          <strong>{preset.name}</strong>
-                          <span>{preset.models?.length || 0} models · Chair {shortModelName(preset.chairman_model)}</span>
-                        </div>
+                        <CurationPresetPreview key={preset.id} preset={preset} modelMap={modelMap} />
                       ))}
                     </div>
                   )}
