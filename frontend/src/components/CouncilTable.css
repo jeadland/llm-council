@@ -79,9 +79,18 @@
 
 .council-strip--race > .council-race-slot {
   flex: 1 1 0;
-  min-width: 158px;
+  min-width: 168px;
   max-width: none;
   will-change: transform;
+}
+
+.council-strip--race .agent-card {
+  padding: 8px 9px 8px 8px;
+}
+
+.council-strip--race .agent-status {
+  white-space: nowrap;
+  font-size: 11px;
 }
 
 .council-race-slot {
@@ -397,7 +406,7 @@
   box-shadow: 0 0 0 2px #11151d;
 }
 
-/* ── Mobile: horizontal scroll strip ── */
+/* ── Mobile ── */
 
 @media (max-width: 720px) {
   .council-table {
@@ -405,8 +414,8 @@
     border-radius: 10px;
   }
 
-  .council-strip,
-  .council-strip--race {
+  /* Live council (pre-race): keep a compact horizontal strip */
+  .council-strip:not(.council-strip--race) {
     flex-wrap: nowrap;
     overflow-x: auto;
     scrollbar-width: none;
@@ -415,20 +424,43 @@
     scroll-snap-type: x proximity;
   }
 
-  .council-strip::-webkit-scrollbar {
+  .council-strip:not(.council-strip--race)::-webkit-scrollbar {
     display: none;
   }
 
-  .council-strip > div,
-  .council-strip--race > .council-race-slot {
+  .council-strip:not(.council-strip--race) > div {
     flex: 0 0 auto;
     max-width: none;
     scroll-snap-align: start;
   }
 
-  .agent-card {
+  .council-strip:not(.council-strip--race) .agent-card {
     min-width: 150px;
     width: auto;
+  }
+
+  /* Race leaderboard: vertical podium — no sideways scrolling */
+  .council-strip--race {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: 8px;
+    overflow: visible;
+    margin: 0;
+    padding: 0;
+    scroll-snap-type: none;
+  }
+
+  .council-strip--race > .council-race-slot {
+    flex: 0 0 auto;
+    min-width: 0;
+    width: 100%;
+    max-width: none;
+    scroll-snap-align: none;
+  }
+
+  .council-strip--race .agent-card {
+    min-width: 0;
+    width: 100%;
   }
 }
 

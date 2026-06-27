@@ -405,6 +405,7 @@ export default function ChatInterface({
                           msg.metadata?.stage2_execution,
                           msg.metadata.aggregate_rankings,
                         )}
+                        modelMap={modelMap}
                       />
                     )}
 
@@ -416,13 +417,14 @@ export default function ChatInterface({
                       aggregateRankings={msg.metadata?.aggregate_rankings}
                       stage2Execution={msg.metadata?.stage2_execution}
                       error={msg.error}
+                      modelMap={modelMap}
                       defaultCollapsed={!msg.error}
                     />
                   )}
 
                   {/* Stage 1 — individual responses detail */}
                   {msg.stage1 && (
-                    <Stage1 responses={msg.stage1} defaultCollapsed />
+                    <Stage1 responses={msg.stage1} modelMap={modelMap} defaultCollapsed />
                   )}
 
                   {/* Error state — run failed before completing */}

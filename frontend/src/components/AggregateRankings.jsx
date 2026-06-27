@@ -1,8 +1,8 @@
-import { formatModelLabel } from '../modelUtils';
+import { resolveModelLabel } from '../modelUtils';
 import './Stage2.css';
 
 // Shared aggregate ranking bar list, reused by Stage 2 and the Winner banner.
-export default function AggregateRankings({ aggregateRankings }) {
+export default function AggregateRankings({ aggregateRankings, modelMap }) {
   if (!aggregateRankings || aggregateRankings.length === 0) return null;
 
   const worst = Math.max(...aggregateRankings.map((a) => a.average_rank));
@@ -20,7 +20,7 @@ export default function AggregateRankings({ aggregateRankings }) {
             </span>
             <div className="rank-info">
               <div className="rank-model-row">
-                <span className="rank-model">{formatModelLabel(agg.model)}</span>
+                <span className="rank-model">{resolveModelLabel(agg.model, modelMap)}</span>
                 <span className="rank-score-badge">{agg.average_rank.toFixed(2)}</span>
               </div>
               <div className="rank-bar-track">

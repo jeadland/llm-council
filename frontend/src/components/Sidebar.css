@@ -1187,10 +1187,22 @@
   gap: 8px;
 }
 
+.account-settings .account-actions {
+  grid-template-columns: 1fr;
+  margin-top: 10px;
+}
+
 .account-password-btn,
 .account-logout-btn {
   min-height: 36px;
   font-size: 12px;
+}
+
+.account-logout-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .account-password-btn:disabled {

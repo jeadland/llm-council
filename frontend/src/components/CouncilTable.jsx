@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { AlertTriangle, ArrowDown, ArrowUp, Check, Crown } from 'lucide-react';
-import { abbreviateModelName, formatModelLabel, providerMeta } from '../modelUtils';
+import { formatModelLabel, resolveModelLabel, providerMeta } from '../modelUtils';
 import {
   deriveCouncilAgents,
   displayCouncilAgents,
@@ -23,7 +23,7 @@ function formatRaceStatus(agent, raceActive) {
   if (raceActive && agent.rank != null && typeof agent.averageRank === 'number') {
     const votes =
       agent.rankingsCount != null
-        ? ` · ${agent.rankingsCount} vote${agent.rankingsCount === 1 ? '' : 's'}`
+        ? ` · ${agent.rankingsCount}v`
         : '';
     return `#${agent.rank} · ${agent.averageRank.toFixed(2)} avg${votes}`;
   }
@@ -33,7 +33,7 @@ function formatRaceStatus(agent, raceActive) {
 
 function AgentCard({ agent, modelMap, onSelect, raceActive, rankShift }) {
   const meta = providerMeta(agent.model);
-  const name = abbreviateModelName(agent.model, modelMap) || formatModelLabel(agent.model);
+  const name = resolveModelLabel(agent.model, modelMap);
   const fullName = formatModelLabel(agent.model);
   const interactive = agent.answered || agent.ranked;
   const isBusy = agent.state === 'thinking' || agent.state === 'rating';

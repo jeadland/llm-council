@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import MarkdownContent from './MarkdownContent';
-import { formatModelLabel } from '../modelUtils';
+import { resolveModelLabel } from '../modelUtils';
 import {
   ModelReviewerTabs,
   ReviewerContentHeader,
@@ -19,7 +19,7 @@ function hitOutputLimit(response) {
   );
 }
 
-export default function Stage1({ responses, defaultCollapsed = false }) {
+export default function Stage1({ responses, modelMap, defaultCollapsed = false }) {
   const [activeTab, setActiveTab] = useState(0);
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
 
@@ -29,7 +29,7 @@ export default function Stage1({ responses, defaultCollapsed = false }) {
 
   const summary =
     responses.length === 1
-      ? `${formatModelLabel(responses[0].model)} responded`
+      ? `${resolveModelLabel(responses[0].model, modelMap)} responded`
       : `${responses.length} model responses`;
 
   const tabItems = responses.map((resp) => ({ model: resp.model }));
@@ -64,6 +64,7 @@ export default function Stage1({ responses, defaultCollapsed = false }) {
             onChange={setActiveTab}
             idPrefix="stage1"
             ariaLabel="Select model response"
+            modelMap={modelMap}
           />
 
           <div
@@ -75,6 +76,7 @@ export default function Stage1({ responses, defaultCollapsed = false }) {
             <ReviewerContentHeader
               model={active.model}
               subtitle="Individual answer"
+              modelMap={modelMap}
             />
             {hitOutputLimit(active) && (
               <div className="stage1-limit-alert" role="status">
