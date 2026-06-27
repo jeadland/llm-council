@@ -53,6 +53,7 @@ async def query_openclaw(
     model: str,
     messages: List[Dict[str, str]],
     timeout: float = 120.0,
+    max_tokens: Optional[int] = None,
 ) -> Optional[Dict[str, Any]]:
     """Query the OpenClaw local gateway with an OpenAI-compatible request.
 
@@ -61,6 +62,7 @@ async def query_openclaw(
                an alias, or a bare openrouter id)
         messages: List of message dicts with 'role' and 'content'
         timeout: Request timeout in seconds
+        max_tokens: Optional output token cap
 
     Returns:
         Dict with 'content' and optional 'reasoning_details', or None on failure.
@@ -81,6 +83,8 @@ async def query_openclaw(
         "model": model,
         "messages": messages,
     }
+    if max_tokens is not None:
+        payload["max_tokens"] = max_tokens
 
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
@@ -96,9 +100,18 @@ async def query_openclaw(
                 print(f"[openclaw] Gateway error for {model}: {content}")
                 return None
 
+            choice = (data.get("choices") or [{}])[0]
+
             return {
                 "content": content,
                 "reasoning_details": message.get("reasoning_details"),
+                "provider_source": "openclaw",
+                "requested_model": model,
+                "resolved_model": data.get("model") or model,
+                "generation_id": data.get("id"),
+                "usage": data.get("usage"),
+                "finish_reason": choice.get("finish_reason"),
+                "native_finish_reason": choice.get("native_finish_reason"),
             }
 
     except httpx.HTTPStatusError as e:

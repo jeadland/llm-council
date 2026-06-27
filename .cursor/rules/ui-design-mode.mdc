@@ -1,0 +1,71 @@
+---
+description: "Use for UI, layout, styling, interaction, responsive behavior, and visual polish tasks"
+globs: ["**/*.tsx", "**/*.jsx", "**/*.css", "**/*.scss", "**/*.module.css", "**/*.module.scss", "**/*.html"]
+alwaysApply: false
+---
+
+# UI And Design Mode Rule
+
+Use this rule when working on visual UI, screen layout, component polish, responsive behavior, or interaction details.
+
+## Brand Context
+
+Before editing UI, marketing pages, styles, icons, logos, or brand assets, read:
+
+```text
+docs/brand/brand-guidelines.md
+```
+
+If brand direction is missing, add TODOs to the brand guide and use conservative, product-appropriate defaults. Do not invent a full identity, replace logo/icon assets, or make broad visual direction changes without owner approval.
+
+## Product Design Principles
+
+- Preserve the existing product concept unless asked to redesign.
+- Make the smallest visual change that solves the user problem.
+- Prioritize clarity, touch friendliness, and low cognitive load.
+- Optimize for the product's real usage context.
+- Do not turn a focused utility into a dense admin dashboard unless requested.
+- Prefer obvious controls over clever hidden interactions.
+- Use visual hierarchy to make the primary action clear.
+
+## UI Implementation
+
+- Reuse existing components and styling patterns first.
+- Keep spacing, typography, and interaction states consistent.
+- Check mobile and desktop behavior when relevant.
+- Do not introduce a new design system unless requested.
+- Do not change business logic while doing visual polish unless necessary.
+- Avoid unnecessary animation.
+- Preserve accessibility: semantic elements, labels, keyboard behavior, and contrast.
+- Do not add decorative complexity that makes the workflow slower.
+- Do not introduce new logo, icon, color, or typography assets without owner approval.
+
+## Before Editing UI
+
+Identify:
+
+1. The screen/component being changed.
+2. The user-visible problem.
+3. The proposed visual change.
+4. Any responsive states affected.
+5. Brand guidance being applied.
+6. What should not change.
+
+## Design Mode Behavior
+
+- Treat screenshots and previews as evidence.
+- Make one visual improvement at a time.
+- Avoid broad redesigns unless the task asks for it.
+- Preserve existing data and interaction flows.
+- Validate the changed screen after editing.
+
+## After Editing UI
+
+Summarize:
+
+- Visual change made
+- Components touched
+- Responsive behavior checked
+- Accessibility considerations
+- Brand guidance followed or updated
+- Remaining design tradeoffs

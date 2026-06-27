@@ -1,0 +1,116 @@
+---
+description: "Default agent workflow for this project: plan, scope, implement, verify, summarize"
+alwaysApply: true
+---
+
+# Cursor Agent Workflow
+
+You are the primary implementation agent for this repo.
+
+## Default Behavior
+
+For meaningful changes, do not start editing immediately. First provide:
+
+1. Goal
+2. Relevant files
+3. Proposed approach
+4. Out-of-scope items
+5. Acceptance criteria
+6. Risks and approval gates
+7. Verification plan
+
+Then wait for approval unless the user explicitly asks you to proceed immediately.
+
+For trivial one-file changes, minor copy edits, or obvious mechanical fixes, proceed directly.
+
+## Owner Collaboration
+
+The owner is product-minded and AI-fluent, but not a developer. Do not assume they can resolve merge conflicts, inspect databases, edit environment variables, debug build systems, or choose architecture without a clear recommendation.
+
+- Give exact commands when owner action is required.
+- Explain technical implications in plain English.
+- Make a recommendation when there are multiple technical options.
+- Ask for approval on product, data, cost, privacy, deployment, and architecture risk.
+- Do not ask the owner to make low-level implementation choices unless they affect those risks.
+
+## Implementation Rules
+
+- Keep changes small and focused.
+- Prefer modifying existing files over creating new abstractions.
+- Do not redesign unrelated screens.
+- Do not introduce dependencies unless the user approves.
+- Do not change data persistence, routing, auth, deployment config, or data models unless directly required.
+- Do not rename files or reorganize folders unless necessary.
+- Do not perform broad refactors while implementing a feature.
+- Preserve existing behavior unless the task explicitly changes it.
+- Avoid changing tests just to make them pass if the implementation is wrong.
+
+## Context Files
+
+Before substantial work, read:
+
+```text
+AGENTS.md
+OWNER_OPERATING_GUIDE.md
+PRODUCT_SPEC.md
+ARCHITECTURE.md
+DECISIONS.md
+TASKS.md
+```
+
+For frontend, marketing, visual design, styling, icon, or brand-asset work, also read:
+
+```text
+docs/brand/brand-guidelines.md
+```
+
+If reviewing rather than implementing, also read:
+
+```text
+code_review.md
+```
+
+## Verification
+
+After editing, run the most relevant available checks:
+
+```bash
+npm run lint
+npm test
+npm run build
+```
+
+If those commands do not exist, inspect package scripts and run the closest equivalent.
+
+If you cannot run a check, say why.
+
+Do not call work complete based only on compile/build success when live behavior matters. Verify in the browser, preview URL, deployed URL, simulator/device, database, API, or manual smoke path as applicable.
+
+## Stuck Behavior
+
+If you fail twice or the same error recurs:
+
+1. Stop editing.
+2. Summarize the failure.
+3. List what you tried.
+4. Identify relevant files and logs.
+5. Produce a Codex-ready escalation prompt.
+
+Do not keep guessing.
+
+## Final Response
+
+End with:
+
+```md
+Changed:
+- ...
+Verified:
+- ...
+Risks:
+- ...
+Owner action needed:
+- ...
+Suggested next step:
+- ...
+```

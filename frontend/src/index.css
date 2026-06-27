@@ -14,6 +14,7 @@
   --text: #333333;
   --muted: #666666;
   --border: #e0e0e0;
+  --app-viewport-height: 100dvh;
 }
 
 :root[data-theme='dark'] {
@@ -25,6 +26,14 @@
   --border: #2d3545;
 }
 
+html {
+  width: 100%;
+  height: 100%;
+  min-height: -webkit-fill-available;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -33,15 +42,24 @@
 
 body {
   margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
+  width: 100%;
+  min-width: 0;
+  height: 100vh;
+  height: 100dvh;
+  height: var(--app-viewport-height, 100dvh);
+  min-height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
   background: var(--bg);
   color: var(--text);
 }
 
 #root {
   height: 100vh;
-  width: 100vw;
+  height: -webkit-fill-available;
+  height: 100dvh;
+  height: var(--app-viewport-height, 100dvh);
+  width: 100%;
   overflow: hidden;
 }
 
@@ -114,6 +132,50 @@ body {
   color: #666;
 }
 
+.markdown-table-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  margin: 0 0 12px 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.markdown-content table {
+  width: 100%;
+  min-width: max-content;
+  border-collapse: collapse;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.95em;
+}
+
+.markdown-content th,
+.markdown-content td {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.markdown-content th {
+  background: var(--surface-2);
+  color: var(--text);
+  font-weight: 700;
+}
+
+.markdown-content tr:nth-child(even) td {
+  background: rgba(0, 0, 0, 0.018);
+}
+
+.markdown-content :is(th, td) > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-table-scroll:last-child {
+  margin-bottom: 0;
+}
+
 :root[data-theme='dark'] .app,
 :root[data-theme='dark'] .chat-interface,
 :root[data-theme='dark'] .sidebar,
@@ -146,6 +208,10 @@ body {
 :root[data-theme='dark'] .settings-title,
 :root[data-theme='dark'] .settings-subtitle {
   color: var(--text) !important;
+}
+
+:root[data-theme='dark'] .markdown-content tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.035);
 }
 
 :root[data-theme='dark'] .message-input,
