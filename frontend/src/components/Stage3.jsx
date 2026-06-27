@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
-import { AlertTriangle, Check, ClipboardCopy, Star } from 'lucide-react';
-import { formatModelLabel, formatMoney } from '../modelUtils';
+import { useState, useCallback, useMemo } from 'react';
+import { AlertTriangle, Check, ChevronDown, ClipboardCopy, Star } from 'lucide-react';
+import { abbreviateModelName, formatModelLabel, formatMoney, providerMeta } from '../modelUtils';
 import MarkdownContent from './MarkdownContent';
 import './Stage3.css';
 
@@ -79,6 +79,45 @@ function formatStageLabel(stage) {
   return labels[stage] || stage || 'Call';
 }
 
+const STAGE_META = {
+  stage1: { title: 'Stage 1', subtitle: 'Individual answers' },
+  stage2: { title: 'Stage 2', subtitle: 'Peer rankings' },
+  stage3: { title: 'Stage 3', subtitle: 'Final synthesis' },
+};
+
+function sumStageCost(calls) {
+  let total = 0;
+  let hasPriced = false;
+  for (const call of calls) {
+    if (call.cost_usd !== null && call.cost_usd !== undefined) {
+      total += Number(call.cost_usd);
+      hasPriced = true;
+    }
+  }
+  return hasPriced ? total : null;
+}
+
+function sumStageTokens(calls) {
+  return calls.reduce((sum, call) => sum + Number(call.total_tokens || 0), 0);
+}
+
+function groupCallsByStage(calls) {
+  const order = ['stage1', 'stage2', 'stage3'];
+  return order
+    .map((stage) => {
+      const stageCalls = calls.filter((call) => call.stage === stage);
+      if (stageCalls.length === 0) return null;
+      return {
+        stage,
+        meta: STAGE_META[stage] || { title: formatStageLabel(stage), subtitle: '' },
+        calls: stageCalls,
+        totalUsd: sumStageCost(stageCalls),
+        totalTokens: sumStageTokens(stageCalls),
+      };
+    })
+    .filter(Boolean);
+}
+
 function formatCallCost(call) {
   if (call.cost_usd !== null && call.cost_usd !== undefined) {
     return formatMoney(Number(call.cost_usd));
@@ -95,14 +134,48 @@ function formatTokens(call) {
   return pieces.length ? pieces.join(' / ') : 'tokens unavailable';
 }
 
+function CostCallRow({ call }) {
+  const modelId = call.resolved_model || call.requested_model;
+  const meta = providerMeta(modelId);
+  const shortName = abbreviateModelName(modelId) || formatModelLabel(modelId);
+
+  return (
+    <div className="actual-cost-row">
+      <span
+        className="actual-cost-row-avatar"
+        style={{ '--agent-color': meta.color }}
+        aria-hidden="true"
+      >
+        {meta.glyph}
+      </span>
+      <div className="actual-cost-row-main">
+        <strong title={formatModelLabel(modelId)}>{shortName}</strong>
+        <small>{formatTokens(call)}</small>
+      </div>
+      <span className={`actual-cost-row-value actual-cost-row-value--${call.status || 'unpriced'}`}>
+        {formatCallCost(call)}
+      </span>
+    </div>
+  );
+}
+
 function CostSummary({ costSummary }) {
+  const [expanded, setExpanded] = useState(false);
   const calls = costSummary?.calls || [];
+  const stageGroups = useMemo(
+    () => groupCallsByStage(costSummary?.calls || []),
+    [costSummary?.calls],
+  );
 
   if (!costSummary || calls.length === 0) {
     return (
-      <div className="actual-cost" aria-label="Actual cost">
-        <span>Actual cost</span>
-        <strong>Cost unavailable for older run</strong>
+      <div className="actual-cost actual-cost--empty" aria-label="Actual cost">
+        <div className="actual-cost-bar">
+          <div className="actual-cost-heading">
+            <span className="actual-cost-kicker">Actual answer cost</span>
+            <strong className="actual-cost-total">Cost unavailable for older run</strong>
+          </div>
+        </div>
       </div>
     );
   }
@@ -112,39 +185,77 @@ function CostSummary({ costSummary }) {
     : null;
   const unpriced = Number(costSummary.unpriced_calls_count || 0);
   const failed = Number(costSummary.failed_calls_count || 0);
-  let label = 'Cost unavailable';
+  const totalTokens = Number(costSummary.total_tokens || 0);
+
+  let totalLabel = 'Cost unavailable';
   if (total && unpriced > 0) {
-    label = `${total} tracked · ${unpriced} call${unpriced === 1 ? '' : 's'} unpriced`;
+    totalLabel = `${total} tracked · ${unpriced} unpriced`;
   } else if (total) {
-    label = total;
+    totalLabel = total;
   } else if (unpriced > 0) {
-    label = `${unpriced} call${unpriced === 1 ? '' : 's'} unpriced`;
+    totalLabel = `${unpriced} unpriced`;
   }
   if (failed > 0) {
-    label = `${label} · ${failed} failed`;
+    totalLabel = `${totalLabel} · ${failed} failed`;
+  }
+
+  const metaParts = [];
+  metaParts.push(`${calls.length} call${calls.length === 1 ? '' : 's'}`);
+  if (totalTokens > 0) {
+    metaParts.push(`${totalTokens.toLocaleString()} tokens`);
   }
 
   return (
-    <div className="actual-cost" aria-label="Actual cost">
-      <span>Actual answer cost</span>
-      <strong>{label}</strong>
-      <details className="actual-cost-details">
-        <summary>Details</summary>
-        <div className="actual-cost-call-list">
-          {calls.map((call, index) => (
-            <div className="actual-cost-call" key={`${call.stage}-${call.requested_model}-${index}`}>
-              <div>
-                <span className="actual-cost-stage">{formatStageLabel(call.stage)}</span>
-                <strong>{formatModelLabel(call.resolved_model || call.requested_model)}</strong>
-                <small>{formatTokens(call)}</small>
-              </div>
-              <span className={`actual-cost-value actual-cost-value--${call.status || 'unpriced'}`}>
-                {formatCallCost(call)}
-              </span>
-            </div>
-          ))}
+    <div className={`actual-cost${expanded ? ' actual-cost--expanded' : ''}`} aria-label="Actual cost">
+      <div className="actual-cost-bar">
+        <div className="actual-cost-heading">
+          <span className="actual-cost-kicker">Actual answer cost</span>
+          <strong className="actual-cost-total">{totalLabel}</strong>
+          <span className="actual-cost-meta">{metaParts.join(' · ')}</span>
         </div>
-      </details>
+        <button
+          type="button"
+          className="actual-cost-expand-btn"
+          onClick={() => setExpanded((open) => !open)}
+          aria-expanded={expanded}
+          aria-controls="actual-cost-breakdown"
+        >
+          <span>{expanded ? 'Hide breakdown' : 'Show breakdown'}</span>
+          <ChevronDown size={14} aria-hidden="true" className="actual-cost-chevron" />
+        </button>
+      </div>
+      {expanded && (
+        <div id="actual-cost-breakdown" className="actual-cost-breakdown">
+          <div className="actual-cost-stages">
+            {stageGroups.map((group) => (
+              <section className="actual-cost-stage-card" key={group.stage} aria-label={group.meta.title}>
+                <header className="actual-cost-stage-head">
+                  <div className="actual-cost-stage-title">
+                    <strong>{group.meta.title}</strong>
+                    <span>{group.meta.subtitle}</span>
+                  </div>
+                  <div className="actual-cost-stage-total">
+                    <strong>
+                      {group.totalUsd !== null ? formatMoney(group.totalUsd) : '—'}
+                    </strong>
+                    {group.totalTokens > 0 && (
+                      <small>{group.totalTokens.toLocaleString()} tokens</small>
+                    )}
+                  </div>
+                </header>
+                <div className="actual-cost-stage-rows">
+                  {group.calls.map((call, index) => (
+                    <CostCallRow
+                      key={`${group.stage}-${call.requested_model}-${index}`}
+                      call={call}
+                    />
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

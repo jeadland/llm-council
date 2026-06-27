@@ -233,9 +233,11 @@ body {
   .send-button,
   .input-card.is-loading::before,
   .stepper-pulse,
-  .agent-card,
-  .agent-avatar,
   .agent-pulse,
+  .agent-card,
+  .council-race-slot,
+  .agent-card--surged-up,
+  .agent-card--surged-down,
   .winner-banner,
   .verdict-hero {
     animation: none !important;

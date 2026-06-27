@@ -3,13 +3,18 @@ import { ChevronRight } from 'lucide-react';
 import MarkdownContent from './MarkdownContent';
 import AggregateRankings from './AggregateRankings';
 import { formatModelLabel } from '../modelUtils';
+import {
+  ModelReviewerTabs,
+  ReviewerContentHeader,
+  StageIntro,
+} from './StagePanels';
+import './StagePanels.css';
 import './Stage2.css';
 
 function deAnonymizeText(text, labelToModel) {
   if (!labelToModel) return text;
 
   let result = text;
-  // Replace each "Response X" with the actual model name
   Object.entries(labelToModel).forEach(([label, model]) => {
     const modelShortName = formatModelLabel(model);
     result = result.replace(new RegExp(label, 'g'), `**${modelShortName}**`);
@@ -53,6 +58,12 @@ export default function Stage2({
     ? `${isPartial ? 'Partial · ' : ''}Top: ${formatModelLabel(topAggregate.model)} · ${topAggregate.average_rank.toFixed(2)} avg`
     : `${isPartial ? 'Partial · ' : ''}${voteLabel}`;
 
+  const tabItems = completedRankingRows.map((row) => ({
+    model: row.model,
+    invalid: row.ranking_valid === false,
+  }));
+  const activeRow = completedRankingRows[activeTab];
+
   return (
     <div className="stage stage2">
       <button
@@ -71,11 +82,11 @@ export default function Stage2({
 
       {!collapsed && (
         <>
-          <h4>Raw Evaluations</h4>
-          <p className="stage-description">
-            Each model evaluated all responses (anonymized as Response A, B, C, etc.) and provided rankings.
-            Below, model names are shown in <strong>bold</strong> for readability, but the original evaluation used anonymous labels.
-          </p>
+          <StageIntro title="Anonymous peer review">
+            Each model scored every answer using anonymous labels (Response A, B, C…). Names shown
+            in <strong>bold</strong> below are for readability — the original review used anonymous
+            labels only.
+          </StageIntro>
 
           {isPartial && (
             <div className="stage2-partial-alert" role="status">
@@ -122,63 +133,65 @@ export default function Stage2({
             </div>
           )}
 
-          <div className="tabs">
-            {completedRankingRows.map((rank, index) => (
-              <button
-                key={index}
-                className={`tab ${activeTab === index ? 'active' : ''}`}
-                onClick={() => setActiveTab(index)}
-              >
-                {formatModelLabel(rank.model)}
-              </button>
-            ))}
-          </div>
-
           {completedRankingRows.length > 0 && (
-            <div className="tab-content">
-              <div className="ranking-model">
-                {formatModelLabel(completedRankingRows[activeTab].model)}
-              </div>
-              {completedRankingRows[activeTab].ranking_valid === false && (
-                <div className="stage2-invalid-alert" role="status">
-                  This peer review returned an invalid ranking and was not counted in aggregate scoring.
-                  {completedRankingRows[activeTab].ranking_issues?.length > 0 && (
-                    <div className="stage2-diagnostic-list">
-                      {completedRankingRows[activeTab].ranking_issues.map((issue) => (
-                        <div key={issue} className="stage2-diagnostic-row">{issue}</div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-              <MarkdownContent className="ranking-content">
-                {deAnonymizeText(completedRankingRows[activeTab].ranking, labelToModel)}
-              </MarkdownContent>
+            <>
+              <ModelReviewerTabs
+                items={tabItems}
+                activeIndex={activeTab}
+                onChange={setActiveTab}
+                idPrefix="stage2"
+                ariaLabel="Select peer evaluation"
+              />
 
-              {completedRankingRows[activeTab].parsed_ranking &&
-               completedRankingRows[activeTab].parsed_ranking.length > 0 && (
-                <div className="parsed-ranking">
-                  <strong>Extracted Ranking:</strong>
-                  <ol>
-                    {completedRankingRows[activeTab].parsed_ranking.map((label, i) => (
-                      <li key={i}>
-                        {labelToModel && labelToModel[label]
-                          ? formatModelLabel(labelToModel[label])
-                          : label}
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              )}
-            </div>
+              <div
+                className="stage-tab-panel"
+                role="tabpanel"
+                id={`stage2-panel-${activeTab}`}
+                aria-labelledby={`stage2-tab-${activeTab}`}
+              >
+                <ReviewerContentHeader
+                  model={activeRow.model}
+                  subtitle="Peer evaluation"
+                />
+                {activeRow.ranking_valid === false && (
+                  <div className="stage2-invalid-alert" role="status">
+                    This peer review returned an invalid ranking and was not counted in aggregate scoring.
+                    {activeRow.ranking_issues?.length > 0 && (
+                      <div className="stage2-diagnostic-list">
+                        {activeRow.ranking_issues.map((issue) => (
+                          <div key={issue} className="stage2-diagnostic-row">{issue}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <MarkdownContent className="ranking-content">
+                  {deAnonymizeText(activeRow.ranking, labelToModel)}
+                </MarkdownContent>
+
+                {activeRow.parsed_ranking?.length > 0 && (
+                  <div className="parsed-ranking">
+                    <strong>Extracted ranking</strong>
+                    <ol>
+                      {activeRow.parsed_ranking.map((label, i) => (
+                        <li key={i}>
+                          {labelToModel && labelToModel[label]
+                            ? formatModelLabel(labelToModel[label])
+                            : label}
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+              </div>
+            </>
           )}
 
           {aggregateRankings && aggregateRankings.length > 0 && (
             <div className="aggregate-rankings">
-              <h4>Aggregate Rankings</h4>
-              <p className="stage-description">
-                Combined results across {voteLabel} — lower average rank is better.
-              </p>
+              <StageIntro title="Combined scoreboard" variant="subtle">
+                Results across {voteLabel}. Lower average rank is better.
+              </StageIntro>
               <AggregateRankings aggregateRankings={aggregateRankings} />
             </div>
           )}
