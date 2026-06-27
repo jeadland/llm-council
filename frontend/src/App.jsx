@@ -25,6 +25,9 @@ function App() {
   const [modelCatalog, setModelCatalog] = useState([]);
   const [modelPresets, setModelPresets] = useState([]);
   const [openRouterStatus, setOpenRouterStatus] = useState(null);
+  const [billingStatus, setBillingStatus] = useState(null);
+  const [councilProfiles, setCouncilProfiles] = useState([]);
+  const [adminFinance, setAdminFinance] = useState(null);
   const [sendError, setSendError] = useState("");
   const [authState, setAuthState] = useState({
     loading: true,
@@ -178,6 +181,40 @@ function App() {
     }
   }
 
+  async function loadBillingStatus() {
+    try {
+      const status = await api.getBillingStatus();
+      setBillingStatus(status);
+      return status;
+    } catch (error) {
+      console.error("Failed to load billing status:", error);
+      return null;
+    }
+  }
+
+  async function loadCouncilProfiles() {
+    try {
+      const data = await api.getCouncilProfiles();
+      setCouncilProfiles(data.profiles || []);
+      return data.profiles || [];
+    } catch (error) {
+      console.error("Failed to load council profiles:", error);
+      return [];
+    }
+  }
+
+  async function loadAdminFinance(role = authState.role) {
+    if (role !== "owner") return null;
+    try {
+      const data = await api.getAdminFinanceOverview();
+      setAdminFinance(data);
+      return data;
+    } catch (error) {
+      console.error("Failed to load admin finance overview:", error);
+      return null;
+    }
+  }
+
   const handleSaveSettings = async (patch) => {
     try {
       const updated = await api.updateSettings(patch);
@@ -229,6 +266,9 @@ function App() {
     setActiveRunId(null);
     setIsLoading(false);
     setSendError("");
+    setBillingStatus(null);
+    setCouncilProfiles([]);
+    setAdminFinance(null);
     localStorage.removeItem(STORAGE_KEY);
   };
 
@@ -250,10 +290,13 @@ function App() {
       );
       const costSummary =
         run.cost_summary || run.stage2?.metadata?.cost_summary || null;
+      const billingReceipt =
+        run.billing_receipt || run.stage2?.metadata?.billing_receipt || null;
       const stage1Execution = run.stage1?.metadata?.stage1_execution || null;
       const baseMetadata = { ...(run.stage2?.metadata || {}) };
       if (stage1Execution) baseMetadata.stage1_execution = stage1Execution;
       if (costSummary) baseMetadata.cost_summary = costSummary;
+      if (billingReceipt) baseMetadata.billing_receipt = billingReceipt;
       const metadata = Object.keys(baseMetadata).length ? baseMetadata : null;
       const loading = {
         stage1: run.stage1?.status === "running",
@@ -269,6 +312,7 @@ function App() {
         stage3: run.stage3?.data || null,
         metadata,
         cost_summary: costSummary,
+        billing_receipt: billingReceipt,
         loading,
         error:
           run.status === "failed"
@@ -301,6 +345,8 @@ function App() {
 
     await loadConversation(conversationId);
     await loadConversations();
+    await loadBillingStatus();
+    await loadAdminFinance();
   }
 
   useEffect(() => {
@@ -317,6 +363,9 @@ function App() {
           loadSettings();
           loadModelCatalog();
           loadOpenRouterStatus();
+          loadBillingStatus();
+          loadCouncilProfiles();
+          loadAdminFinance(me.role);
           try {
             const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
             if (saved.currentConversationId)
@@ -436,7 +485,27 @@ function App() {
     }
   };
 
-  const handleSendMessage = async (content) => {
+  const handleBillingModeChange = async (mode) => {
+    const status = await api.updateBillingMode(mode);
+    setBillingStatus(status);
+    return status;
+  };
+
+  const handleCheckout = async (packageId) => {
+    const session = await api.createBillingCheckout(packageId);
+    if (session?.url) {
+      window.location.assign(session.url);
+    }
+    return session;
+  };
+
+  const handleManagedPauseChange = async (paused) => {
+    const overview = await api.setManagedModePaused(paused);
+    setAdminFinance(overview);
+    return overview;
+  };
+
+  const handleSendMessage = async (content, runOptions = {}) => {
     if (!currentConversationId || isLoading) return;
     setSendError("");
 
@@ -447,7 +516,7 @@ function App() {
     }));
 
     try {
-      const created = await api.createRun(currentConversationId, content);
+      const created = await api.createRun(currentConversationId, content, runOptions);
       await monitorRun(currentConversationId, created.run_id);
     } catch (error) {
       console.error("Failed to send message:", error);
@@ -486,6 +555,16 @@ function App() {
         auth={authState}
         onLogout={handleLogout}
         onOpenRouterStatusChanged={setOpenRouterStatus}
+        billingStatus={billingStatus}
+        councilProfiles={councilProfiles}
+        adminFinance={adminFinance}
+        onBillingModeChange={handleBillingModeChange}
+        onStartCheckout={handleCheckout}
+        onRefreshBilling={async () => {
+          await loadBillingStatus();
+          await loadAdminFinance();
+        }}
+        onManagedPauseChange={handleManagedPauseChange}
         isOpen={isSidebarOpen}
         settingsRequest={sidebarSettingsRequest}
         onSettingsRequestHandled={() => setSidebarSettingsRequest(null)}
@@ -521,6 +600,8 @@ function App() {
           onOpenModels={() => setShowModelPicker(true)}
           onOpenIntegrations={openIntegrationsPanel}
           openRouterStatus={openRouterStatus}
+          billingStatus={billingStatus}
+          councilProfiles={councilProfiles}
           modelMap={modelMap}
           presets={modelPresets}
         />

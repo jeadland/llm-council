@@ -257,11 +257,16 @@ export default function ChatInterface({
   onOpenModels,
   onOpenIntegrations,
   openRouterStatus,
+  billingStatus,
+  councilProfiles,
   modelMap,
   presets,
 }) {
   const [input, setInput] = useState("");
   const [isImproving, setIsImproving] = useState(false);
+  const [isEstimating, setIsEstimating] = useState(false);
+  const [selectedProfileSlug, setSelectedProfileSlug] = useState("balanced");
+  const [pendingEstimate, setPendingEstimate] = useState(null);
   const [preImproveInput, setPreImproveInput] = useState(null);
   const [improveError, setImproveError] = useState("");
   const messagesEndRef = useRef(null);
@@ -270,6 +275,9 @@ export default function ChatInterface({
   const shouldAutoScrollRef = useRef(true);
   const hasConfiguredCouncil =
     (settings?.council_models?.length || 0) > 0 && !!settings?.chairman_model;
+  const managedReady =
+    billingStatus?.billing_mode === "managed" &&
+    billingStatus?.managed_mode_enabled;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -299,15 +307,36 @@ export default function ChatInterface({
     autoResize();
   }, [input, autoResize]);
 
-  const handleSubmit = (e) => {
+  const submitNow = (content, options = {}) => {
+    onSendMessage(content, options);
+    setInput("");
+    setPreImproveInput(null);
+    setImproveError("");
+    setPendingEstimate(null);
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (input.trim() && !isLoading && !isImproving) {
-      onSendMessage(input);
-      setInput("");
-      setPreImproveInput(null);
+      if (!managedReady) {
+        submitNow(input);
+        return;
+      }
+      setIsEstimating(true);
       setImproveError("");
-      if (textareaRef.current) {
-        textareaRef.current.style.height = "auto";
+      try {
+        const estimate = await api.estimateCouncilProfile({
+          content: input,
+          profileSlug: selectedProfileSlug,
+        });
+        setPendingEstimate({ content: input, estimate });
+      } catch (err) {
+        setImproveError(err?.message || "Could not estimate managed run.");
+      } finally {
+        setIsEstimating(false);
       }
     }
   };
@@ -356,7 +385,7 @@ export default function ChatInterface({
     }
   };
 
-  if (openRouterStatus && !openRouterStatus.configured) {
+  if (openRouterStatus && !openRouterStatus.configured && !managedReady) {
     return (
       <div className="chat-interface">
         <OpenRouterSetupSurface onOpenIntegrations={onOpenIntegrations} />
@@ -437,6 +466,23 @@ export default function ChatInterface({
                       }
                       modelMap={modelMap}
                     />
+                  )}
+
+                  {(msg.billing_receipt || msg.metadata?.billing_receipt) && (
+                    <div className="billing-receipt">
+                      <div>
+                        <strong>
+                          {(msg.billing_receipt || msg.metadata?.billing_receipt)?.profile_slug || "Managed Council"} complete
+                        </strong>
+                        <span>
+                          Actual cost $
+                          {Number((msg.billing_receipt || msg.metadata?.billing_receipt)?.actual_app_cost_usd || 0).toFixed(2)}
+                          {" "}· Remaining balance $
+                          {Number((msg.billing_receipt || msg.metadata?.billing_receipt)?.remaining_balance_usd || 0).toFixed(2)}
+                        </span>
+                      </div>
+                      <span>LLM Council Balance</span>
+                    </div>
                   )}
 
                   {/* Winner banner — easy-to-find result with expandable scoreboard */}
@@ -559,6 +605,24 @@ export default function ChatInterface({
         </div>
       )}
 
+      {managedReady && (
+        <div className="managed-profile-bar" aria-label="Managed counsel profile">
+          {(councilProfiles || []).map((profile) => (
+            <button
+              type="button"
+              key={profile.slug}
+              className={selectedProfileSlug === profile.slug ? "selected" : ""}
+              onClick={() => setSelectedProfileSlug(profile.slug)}
+              disabled={!profile.enabled || isLoading}
+              title={profile.best_for}
+            >
+              <strong>{profile.display_name.replace(" Council", "")}</strong>
+              <span>{profile.estimated_app_cost_display}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       <form className="input-form" onSubmit={handleSubmit}>
         <div className="input-form-inner">
           <div className={`input-card${isLoading ? " is-loading" : ""}`}>
@@ -649,7 +713,7 @@ export default function ChatInterface({
                   <button
                     type="submit"
                     className="send-button"
-                    disabled={!input.trim() || isLoading}
+                    disabled={!input.trim() || isLoading || isEstimating}
                     aria-label="Send message"
                   >
                     {/* Paper-plane icon */}
@@ -667,7 +731,7 @@ export default function ChatInterface({
                       <path d="M22 2L11 13" />
                       <path d="M22 2L15 22L11 13L2 9L22 2Z" />
                     </svg>
-                    Send
+                    {isEstimating ? "..." : "Send"}
                   </button>
                 )}
               </div>
@@ -675,6 +739,73 @@ export default function ChatInterface({
           </div>
         </div>
       </form>
+
+      {pendingEstimate && (
+        <div className="estimate-modal-backdrop" role="presentation">
+          <div className="estimate-modal" role="dialog" aria-modal="true" aria-labelledby="estimate-title">
+            <div className="estimate-modal-header">
+              <div>
+                <h3 id="estimate-title">
+                  {pendingEstimate.estimate.profile?.display_name || "Managed Council"}
+                </h3>
+                <p>{pendingEstimate.estimate.profile?.best_for}</p>
+              </div>
+              <button
+                type="button"
+                className="estimate-close-btn"
+                onClick={() => setPendingEstimate(null)}
+                aria-label="Close estimate"
+              >
+                x
+              </button>
+            </div>
+            <div className="estimate-grid">
+              <div>
+                <span>Estimated cost</span>
+                <strong>
+                  ${Number(pendingEstimate.estimate.estimated_app_cost_low_usd || 0).toFixed(2)}
+                  -
+                  ${Number(pendingEstimate.estimate.estimated_app_cost_high_usd || 0).toFixed(2)}
+                </strong>
+              </div>
+              <div>
+                <span>Maximum charge</span>
+                <strong>${Number(pendingEstimate.estimate.max_app_charge_usd || 0).toFixed(2)}</strong>
+              </div>
+              <div>
+                <span>Your balance</span>
+                <strong>${Number(billingStatus?.available_balance_usd || 0).toFixed(2)}</strong>
+              </div>
+            </div>
+            <p className="estimate-copy">
+              Cost includes model usage, routing, storage, and service fee. You are charged after the run for completed usage, up to the maximum charge.
+            </p>
+            {!pendingEstimate.estimate.can_run && (
+              <div className="estimate-warning">
+                Your balance is too low for this counsel profile. Add balance or switch to your own OpenRouter key.
+              </div>
+            )}
+            <div className="estimate-actions">
+              <button type="button" className="adjust-models-btn" onClick={() => setPendingEstimate(null)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="start-conversation-btn"
+                disabled={!pendingEstimate.estimate.can_run}
+                onClick={() =>
+                  submitNow(pendingEstimate.content, {
+                    billingMode: "managed",
+                    profileSlug: pendingEstimate.estimate.profile?.slug || selectedProfileSlug,
+                  })
+                }
+              >
+                Run Council
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
