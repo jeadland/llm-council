@@ -112,7 +112,7 @@
 
 .empty-council-summary {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr);
   border: 1px solid #e2e8f1;
   border-radius: 10px;
   overflow: hidden;
@@ -852,13 +852,6 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.send-estimate {
-  padding-left: 2px;
-  color: rgba(255, 255, 255, 0.78);
-  font-size: 11px;
-  font-weight: 650;
-}
-
 .send-button:hover:not(:disabled) {
   background: #2f7dd4;
   box-shadow: 0 3px 10px rgba(74, 144, 226, 0.4);
@@ -1507,10 +1500,6 @@ button,
   .stop-button svg {
     width: 16px;
     height: 16px;
-  }
-
-  .send-estimate {
-    display: none;
   }
 
   .stage-stepper {

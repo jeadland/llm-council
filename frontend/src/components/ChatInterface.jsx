@@ -10,8 +10,6 @@ import MarkdownContent from "./MarkdownContent";
 import CouncilProcessSteps from "./CouncilProcessSteps";
 import {
   displayModelName,
-  estimateCouncilCosts,
-  presetNormalCost,
   resolveActiveCouncil,
   shortModelName,
 } from "../modelUtils";
@@ -85,16 +83,6 @@ function EmptyStartSurface({
   const selectedModels = settings?.council_models || [];
   const chairman = settings?.chairman_model || "";
   const active = resolveActiveCouncil(settings, presets);
-  const fallbackEstimate = estimateCouncilCosts(
-    selectedModels,
-    chairman,
-    modelMap,
-  );
-  const presetEstimate = active.selectionMatchesPreset
-    ? presetNormalCost(active.preset)
-    : null;
-  const estimate =
-    presetEstimate || fallbackEstimate?.display || "Pricing unavailable";
   const modelCountLabel = `${selectedModels.length} model${selectedModels.length === 1 ? "" : "s"} active`;
   const catalogLoaded = (modelMap?.size || 0) > 0;
   const hasConfiguredCouncil = selectedModels.length > 0 && !!chairman;
@@ -149,10 +137,6 @@ function EmptyStartSurface({
           <div>
             <span>Chairman</span>
             <strong>{shortModelName(chairman) || "None"}</strong>
-          </div>
-          <div>
-            <span>Est. cost</span>
-            <strong>{estimate}</strong>
           </div>
         </div>
 
@@ -323,18 +307,6 @@ export default function ChatInterface({
   const shouldAutoScrollRef = useRef(true);
   const hasConfiguredCouncil =
     (settings?.council_models?.length || 0) > 0 && !!settings?.chairman_model;
-  const active = resolveActiveCouncil(settings, presets);
-  const fallbackEstimate = estimateCouncilCosts(
-    settings?.council_models || [],
-    settings?.chairman_model || "",
-    modelMap,
-  );
-  const presetEstimate = active.selectionMatchesPreset
-    ? presetNormalCost(active.preset)
-    : null;
-  const normalQuestionEstimate =
-    presetEstimate || fallbackEstimate?.display || "";
-  const showSendEstimate = Boolean(input.trim() && normalQuestionEstimate);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -794,9 +766,6 @@ export default function ChatInterface({
                       <path d="M22 2L15 22L11 13L2 9L22 2Z" />
                     </svg>
                     <span>Send</span>
-                    {showSendEstimate && (
-                      <span className="send-estimate">~{normalQuestionEstimate}</span>
-                    )}
                   </button>
                 )}
               </div>

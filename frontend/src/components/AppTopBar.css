@@ -193,29 +193,6 @@
   color: #c87612;
 }
 
-.app-topbar-cost {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: baseline;
-  gap: 5px;
-  min-height: 30px;
-  padding: 5px 9px;
-  border: 1px solid #e2e8f1;
-  border-radius: 8px;
-  background: #fbfcfe;
-  color: #66748b;
-  font-size: 11px;
-  font-weight: 720;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-.app-topbar-cost strong {
-  color: #172033;
-  font-size: 12px;
-  font-weight: 780;
-}
-
 .app-topbar-models-button,
 .app-topbar-icon {
   display: inline-flex;
@@ -318,8 +295,7 @@
 
   .app-topbar-badge,
   .app-topbar-models,
-  .app-topbar-chairman,
-  .app-topbar-cost {
+  .app-topbar-chairman {
     display: none;
   }
 
@@ -408,8 +384,7 @@
   color: #9ac0f8;
 }
 
-:root[data-theme='dark'] .app-topbar-chip,
-:root[data-theme='dark'] .app-topbar-cost {
+:root[data-theme='dark'] .app-topbar-chip {
   background: #11151d;
   border-color: #2d3848;
   color: #c8d0e0;
@@ -425,10 +400,6 @@
   background: #11243d;
   border-color: #315d95;
   color: #9ac0f8;
-}
-
-:root[data-theme='dark'] .app-topbar-cost strong {
-  color: #edf1f8;
 }
 
 :root[data-theme='dark'] .app-topbar-overflow-menu {

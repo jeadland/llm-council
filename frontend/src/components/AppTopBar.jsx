@@ -3,8 +3,6 @@ import { ChevronDown, Layers3, Menu, Sparkles } from 'lucide-react';
 import {
   abbreviateModelName,
   displayModelName,
-  estimateCouncilCosts,
-  presetNormalCost,
   resolveActiveCouncil,
   shortModelName,
 } from '../modelUtils';
@@ -20,9 +18,6 @@ export default function AppTopBar({
   const selectedModels = settings?.council_models || [];
   const chairman = settings?.chairman_model || '';
   const active = resolveActiveCouncil(settings, presets);
-  const fallbackEstimate = estimateCouncilCosts(selectedModels, chairman, modelMap);
-  const presetEstimate = active.selectionMatchesPreset ? presetNormalCost(active.preset) : null;
-  const estimate = presetEstimate || fallbackEstimate?.display || 'Pricing unavailable';
   const catalogLoaded = (modelMap?.size || 0) > 0;
   const [showOverflow, setShowOverflow] = useState(false);
   const overflowRef = useRef(null);
@@ -133,11 +128,6 @@ export default function AppTopBar({
       <div className="app-topbar-value chairman app-topbar-chairman">
         <Sparkles size={17} />
         <span>{shortModelName(chairman) || 'None'}</span>
-      </div>
-
-      <div className="app-topbar-cost">
-        <span>Est.</span>
-        <strong>{estimate}</strong>
       </div>
 
       <button
