@@ -1527,3 +1527,211 @@ button,
     font-size: 11px;
   }
 }
+
+.managed-profile-bar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 8px 14px 0;
+  max-width: 980px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.managed-profile-bar button {
+  min-width: 0;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px 10px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.managed-profile-bar button.selected {
+  border-color: #4a90e2;
+  background: #eef6ff;
+}
+
+.managed-profile-bar button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.managed-profile-bar strong,
+.managed-profile-bar span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.managed-profile-bar strong {
+  font-size: 12px;
+}
+
+.managed-profile-bar span {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.billing-receipt {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 1px solid #c7dfc8;
+  background: #f2fbf2;
+  border-radius: 8px;
+  color: #1f5f2b;
+  font-size: 12px;
+}
+
+.billing-receipt strong,
+.billing-receipt span {
+  display: block;
+}
+
+.billing-receipt > span {
+  color: #45734b;
+  white-space: nowrap;
+}
+
+.estimate-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(15, 23, 42, 0.38);
+}
+
+.estimate-modal {
+  width: min(520px, 100%);
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.24);
+  padding: 18px;
+}
+
+.estimate-modal-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.estimate-modal h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.estimate-modal p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.estimate-close-btn {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.estimate-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.estimate-grid div {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.estimate-grid span,
+.estimate-grid strong {
+  display: block;
+}
+
+.estimate-grid span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.estimate-grid strong {
+  margin-top: 3px;
+  font-size: 14px;
+}
+
+.estimate-copy {
+  margin-top: 14px !important;
+}
+
+.estimate-warning {
+  margin-top: 12px;
+  padding: 9px 10px;
+  border: 1px solid #f2c47d;
+  background: #fff7e6;
+  color: #7a4a0a;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.estimate-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+:root[data-theme='dark'] .managed-profile-bar button.selected {
+  background: #132840;
+  border-color: #4c95e6;
+}
+
+:root[data-theme='dark'] .billing-receipt {
+  background: #132719;
+  border-color: #2b6138;
+  color: #a9edb8;
+}
+
+:root[data-theme='dark'] .billing-receipt > span {
+  color: #87c993;
+}
+
+:root[data-theme='dark'] .estimate-warning {
+  background: #2a1d12;
+  border-color: #7c4a18;
+  color: #fed7aa;
+}
+
+@media (max-width: 720px) {
+  .managed-profile-bar,
+  .estimate-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .billing-receipt {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

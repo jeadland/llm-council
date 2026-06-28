@@ -33,6 +33,8 @@ from .council import (
 )
 from .openrouter import build_cost_summary, fetch_openrouter_model_catalog, reconcile_cost_calls, resolve_model_presets
 from .openrouter import use_openrouter_account_scope
+from .billing import service as billing_service
+from .billing import stripe_service
 from .model_curation import (
     create_model_curation_draft,
     is_draft_pending_review,
@@ -81,6 +83,7 @@ PUBLIC_API_PATHS = {
     "/api/auth/me",
     "/api/auth/reset-password",
     "/api/cron/model-curation",
+    "/api/stripe/webhook",
 }
 OPENROUTER_KEY_INFO_URL = "https://openrouter.ai/api/v1/key"
 GOOGLE_AUTHORIZATION_URL = "https://accounts.google.com/o/oauth2/v2/auth"
@@ -124,6 +127,8 @@ class SendMessageRequest(BaseModel):
 
 class CreateRunRequest(BaseModel):
     content: str
+    billing_mode: Optional[str] = None
+    profile_slug: Optional[str] = None
 
 
 class AgentResearchPrepareRequest(BaseModel):
@@ -160,6 +165,19 @@ class ImprovePromptRequest(BaseModel):
 class UpdateOpenRouterIntegrationRequest(BaseModel):
     api_key: Optional[str] = None
     clear: bool = False
+
+
+class UpdateBillingModeRequest(BaseModel):
+    billing_mode: str
+
+
+class CreateCheckoutRequest(BaseModel):
+    package_id: str
+
+
+class CouncilEstimateRequest(BaseModel):
+    content: str
+    profile_slug: Optional[str] = "balanced"
 
 
 class SignupRequest(BaseModel):
@@ -459,6 +477,31 @@ def _openrouter_integration_status(owner_email: Optional[str]) -> Dict[str, Any]
         "updated_at": None,
         "env_configured": env_configured,
     }
+
+
+async def _managed_profiles_for_request(owner_email: Optional[str]) -> List[Dict[str, Any]]:
+    try:
+        catalog = await fetch_openrouter_model_catalog()
+    except Exception:
+        catalog = []
+    settings = storage.get_settings(owner_email)
+    return billing_service.get_profiles(catalog, settings.get("curated_model_presets") or None)
+
+
+def _billing_status_for_request(owner_email: Optional[str]) -> Dict[str, Any]:
+    openrouter_status = _openrouter_integration_status(owner_email)
+    return billing_service.billing_status(
+        owner_email or auth.admin_email(),
+        byok_configured=bool(openrouter_status.get("configured")),
+    )
+
+
+def _public_app_base_url(request: Request) -> str:
+    configured = (os.getenv("PUBLIC_APP_URL") or os.getenv("APP_URL") or "").strip().rstrip("/")
+    if configured:
+        return configured
+    root_path = (request.scope.get("root_path") or "").rstrip("/")
+    return f"{request.url.scheme}://{request.url.netloc}{root_path}"
 
 
 def _auth_payload(user: Optional[Dict[str, Any]], authenticated: bool = True) -> Dict[str, Any]:
@@ -850,6 +893,116 @@ async def update_openrouter_integration(request: Request, payload: UpdateOpenRou
     return _openrouter_integration_status(owner_email)
 
 
+@app.get("/api/billing/status")
+async def get_billing_status(request: Request):
+    owner_email = _owner_email_for_request(request)
+    return _billing_status_for_request(owner_email)
+
+
+@app.post("/api/billing/mode")
+async def update_billing_mode(request: Request, payload: UpdateBillingModeRequest):
+    owner_email = _owner_email_for_request(request)
+    mode = payload.billing_mode.strip().lower()
+    try:
+        billing_service.set_mode(owner_email or auth.admin_email(), mode)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    return _billing_status_for_request(owner_email)
+
+
+@app.get("/api/billing/ledger")
+async def get_billing_ledger(request: Request):
+    owner_email = _owner_email_for_request(request)
+    return billing_service.ledger(owner_email or auth.admin_email())
+
+
+@app.post("/api/billing/checkout")
+async def create_billing_checkout(request: Request, payload: CreateCheckoutRequest):
+    owner_email = _owner_email_for_request(request)
+    user_id = owner_email or auth.admin_email()
+    package_id = payload.package_id.strip()
+    base_url = _public_app_base_url(request)
+    if not billing_service.billing_status(user_id, byok_configured=False).get("managed_mode_enabled"):
+        raise HTTPException(status_code=403, detail="Managed LLM Council Balance is not enabled yet.")
+    try:
+        session = await stripe_service.create_checkout_session(
+            user_id=user_id,
+            package_id=package_id,
+            success_url=f"{base_url}?billing=success",
+            cancel_url=f"{base_url}?billing=cancelled",
+        )
+        return session
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+
+
+@app.get("/api/council/profiles")
+async def get_council_profiles(request: Request):
+    owner_email = _owner_email_for_request(request)
+    profiles = await _managed_profiles_for_request(owner_email)
+    return {"profiles": profiles}
+
+
+@app.post("/api/council/estimate")
+async def estimate_council_profile(request: Request, payload: CouncilEstimateRequest):
+    owner_email = _owner_email_for_request(request)
+    profiles = await _managed_profiles_for_request(owner_email)
+    try:
+        estimate = billing_service.estimate_for_profile(profiles, payload.profile_slug, payload.content)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    status = _billing_status_for_request(owner_email)
+    return {
+        **estimate,
+        "profile": estimate["profile"],
+        "billing_status": status,
+        "can_run": status.get("available_balance_usd", 0) >= estimate["max_app_charge_usd"],
+    }
+
+
+@app.post("/api/stripe/webhook")
+async def stripe_webhook(request: Request):
+    payload = await request.body()
+    signature = request.headers.get("stripe-signature", "")
+    try:
+        event = stripe_service.verify_webhook(payload, signature)
+        result = stripe_service.fulfill_checkout_session(event)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@app.get("/api/admin/finance/overview")
+async def admin_finance_overview(request: Request):
+    _require_owner_email(request)
+    return billing_service.admin_overview()
+
+
+@app.get("/api/admin/openrouter/coverage")
+async def admin_openrouter_coverage(request: Request, refresh: bool = Query(default=False)):
+    _require_owner_email(request)
+    if refresh:
+        try:
+            return await billing_service.refresh_coverage()
+        except Exception as e:
+            raise HTTPException(status_code=503, detail=str(e)) from e
+    return billing_service.latest_coverage()
+
+
+@app.post("/api/admin/managed-mode/pause")
+async def admin_pause_managed_mode(request: Request):
+    owner_email = _require_owner_email(request)
+    return billing_service.pause_managed_mode(owner_email or auth.admin_email())
+
+
+@app.post("/api/admin/managed-mode/resume")
+async def admin_resume_managed_mode(request: Request):
+    owner_email = _require_owner_email(request)
+    return billing_service.resume_managed_mode(owner_email or auth.admin_email())
+
+
 @app.get("/api/models/status")
 async def model_status(request: Request):
     owner_email = _owner_email_for_request(request)
@@ -1192,9 +1345,17 @@ async def _execute_run(run_id: str):
     owner_email = run.get("owner_email") or auth.admin_email()
     settings = storage.get_settings(owner_email)
     agent_research = run.get("agent_research") or {}
-    council_models = agent_research.get("council_models") or settings.get("council_models", [])
-    chairman_model = agent_research.get("chairman_model") or settings.get("chairman_model")
+    run_billing = run.get("billing") or {}
+    billing_mode = run_billing.get("billing_mode") or "byok"
+    council_models = (
+        agent_research.get("council_models")
+        or run_billing.get("council_models")
+        or settings.get("council_models", [])
+    )
+    chairman_model = agent_research.get("chairman_model") or run_billing.get("chairman_model") or settings.get("chairman_model")
     openrouter_api_key = _owner_openrouter_api_key(owner_email)
+    if billing_mode == "managed":
+        openrouter_api_key = await billing_service.ensure_managed_openrouter_key(owner_email)
     if not openrouter_api_key and auth.is_auth_required() and not auth.is_owner_email(owner_email):
         raise RuntimeError("Connect your OpenRouter API key before running the council.")
 
@@ -1355,12 +1516,22 @@ async def _execute_run(run_id: str):
             )
             cost_calls = await reconcile_cost_calls(cost_calls, openrouter_api_key or OPENROUTER_API_KEY)
             cost_summary = build_cost_summary(cost_calls)
+            billing_receipt = None
+            if billing_mode == "managed":
+                billing_receipt = await billing_service.finalize_managed_run(
+                    owner_email,
+                    run_id,
+                    run_billing,
+                    cost_summary,
+                )
+                stage2_metadata["billing_receipt"] = billing_receipt
             stage2_metadata["cost_summary"] = cost_summary
             storage.update_run(
                 run_id,
                 {
                     "stage3": {"status": "complete", "data": stage3_result},
                     "cost_summary": cost_summary,
+                    "billing_receipt": billing_receipt,
                     "status": "complete",
                     "error": None,
                 },
@@ -1375,6 +1546,8 @@ async def _execute_run(run_id: str):
             )
 
     except asyncio.CancelledError:
+        if billing_mode == "managed":
+            billing_service.release_run_reservation(run_billing)
         storage.update_run(run_id, {"status": "canceled", "error": "Stopped by user"})
         storage.upsert_assistant_message_for_run(
             conversation_id,
@@ -1383,6 +1556,8 @@ async def _execute_run(run_id: str):
         )
         raise
     except Exception as e:
+        if billing_mode == "managed":
+            billing_service.release_run_reservation(run_billing)
         import traceback
         traceback.print_exc()
         storage.update_run(
@@ -1414,18 +1589,53 @@ async def create_run(conversation_id: str, request: CreateRunRequest, http_reque
 
     is_first_message = len(conversation["messages"]) == 0
     openrouter_api_key = _owner_openrouter_api_key(owner_email)
-    if not openrouter_api_key and auth.is_auth_required() and not auth.is_owner_email(owner_email):
+    billing_status = _billing_status_for_request(owner_email)
+    billing_mode = (request.billing_mode or billing_status.get("billing_mode") or "byok").strip().lower()
+    if billing_mode not in {"byok", "managed"}:
+        raise HTTPException(status_code=400, detail="Unsupported billing mode")
+    run_id = str(uuid.uuid4())
+    run_billing: Dict[str, Any] = {"billing_mode": billing_mode}
+
+    if billing_mode == "managed":
+        profiles = await _managed_profiles_for_request(owner_email)
+        try:
+            estimate = billing_service.estimate_for_profile(profiles, request.profile_slug or "balanced", request.content)
+            run_billing = await billing_service.prepare_managed_run(
+                owner_email or auth.admin_email(),
+                run_id,
+                estimate["profile"],
+                estimate,
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=402, detail=str(e)) from e
+        except Exception as e:
+            raise HTTPException(status_code=503, detail=str(e)) from e
+    elif not openrouter_api_key and auth.is_auth_required() and not auth.is_owner_email(owner_email):
         raise HTTPException(status_code=403, detail="Connect your OpenRouter API key before running the council.")
 
     storage.add_user_message(conversation_id, request.content)
 
     if is_first_message:
-        with use_openrouter_account_scope(owner_email, api_key=openrouter_api_key):
-            title = await generate_conversation_title(request.content)
+        if billing_mode == "managed":
+            title = request.content.strip().splitlines()[0][:64] or "Managed Council"
+        else:
+            with use_openrouter_account_scope(owner_email, api_key=openrouter_api_key):
+                title = await generate_conversation_title(request.content)
         storage.update_conversation_title(conversation_id, title)
 
-    run_id = str(uuid.uuid4())
     run = storage.create_run(run_id, conversation_id, request.content, owner_email)
+    if billing_mode == "managed":
+        storage.update_run(
+            run_id,
+            {
+                "billing": {
+                    key: value
+                    for key, value in run_billing.items()
+                    if key != "openrouter_api_key"
+                }
+            },
+        )
+        run = storage.get_run(run_id) or run
     storage.upsert_assistant_message_for_run(conversation_id, run_id)
 
     if os.getenv("RUN_EXECUTION_MODE", "").strip().lower() == "sync":
