@@ -66,6 +66,81 @@ export const api = {
     return response.json();
   },
 
+  async getBillingStatus() {
+    const response = await fetch(`${API_BASE}/api/billing/status`, { credentials: 'include' });
+    if (!response.ok) throw new Error('Failed to load billing status');
+    return response.json();
+  },
+
+  async updateBillingMode(billingMode) {
+    const response = await fetch(`${API_BASE}/api/billing/mode`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ billing_mode: billingMode }),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.detail || 'Failed to update billing mode');
+    }
+    return response.json();
+  },
+
+  async createBillingCheckout(packageId) {
+    const response = await fetch(`${API_BASE}/api/billing/checkout`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ package_id: packageId }),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.detail || 'Failed to start checkout');
+    }
+    return response.json();
+  },
+
+  async getCouncilProfiles() {
+    const response = await fetch(`${API_BASE}/api/council/profiles`, { credentials: 'include' });
+    if (!response.ok) throw new Error('Failed to load council profiles');
+    return response.json();
+  },
+
+  async estimateCouncilProfile({ content, profileSlug }) {
+    const response = await fetch(`${API_BASE}/api/council/estimate`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content, profile_slug: profileSlug }),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.detail || 'Failed to estimate managed run');
+    }
+    return response.json();
+  },
+
+  async getAdminFinanceOverview() {
+    const response = await fetch(`${API_BASE}/api/admin/finance/overview`, { credentials: 'include' });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.detail || 'Failed to load finance overview');
+    }
+    return response.json();
+  },
+
+  async setManagedModePaused(paused) {
+    const response = await fetch(`${API_BASE}/api/admin/managed-mode/${paused ? 'pause' : 'resume'}`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.detail || 'Failed to update managed mode');
+    }
+    return response.json();
+  },
+
   async getModelCatalog(params = {}) {
     const search = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
@@ -138,12 +213,16 @@ export const api = {
     return response.json();
   },
 
-  async createRun(conversationId, content) {
+  async createRun(conversationId, content, options = {}) {
     const response = await fetch(`${API_BASE}/api/conversations/${conversationId}/runs`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({
+        content,
+        billing_mode: options.billingMode,
+        profile_slug: options.profileSlug,
+      }),
     });
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));
