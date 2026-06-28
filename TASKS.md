@@ -4,34 +4,6 @@ Use this file as the lightweight source of truth for current and upcoming work. 
 
 ## Now
 
-### Task: Managed balance private beta
-
-Status: Implemented on `codex/managed-balance-beta`; verification in progress
-
-Goal:
-
-Add optional Stripe-backed LLM Council Balance for curated managed profiles while preserving BYOK.
-
-Acceptance criteria:
-
-- [x] BYOK OpenRouter keys are encrypted at rest with legacy plaintext read compatibility.
-- [x] Billing ledger, reservations, Stripe event idempotency, payments, managed keys, receipts, coverage snapshots, and audit scaffolding are backed by billing storage.
-- [x] Stripe Checkout top-up endpoint and signature-verified webhook fulfillment exist.
-- [x] Managed run path reserves max charge, runs with managed child key, finalizes actual charge, and releases on failure/cancel.
-- [x] Managed mode is disabled by default and fails closed.
-- [x] Frontend exposes billing mode, top-ups, profile estimates, pre-run confirmation, receipts, and owner admin summary.
-- [ ] Stripe test-mode dashboard/CLI checkout smoke.
-- [ ] Supabase/Postgres migration applied to a beta database.
-- [ ] OpenRouter child-key provisioning smoke with a management key.
-- [ ] Vercel preview smoke with `MANAGED_MODE_ENABLED=false`.
-
-Verification:
-
-- [x] `uv run python -m unittest discover tests -p 'test_billing.py'`
-- [x] `uv run python -m compileall backend api`
-- [x] `npm --prefix frontend run lint`
-- [x] `npm --prefix frontend run build`
-
 ### Task: Make LLM Council callable by Codex via MCP
 
 Status: Implemented on `codex/llm-council-mcp`; verification in progress

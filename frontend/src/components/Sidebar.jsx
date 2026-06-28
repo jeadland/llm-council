@@ -16,13 +16,6 @@ export default function Sidebar({
   auth,
   onLogout,
   onOpenRouterStatusChanged,
-  billingStatus,
-  councilProfiles,
-  adminFinance,
-  onBillingModeChange,
-  onStartCheckout,
-  onRefreshBilling,
-  onManagedPauseChange,
   isOpen,
   settingsRequest,
   onSettingsRequestHandled,
@@ -56,8 +49,6 @@ export default function Sidebar({
   const [openRouterKey, setOpenRouterKey] = useState("");
   const [openRouterStatusMessage, setOpenRouterStatusMessage] = useState("");
   const [openRouterBusy, setOpenRouterBusy] = useState(false);
-  const [billingMessage, setBillingMessage] = useState("");
-  const [billingBusy, setBillingBusy] = useState(false);
 
   const loadOpenRouterStatus = useCallback(async () => {
     try {
@@ -85,7 +76,6 @@ export default function Sidebar({
     setDraftThemeMode(settings?.theme_mode || "system");
     setOpenRouterKey("");
     setOpenRouterStatusMessage("");
-    setBillingMessage("");
     setShowSettings(true);
   };
 
@@ -158,48 +148,6 @@ export default function Sidebar({
       );
     } finally {
       setOpenRouterBusy(false);
-    }
-  };
-
-  const updateBillingMode = async (mode) => {
-    setBillingMessage("");
-    setBillingBusy(true);
-    try {
-      await onBillingModeChange?.(mode);
-      setBillingMessage(
-        mode === "managed"
-          ? "Managed LLM Council Balance selected."
-          : "Bring Your Own Key selected.",
-      );
-    } catch (e) {
-      setBillingMessage(e.message || "Billing mode could not be updated.");
-    } finally {
-      setBillingBusy(false);
-    }
-  };
-
-  const startCheckout = async (packageId) => {
-    setBillingMessage("");
-    setBillingBusy(true);
-    try {
-      await onStartCheckout?.(packageId);
-    } catch (e) {
-      setBillingMessage(e.message || "Checkout could not be started.");
-      setBillingBusy(false);
-    }
-  };
-
-  const toggleManagedPause = async (paused) => {
-    setBillingMessage("");
-    setBillingBusy(true);
-    try {
-      await onManagedPauseChange?.(paused);
-      setBillingMessage(paused ? "Managed runs paused." : "Managed runs resumed.");
-      await onRefreshBilling?.();
-    } catch (e) {
-      setBillingMessage(e.message || "Managed mode could not be updated.");
-    } finally {
-      setBillingBusy(false);
     }
   };
 
@@ -430,141 +378,6 @@ export default function Sidebar({
                 </button>
               </div>
             </div>
-
-            <div className="settings-subtitle settings-account-subtitle">
-              <span>Billing</span>
-              <span className="settings-chairman-hint">
-                {billingStatus?.managed_mode_enabled
-                  ? "Private beta"
-                  : "Managed balance disabled"}
-              </span>
-            </div>
-            <div className="integration-settings-card billing-settings-card">
-              <div className="billing-balance-row">
-                <div>
-                  <strong>LLM Council Balance</strong>
-                  <span>
-                    Available ${Number(billingStatus?.available_balance_usd || 0).toFixed(2)}
-                    {Number(billingStatus?.reserved_usd || 0) > 0
-                      ? ` · $${Number(billingStatus.reserved_usd).toFixed(2)} reserved`
-                      : ""}
-                  </span>
-                </div>
-                <span
-                  className={`integration-status-pill${billingStatus?.billing_mode === "managed" ? " configured" : ""}`}
-                >
-                  {billingStatus?.billing_mode === "managed" ? "Managed" : "BYOK"}
-                </span>
-              </div>
-
-              <div className="billing-mode-grid">
-                <button
-                  type="button"
-                  className={`billing-mode-card${billingStatus?.billing_mode !== "managed" ? " selected" : ""}`}
-                  onClick={() => updateBillingMode("byok")}
-                  disabled={billingBusy}
-                >
-                  <strong>Use your OpenRouter key</strong>
-                  <span>You pay OpenRouter directly. No app balance required.</span>
-                </button>
-                <button
-                  type="button"
-                  className={`billing-mode-card${billingStatus?.billing_mode === "managed" ? " selected" : ""}`}
-                  onClick={() => updateBillingMode("managed")}
-                  disabled={billingBusy || !billingStatus?.managed_mode_enabled}
-                >
-                  <strong>Start with LLM Council Balance</strong>
-                  <span>Add balance and use curated counsel profiles with upfront estimates.</span>
-                </button>
-              </div>
-
-              <div className="billing-topup-row" aria-label="Balance top-ups">
-                {(billingStatus?.topup_packages || []).map((pkg) => (
-                  <button
-                    type="button"
-                    key={pkg.id}
-                    className={`billing-topup-btn${pkg.recommended ? " recommended" : ""}`}
-                    onClick={() => startCheckout(pkg.id)}
-                    disabled={billingBusy || !billingStatus?.managed_mode_enabled || !billingStatus?.stripe_configured}
-                  >
-                    <strong>{pkg.label}</strong>
-                    <span>{pkg.recommended ? "Recommended" : "Add balance"}</span>
-                  </button>
-                ))}
-              </div>
-
-              <p className="billing-note">
-                Cost includes model usage, routing, storage, and service fee.
-                Managed users can only run curated profiles.
-              </p>
-
-              {councilProfiles?.length > 0 && (
-                <div className="billing-profile-strip">
-                  {councilProfiles.slice(0, 4).map((profile) => (
-                    <span key={profile.slug}>
-                      {profile.display_name}: {profile.estimated_app_cost_display}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {billingMessage && (
-                <div
-                  className={`account-status${billingMessage.includes("selected") || billingMessage.includes("resumed") || billingMessage.includes("paused") ? " success" : ""}`}
-                >
-                  {billingMessage}
-                </div>
-              )}
-            </div>
-
-            {auth?.role === "owner" && adminFinance && (
-              <>
-                <div className="settings-subtitle settings-account-subtitle">
-                  <span>Finance Admin</span>
-                  <span className="settings-chairman-hint">
-                    {adminFinance.coverage?.status || "No coverage snapshot"}
-                  </span>
-                </div>
-                <div className="integration-settings-card admin-finance-card">
-                  <div className="admin-finance-grid">
-                    <div>
-                      <span>App credits</span>
-                      <strong>${Number(adminFinance.app_credits_outstanding_usd || 0).toFixed(2)}</strong>
-                    </div>
-                    <div>
-                      <span>Raw liability</span>
-                      <strong>${Number(adminFinance.managed_raw_liability_usd || 0).toFixed(2)}</strong>
-                    </div>
-                    <div>
-                      <span>Failed webhooks</span>
-                      <strong>{adminFinance.failed_webhooks_count || 0}</strong>
-                    </div>
-                    <div>
-                      <span>Managed mode</span>
-                      <strong>{adminFinance.managed_mode_paused ? "Paused" : "Allowed"}</strong>
-                    </div>
-                  </div>
-                  <div className="account-actions integration-actions">
-                    <button
-                      type="button"
-                      className="settings-cancel-btn account-logout-btn"
-                      onClick={() => toggleManagedPause(true)}
-                      disabled={billingBusy || adminFinance.managed_mode_paused}
-                    >
-                      Pause managed runs
-                    </button>
-                    <button
-                      type="button"
-                      className="settings-save-btn account-password-btn"
-                      onClick={() => toggleManagedPause(false)}
-                      disabled={billingBusy || !adminFinance.managed_mode_paused}
-                    >
-                      Resume
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
 
             {auth?.auth_required && (
               <>

@@ -6,25 +6,23 @@ Use this file to transfer context between ChatGPT, Codex, Cursor, GitHub, and hu
 
 ```text
 The app is LLM Council, a React + FastAPI multi-model deliberation app.
-The active branch for this task is codex/managed-balance-beta, branched from web/vercel.
+The active branch is web/vercel for hosted deployment work.
 main remains the local/OpenClaw/LAN branch.
-The current implementation includes Vercel config, Redis-backed storage, Google-only private auth, BYOK OpenRouter key setup after login, sync run mode, and managed-balance beta code.
-The next task is hosted/infrastructure verification: Supabase/Postgres migration, Stripe test-mode checkout/webhook, OpenRouter child-key provisioning, and Vercel preview smoke with MANAGED_MODE_ENABLED=false.
+The current implementation includes Vercel config, Redis-backed storage, Google-only private auth, BYOK OpenRouter key setup after login, and sync run mode.
+The next task is Vercel preview deployment and hosted smoke verification.
 ```
 
 ## Active Task
 
-Task name: Validate managed balance private beta
+Task name: Deploy and validate Vercel web branch
 
-Goal: Validate Stripe-backed LLM Council Balance on the managed-balance feature branch without enabling live managed runs.
+Goal: Push/deploy `web/vercel`, configure env vars, and verify hosted private use.
 
 Expected behavior:
 
 - Unauthenticated hosted visitors see only the Google sign-in button.
 - New users create/sign into an account with Google, then add their own OpenRouter key through API & Integrations before running council requests.
 - Authenticated owner and BYOK users can use the council.
-- Managed beta users can add LLM Council Balance, choose curated profiles, see pre-run max-charge estimates, and receive receipts once enabled.
-- BYOK remains usable when managed mode is paused, underfunded, or disabled.
 - Password signup, login, reset, and change-password routes are intentionally disabled.
 - Data persists through reload/redeploy and remains scoped by authenticated user.
 
@@ -42,13 +40,10 @@ Scope classification:
 - `backend/auth.py`
 - `backend/main.py`
 - `backend/storage.py`
-- `backend/billing/`
-- `migrations/20260627_managed_billing.sql`
 - `frontend/src/App.jsx`
 - `frontend/src/api.js`
+- `frontend/src/components/LoginScreen.jsx`
 - `frontend/src/components/Sidebar.jsx`
-- `frontend/src/components/ChatInterface.jsx`
-- `tests/test_billing.py`
 - `tests/test_byok_onboarding.py`
 - `README.md`
 
@@ -63,14 +58,11 @@ Scope classification:
 - Implemented per-user conversation/settings/run/integration scoping and non-owner server-key fallback protection.
 - Verified password auth routes are disabled in tests.
 - Verified compile, lint, and build.
-- Added managed-balance billing storage, Stripe webhook idempotency, encrypted BYOK storage, OpenRouter management-key child-key scaffolding, managed run reservations/finalization, frontend billing UI, and owner finance summary.
 
 ## Known Constraints
 
 - Do not commit secrets.
 - Vercel hosted mode requires Upstash Redis and OpenRouter env vars.
-- Managed billing hosted mode requires Supabase/Postgres `DATABASE_URL`, Stripe test keys/webhook secret/price IDs, `OPENROUTER_MANAGEMENT_KEY`, and `KEY_ENCRYPTION_SECRET`.
-- `MANAGED_MODE_ENABLED` defaults off and should remain off until infrastructure smoke tests pass.
 - Synchronous hosted runs may hit function duration limits.
 - `main` should not be accidentally converted to hosted-only behavior.
 

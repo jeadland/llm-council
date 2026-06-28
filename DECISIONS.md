@@ -4,27 +4,6 @@ Use this file to record important product, architecture, design, and implementat
 
 ## Decision Log
 
-## 2026-06-27 - Managed balance private beta uses Stripe, Postgres, and OpenRouter child keys
-
-Decision:
-
-- Managed paid usage is a private beta on `web/vercel`, not a public launch.
-- BYOK remains the default advanced-user path.
-- Managed users buy LLM Council Balance through Stripe Checkout top-ups and spend it only on curated council profiles.
-- Financial state lives in a Postgres-backed append-only ledger with reservations; local tests may use SQLite.
-- Managed model calls use one encrypted OpenRouter child key per user, provisioned through an OpenRouter Management API key.
-- `MANAGED_MODE_ENABLED` defaults off until Stripe test mode, Postgres, OpenRouter management, coverage, and admin controls are verified.
-
-Rationale:
-
-- Billing state needs transaction semantics, webhook idempotency, reservations, and auditability.
-- The product should sell the bounded LLM Council workflow, not raw OpenRouter credits or arbitrary API access.
-- Fail-closed controls reduce owner financial exposure while preserving BYOK availability.
-
-Status:
-
-- Active
-
 ## 2026-06-24 - Hosted auth is Google-only
 
 Decision:

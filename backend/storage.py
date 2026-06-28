@@ -12,7 +12,6 @@ from typing import List, Dict, Any, Optional
 from pathlib import Path
 from .config import DATA_DIR, COUNCIL_MODELS, CHAIRMAN_MODEL, PREMIER_MODELS, ENHANCER_MODEL
 from .openrouter import normalize_model_id
-from .billing.crypto import decrypt_secret, encrypt_secret, hash_secret, mask_secret
 
 RUNS_DIR = "data/runs"
 SETTINGS_PATH = "data/settings.json"
@@ -970,13 +969,15 @@ def clear_login_attempts(email: str):
 
 
 def _mask_secret(value: str) -> str:
-    return mask_secret(value)
+    if not value:
+        return ""
+    if len(value) <= 12:
+        return f"{value[:3]}..."
+    return f"{value[:8]}...{value[-4:]}"
 
 
 def get_openrouter_api_key(owner_email: Optional[str]) -> Optional[str]:
     credential = get_openrouter_api_key_record(owner_email)
-    if credential.get("encrypted_api_key"):
-        return decrypt_secret(credential.get("encrypted_api_key"))
     return credential.get("api_key") or None
 
 
@@ -994,12 +995,10 @@ def get_openrouter_api_key_record(owner_email: Optional[str]) -> Dict[str, Any]:
 
 def get_openrouter_api_key_status(owner_email: Optional[str]) -> Dict[str, Any]:
     credential = get_openrouter_api_key_record(owner_email)
-    api_key = get_openrouter_api_key(owner_email)
+    api_key = credential.get("api_key") or None
     return {
         "configured": bool(api_key),
-        "masked_key": credential.get("masked_key") or _mask_secret(api_key or ""),
-        "encrypted": bool(credential.get("encrypted_api_key")),
-        "legacy_plaintext": bool(credential.get("api_key") and not credential.get("encrypted_api_key")),
+        "masked_key": _mask_secret(api_key or ""),
         "updated_at": credential.get("updated_at"),
     }
 
@@ -1007,9 +1006,7 @@ def get_openrouter_api_key_status(owner_email: Optional[str]) -> Dict[str, Any]:
 def save_openrouter_api_key(owner_email: Optional[str], api_key: str) -> Dict[str, Any]:
     owner_scope = _owner_scope(owner_email)
     credential = {
-        "encrypted_api_key": encrypt_secret(api_key),
-        "key_hash": hash_secret(api_key),
-        "masked_key": _mask_secret(api_key),
+        "api_key": api_key,
         "updated_at": datetime.utcnow().isoformat(),
     }
 
@@ -1017,8 +1014,7 @@ def save_openrouter_api_key(owner_email: Optional[str], api_key: str) -> Dict[st
         _json_set(_key("integration", "openrouter", owner_scope), credential)
         return {
             "configured": True,
-            "masked_key": credential["masked_key"],
-            "encrypted": True,
+            "masked_key": _mask_secret(api_key),
             "updated_at": credential["updated_at"],
         }
 
@@ -1032,8 +1028,7 @@ def save_openrouter_api_key(owner_email: Optional[str], api_key: str) -> Dict[st
         json.dump(integrations, f, indent=2)
     return {
         "configured": True,
-        "masked_key": credential["masked_key"],
-        "encrypted": True,
+        "masked_key": _mask_secret(api_key),
         "updated_at": credential["updated_at"],
     }
 

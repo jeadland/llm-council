@@ -1,15 +1,5 @@
 # Josh Site Deployment
 
-## LLM Council Managed Balance Beta
-
-Do not enable managed paid balance on production routing until all of these are true:
-
-- `DATABASE_URL`, Stripe test keys, Stripe webhook secret, Stripe price IDs, `OPENROUTER_MANAGEMENT_KEY`, `KEY_ENCRYPTION_SECRET`, and `PUBLIC_APP_URL=https://joshadland.com/llm-council` are configured in the Vercel project.
-- The Postgres migration in `migrations/20260627_managed_billing.sql` has been applied to the selected Supabase/Postgres project.
-- Stripe webhook delivery has been tested against `/llm-council/api/stripe/webhook`.
-- OpenRouter coverage refresh and child-key provisioning have been tested with a small private-beta account.
-- `MANAGED_MODE_ENABLED` remains `false` for preview smoke, then requires explicit owner approval before changing to `true`.
-
 This app is mounted inside Josh's personal site. Treat
 `https://joshadland.com/llm-council` as the production URL that matters.
 
