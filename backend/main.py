@@ -230,15 +230,7 @@ async def root():
 
 @app.get("/api/health")
 async def health():
-    return {
-        "ok": True,
-        "app": "llm-council",
-        "storage": "redis-or-local",
-        "managed_mode_enabled": billing_service.billing_status("health-check").get("managed_mode_enabled"),
-        "billing_database_configured": bool(os.getenv("BILLING_DATABASE_URL") or os.getenv("DATABASE_URL")),
-        "stripe_configured": bool(os.getenv("STRIPE_SECRET_KEY")),
-        "openrouter_management_configured": bool(os.getenv("OPENROUTER_MANAGEMENT_KEY")),
-    }
+    return {"ok": True, "app": "llm-council", "storage": "redis-or-local"}
 
 
 def _set_session_cookie(response: Response, token: str):
