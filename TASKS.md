@@ -132,6 +132,7 @@ Notes:
 
 ## Completed
 
+- 2026-06-27: Parked the managed-balance/Stripe implementation on `codex/managed-balance-test` and restored `web/vercel` to BYOK-only hosted behavior.
 - 2026-06-24: Switched hosted auth to Google-only while preserving BYOK model-access gating.
 - 2026-06-24: Added top-level model bar, richer curated/custom model picker, owner-scoped OpenRouter key handling, cost estimates, and reviewable weekly curation draft endpoints.
 - 2026-06-24: Added no-invite BYOK foundation with per-user data scoping, key masking, and non-owner server-key fallback protection.

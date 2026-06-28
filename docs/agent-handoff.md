@@ -9,6 +9,7 @@ The app is LLM Council, a React + FastAPI multi-model deliberation app.
 The active branch is web/vercel for hosted deployment work.
 main remains the local/OpenClaw/LAN branch.
 The current implementation includes Vercel config, Redis-backed storage, Google-only private auth, BYOK OpenRouter key setup after login, and sync run mode.
+The managed-balance/Stripe implementation is parked on `codex/managed-balance-test`; `web/vercel` is BYOK-only.
 The next task is Vercel preview deployment and hosted smoke verification.
 ```
 
@@ -58,6 +59,7 @@ Scope classification:
 - Implemented per-user conversation/settings/run/integration scoping and non-owner server-key fallback protection.
 - Verified password auth routes are disabled in tests.
 - Verified compile, lint, and build.
+- Parked managed-balance/Stripe work on `codex/managed-balance-test` and reverted `web/vercel` to BYOK-only behavior.
 
 ## Known Constraints
 

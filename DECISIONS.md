@@ -4,6 +4,23 @@ Use this file to record important product, architecture, design, and implementat
 
 ## Decision Log
 
+## 2026-06-27 - Managed balance work is parked off the hosted branch
+
+Decision:
+
+- `web/vercel` is BYOK-only for the hosted branch again.
+- The managed-balance/Stripe implementation is preserved on `codex/managed-balance-test` for later side-project work.
+- Do not reintroduce billing UI, checkout routes, managed-run behavior, billing storage, or payment dependencies on active hosted branches without explicit owner approval.
+
+Rationale:
+
+- The Stripe flow needs more product and verification work before it should be visible in the hosted app.
+- Parking the code on a side branch preserves progress without exposing unfinished billing behavior.
+
+Status:
+
+- Active
+
 ## 2026-06-24 - Hosted auth is Google-only
 
 Decision:
