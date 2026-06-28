@@ -81,12 +81,6 @@ def _execute(conn: Any, sql: str, params: tuple = ()):
     return conn.execute(sql, params)
 
 
-def _db_bool(conn: Any, value: bool) -> Any:
-    if isinstance(conn, sqlite3.Connection):
-        return 1 if value else 0
-    return bool(value)
-
-
 def _fetchone(conn: Any, sql: str, params: tuple = ()) -> Optional[Dict[str, Any]]:
     row = _execute(conn, sql, params).fetchone()
     if row is None:
@@ -298,9 +292,9 @@ def get_or_create_profile(user_id: str) -> Dict[str, Any]:
             """
             insert into billing_profiles
                 (user_id, billing_mode, managed_enabled, byok_enabled, service_multiplier, created_at, updated_at)
-            values (%s, 'byok', %s, %s, %s, %s, %s)
+            values (%s, 'byok', 0, 1, %s, %s, %s)
             """,
-            (user_id, _db_bool(conn, False), _db_bool(conn, True), multiplier, now, now),
+            (user_id, multiplier, now, now),
         )
         return _fetchone(conn, "select * from billing_profiles where user_id = %s", (user_id,)) or {}
 
@@ -317,11 +311,11 @@ def set_billing_mode(user_id: str, mode: str) -> Dict[str, Any]:
             """
             update billing_profiles
             set billing_mode = %s,
-                managed_enabled = case when %s = 'managed' then %s else managed_enabled end,
+                managed_enabled = case when %s = 'managed' then 1 else managed_enabled end,
                 updated_at = %s
             where user_id = %s
             """,
-            (mode, mode, _db_bool(conn, True), now, user_id),
+            (mode, mode, now, user_id),
         )
     return get_or_create_profile(user_id)
 
@@ -633,7 +627,7 @@ def save_managed_key(user_id: str, key_data: Dict[str, Any]) -> Dict[str, Any]:
         "usage_weekly_usd": key_data.get("usage_weekly_usd"),
         "usage_monthly_usd": key_data.get("usage_monthly_usd"),
         "limit_reset": key_data.get("limit_reset"),
-        "disabled": bool(key_data.get("disabled")),
+        "disabled": 1 if key_data.get("disabled") else 0,
         "last_synced_at": key_data.get("last_synced_at") or now,
     }
     with connect() as conn:
@@ -659,7 +653,7 @@ def save_managed_key(user_id: str, key_data: Dict[str, Any]) -> Dict[str, Any]:
                     values["usage_weekly_usd"],
                     values["usage_monthly_usd"],
                     values["limit_reset"],
-                    _db_bool(conn, values["disabled"]),
+                    values["disabled"],
                     values["last_synced_at"],
                     now,
                     user_id,
@@ -688,7 +682,7 @@ def save_managed_key(user_id: str, key_data: Dict[str, Any]) -> Dict[str, Any]:
                     values["usage_weekly_usd"],
                     values["usage_monthly_usd"],
                     values["limit_reset"],
-                    _db_bool(conn, values["disabled"]),
+                    values["disabled"],
                     values["last_synced_at"],
                     now,
                     now,
