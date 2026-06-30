@@ -96,6 +96,8 @@ class BillingStripeTests(BillingTempMixin, unittest.TestCase):
                 "data": {
                     "object": {
                         "id": "cs_test_1",
+                        "mode": "payment",
+                        "currency": "usd",
                         "payment_status": "paid",
                         "payment_intent": "pi_test_1",
                         "amount_total": 1000,
@@ -117,15 +119,43 @@ class BillingStripeTests(BillingTempMixin, unittest.TestCase):
         self.assertEqual(round(db.ledger_balance("person@example.com"), 2), 10.00)
         self.assertEqual(db.get_or_create_profile("person@example.com")["billing_mode"], "managed")
 
+    def test_one_dollar_test_checkout_credits_balance(self):
+        event = {
+            "id": "evt_test_one_dollar",
+            "type": "checkout.session.completed",
+            "data": {
+                "object": {
+                    "id": "cs_test_one_dollar",
+                    "mode": "payment",
+                    "currency": "usd",
+                    "payment_status": "paid",
+                    "payment_intent": "pi_test_one_dollar",
+                    "amount_total": 100,
+                    "metadata": {
+                        "user_id": "person@example.com",
+                        "credit_package": "test_1",
+                    },
+                }
+            },
+        }
+
+        result = stripe_service.fulfill_checkout_session(event)
+
+        self.assertEqual(result["status"], "processed")
+        self.assertEqual(result["credited_usd"], 1.00)
+        self.assertEqual(round(db.ledger_balance("person@example.com"), 2), 1.00)
+
     def test_checkout_webhook_rejects_mismatched_package_amount(self):
         event = {
             "id": "evt_mismatch",
             "type": "checkout.session.completed",
             "data": {
-                "object": {
-                    "id": "cs_test_mismatch",
-                    "payment_status": "paid",
-                    "payment_intent": "pi_test_mismatch",
+                    "object": {
+                        "id": "cs_test_mismatch",
+                        "mode": "payment",
+                        "currency": "usd",
+                        "payment_status": "paid",
+                        "payment_intent": "pi_test_mismatch",
                     "amount_total": 100,
                     "metadata": {
                         "user_id": "person@example.com",
@@ -145,10 +175,12 @@ class BillingStripeTests(BillingTempMixin, unittest.TestCase):
             "id": "evt_checkout",
             "type": "checkout.session.completed",
             "data": {
-                "object": {
-                    "id": "cs_test_1",
-                    "payment_status": "paid",
-                    "payment_intent": "pi_test_1",
+                    "object": {
+                        "id": "cs_test_1",
+                        "mode": "payment",
+                        "currency": "usd",
+                        "payment_status": "paid",
+                        "payment_intent": "pi_test_1",
                     "amount_total": 1000,
                     "metadata": {
                         "user_id": "person@example.com",
@@ -183,6 +215,90 @@ class BillingStripeTests(BillingTempMixin, unittest.TestCase):
         self.assertEqual(duplicate_refund["status"], "duplicate")
         self.assertEqual(cumulative_refund["adjusted_usd"], 2.00)
         self.assertEqual(dispute["adjusted_usd"], 4.00)
+        self.assertEqual(round(db.ledger_balance("person@example.com"), 2), 0.00)
+
+    def test_failed_checkout_webhook_can_be_retried(self):
+        event = {
+            "id": "evt_retry",
+            "type": "checkout.session.completed",
+            "data": {
+                "object": {
+                    "id": "cs_retry",
+                    "mode": "payment",
+                    "currency": "usd",
+                    "payment_status": "paid",
+                    "payment_intent": "pi_retry",
+                    "amount_total": 100,
+                    "metadata": {
+                        "user_id": "person@example.com",
+                        "credit_package": "standard_10",
+                    },
+                }
+            },
+        }
+
+        with self.assertRaises(ValueError):
+            stripe_service.fulfill_checkout_session(event)
+
+        event["data"]["object"]["amount_total"] = 1000
+        result = stripe_service.fulfill_checkout_session(event)
+
+        self.assertEqual(result["status"], "processed")
+        self.assertEqual(round(db.ledger_balance("person@example.com"), 2), 10.00)
+
+    def test_same_checkout_session_under_new_event_id_does_not_double_credit(self):
+        base_object = {
+            "id": "cs_same_payment",
+            "mode": "payment",
+            "currency": "usd",
+            "payment_status": "paid",
+            "payment_intent": "pi_same_payment",
+            "amount_total": 1000,
+            "metadata": {
+                "user_id": "person@example.com",
+                "credit_package": "standard_10",
+            },
+        }
+        first = {
+            "id": "evt_same_payment_1",
+            "type": "checkout.session.completed",
+            "data": {"object": base_object},
+        }
+        second = {
+            "id": "evt_same_payment_2",
+            "type": "checkout.session.completed",
+            "data": {"object": base_object},
+        }
+
+        first_result = stripe_service.fulfill_checkout_session(first)
+        second_result = stripe_service.fulfill_checkout_session(second)
+
+        self.assertEqual(first_result["status"], "processed")
+        self.assertEqual(second_result["status"], "duplicate_payment")
+        self.assertEqual(round(db.ledger_balance("person@example.com"), 2), 10.00)
+
+    def test_checkout_webhook_requires_paid_payment_session(self):
+        event = {
+            "id": "evt_unpaid",
+            "type": "checkout.session.completed",
+            "data": {
+                "object": {
+                    "id": "cs_unpaid",
+                    "mode": "payment",
+                    "currency": "usd",
+                    "payment_intent": "pi_unpaid",
+                    "amount_total": 1000,
+                    "metadata": {
+                        "user_id": "person@example.com",
+                        "credit_package": "standard_10",
+                    },
+                }
+            },
+        }
+
+        with self.assertRaises(ValueError):
+            stripe_service.fulfill_checkout_session(event)
+
         self.assertEqual(round(db.ledger_balance("person@example.com"), 2), 0.00)
 
 
@@ -391,6 +507,38 @@ class BillingApiTests(BillingTempMixin, unittest.TestCase):
         self.assertEqual(second_status.json()["billing_mode"], "byok")
         self.assertEqual(second_status.json()["available_balance_usd"], 0.00)
 
+    def test_billing_status_includes_one_dollar_package_configuration(self):
+        client = TestClient(app)
+        self._sign_in(client, "person@example.com")
+
+        with patch.dict(
+            os.environ,
+            {
+                "STRIPE_PRICE_ID_1": "price_test_1",
+                "STRIPE_PRICE_ID_10": "price_test_10",
+            },
+            clear=False,
+        ):
+            response = client.get("/api/billing/status")
+
+        self.assertEqual(response.status_code, 200)
+        packages = {item["id"]: item for item in response.json()["topup_packages"]}
+        self.assertEqual(packages["test_1"]["amount_usd"], 1.00)
+        self.assertEqual(packages["test_1"]["label"], "$1 test")
+        self.assertTrue(packages["test_1"]["test"])
+        self.assertTrue(packages["test_1"]["configured"])
+        self.assertTrue(packages["standard_10"]["configured"])
+        self.assertFalse(packages["starter_5"]["configured"])
+
+    def test_non_owner_cannot_read_admin_finance_overview(self):
+        client = TestClient(app)
+        self._sign_in(client, "person@example.com")
+
+        response = client.get("/api/admin/finance/overview")
+
+        self.assertEqual(response.status_code, 403)
+        self.assertIn("Owner access required", response.json()["detail"])
+
     def test_managed_run_fails_closed_when_managed_mode_disabled(self):
         client = TestClient(app)
         self._sign_in(client, "person@example.com")
@@ -448,6 +596,74 @@ class BillingApiTests(BillingTempMixin, unittest.TestCase):
 
         self.assertEqual(response.status_code, 403)
         self.assertIn("not enabled", response.json()["detail"])
+
+
+class BillingCheckoutSessionTests(BillingTempMixin, unittest.IsolatedAsyncioTestCase):
+    async def test_one_dollar_checkout_auto_creates_price_from_standard_package_product(self):
+        calls = []
+
+        class FakeResponse:
+            def __init__(self, payload):
+                self._payload = payload
+
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return self._payload
+
+        class FakeAsyncClient:
+            def __init__(self, timeout=None):
+                self.timeout = timeout
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return None
+
+            async def get(self, url, **kwargs):
+                calls.append(("get", url, kwargs))
+                if url.endswith("/prices"):
+                    return FakeResponse({"data": []})
+                if url.endswith("/prices/price_standard_10"):
+                    return FakeResponse({"id": "price_standard_10", "product": "prod_llm_council_balance"})
+                raise AssertionError(f"Unexpected Stripe GET {url}")
+
+            async def post(self, url, data=None, **kwargs):
+                calls.append(("post", url, data or {}, kwargs))
+                if url.endswith("/prices"):
+                    return FakeResponse({"id": "price_test_1_created", "unit_amount": 100})
+                if url.endswith("/checkout/sessions"):
+                    return FakeResponse({"id": "cs_test_1", "url": "https://checkout.stripe.test/session"})
+                raise AssertionError(f"Unexpected Stripe POST {url}")
+
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "STRIPE_SECRET_KEY": "sk_test_fake",
+                    "STRIPE_PRICE_ID_10": "price_standard_10",
+                },
+                clear=False,
+            ),
+            patch.object(stripe_service.httpx, "AsyncClient", FakeAsyncClient),
+        ):
+            session = await stripe_service.create_checkout_session(
+                user_id="person@example.com",
+                package_id="test_1",
+                success_url="https://example.com/success",
+                cancel_url="https://example.com/cancel",
+            )
+
+        self.assertEqual(session["amount_usd"], 1.00)
+        self.assertEqual(session["checkout_session_id"], "cs_test_1")
+        price_posts = [call for call in calls if call[0] == "post" and call[1].endswith("/prices")]
+        checkout_posts = [call for call in calls if call[0] == "post" and call[1].endswith("/checkout/sessions")]
+        self.assertEqual(len(price_posts), 1)
+        self.assertEqual(price_posts[0][2]["unit_amount"], "100")
+        self.assertEqual(price_posts[0][2]["product"], "prod_llm_council_balance")
+        self.assertEqual(checkout_posts[0][2]["line_items[0][price]"], "price_test_1_created")
 
 
 if __name__ == "__main__":

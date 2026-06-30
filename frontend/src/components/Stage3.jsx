@@ -91,6 +91,7 @@ const STAGE_META = {
   stage2: { title: 'Stage 2', subtitle: 'Peer rankings' },
   stage3: { title: 'Stage 3', subtitle: 'Final synthesis' },
 };
+const EMPTY_CALLS = [];
 
 function sumStageCost(calls) {
   let total = 0;
@@ -123,6 +124,34 @@ function groupCallsByStage(calls) {
       };
     })
     .filter(Boolean);
+}
+
+function finiteMoney(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function displayCostSummaryForBilling(costSummary, billingReceipt) {
+  const appCharge = finiteMoney(billingReceipt?.actual_app_cost_usd);
+  if (appCharge === null) return costSummary;
+
+  const calls = costSummary?.calls || [];
+  const rawCallTotal = calls.reduce((sum, call) => {
+    const cost = finiteMoney(call.cost_usd);
+    return cost === null ? sum : sum + cost;
+  }, 0);
+  const ratio = rawCallTotal > 0 ? appCharge / rawCallTotal : null;
+
+  return {
+    ...(costSummary || {}),
+    total_usd: appCharge,
+    calls: calls.map((call) => {
+      const cost = finiteMoney(call.cost_usd);
+      if (cost === null || ratio === null) return call;
+      return { ...call, cost_usd: cost * ratio };
+    }),
+    display_mode: 'managed_app_charge',
+  };
 }
 
 function formatCallCost(call) {
@@ -166,15 +195,21 @@ function CostCallRow({ call }) {
   );
 }
 
-function CostSummary({ costSummary }) {
+function CostSummary({ costSummary, billingReceipt }) {
   const [expanded, setExpanded] = useState(false);
-  const calls = costSummary?.calls || [];
-  const stageGroups = useMemo(
-    () => groupCallsByStage(costSummary?.calls || []),
-    [costSummary?.calls],
+  const displayCostSummary = useMemo(
+    () => displayCostSummaryForBilling(costSummary, billingReceipt),
+    [costSummary, billingReceipt],
   );
+  const calls = displayCostSummary?.calls || EMPTY_CALLS;
+  const stageGroups = useMemo(
+    () => groupCallsByStage(calls),
+    [calls],
+  );
+  const hasDisplayTotal = displayCostSummary?.total_usd !== null &&
+    displayCostSummary?.total_usd !== undefined;
 
-  if (!costSummary || calls.length === 0) {
+  if (!displayCostSummary || (calls.length === 0 && !hasDisplayTotal)) {
     return (
       <div className="actual-cost actual-cost--empty" aria-label="Actual cost">
         <div className="actual-cost-bar">
@@ -187,12 +222,13 @@ function CostSummary({ costSummary }) {
     );
   }
 
-  const total = costSummary.total_usd !== null && costSummary.total_usd !== undefined
-    ? formatMoney(Number(costSummary.total_usd))
+  const isManagedCharge = displayCostSummary.display_mode === 'managed_app_charge';
+  const total = hasDisplayTotal
+    ? formatMoney(Number(displayCostSummary.total_usd))
     : null;
-  const unpriced = Number(costSummary.unpriced_calls_count || 0);
-  const failed = Number(costSummary.failed_calls_count || 0);
-  const totalTokens = Number(costSummary.total_tokens || 0);
+  const unpriced = Number(displayCostSummary.unpriced_calls_count || 0);
+  const failed = Number(displayCostSummary.failed_calls_count || 0);
+  const totalTokens = Number(displayCostSummary.total_tokens || 0);
 
   let totalLabel = 'Cost unavailable';
   if (total && unpriced > 0) {
@@ -207,7 +243,16 @@ function CostSummary({ costSummary }) {
   }
 
   const metaParts = [];
-  metaParts.push(`${calls.length} call${calls.length === 1 ? '' : 's'}`);
+  if (isManagedCharge) {
+    metaParts.push('LLM Council Balance');
+    const remainingBalance = finiteMoney(billingReceipt?.remaining_balance_usd);
+    if (remainingBalance !== null) {
+      metaParts.push(`Remaining balance ${formatMoney(remainingBalance)}`);
+    }
+  }
+  if (calls.length > 0) {
+    metaParts.push(`${calls.length} call${calls.length === 1 ? '' : 's'}`);
+  }
   if (totalTokens > 0) {
     metaParts.push(`${totalTokens.toLocaleString()} tokens`);
   }
@@ -220,18 +265,20 @@ function CostSummary({ costSummary }) {
           <strong className="actual-cost-total">{totalLabel}</strong>
           <span className="actual-cost-meta">{metaParts.join(' · ')}</span>
         </div>
-        <button
-          type="button"
-          className="actual-cost-expand-btn"
-          onClick={() => setExpanded((open) => !open)}
-          aria-expanded={expanded}
-          aria-controls="actual-cost-breakdown"
-        >
-          <span>{expanded ? 'Hide breakdown' : 'Show breakdown'}</span>
-          <ChevronDown size={14} aria-hidden="true" className="actual-cost-chevron" />
-        </button>
+        {calls.length > 0 && (
+          <button
+            type="button"
+            className="actual-cost-expand-btn"
+            onClick={() => setExpanded((open) => !open)}
+            aria-expanded={expanded}
+            aria-controls="actual-cost-breakdown"
+          >
+            <span>{expanded ? 'Hide breakdown' : 'Show breakdown'}</span>
+            <ChevronDown size={14} aria-hidden="true" className="actual-cost-chevron" />
+          </button>
+        )}
       </div>
-      {expanded && (
+      {expanded && calls.length > 0 && (
         <div id="actual-cost-breakdown" className="actual-cost-breakdown">
           <div className="actual-cost-stages">
             {stageGroups.map((group) => (
@@ -267,7 +314,7 @@ function CostSummary({ costSummary }) {
   );
 }
 
-export default function Stage3({ finalResponse, costSummary, hero = false, modelMap }) {
+export default function Stage3({ finalResponse, costSummary, billingReceipt, hero = false, modelMap }) {
   if (!finalResponse) {
     return null;
   }
@@ -302,7 +349,7 @@ export default function Stage3({ finalResponse, costSummary, hero = false, model
       </div>
       <div className="final-response">
         <div className="final-answer-toolbar">
-          <CostSummary costSummary={costSummary} />
+          <CostSummary costSummary={costSummary} billingReceipt={billingReceipt} />
         </div>
         <MarkdownContent className="final-text">
           {finalResponse.response}

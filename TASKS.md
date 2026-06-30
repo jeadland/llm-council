@@ -6,7 +6,7 @@ Use this file as the lightweight source of truth for current and upcoming work. 
 
 ### Task: Managed balance private beta
 
-Status: Implemented on `codex/managed-balance-beta`; verification in progress
+Status: Implemented on `codex/managed-balance-test`; Preview paid-run verification passed
 
 Goal:
 
@@ -20,10 +20,13 @@ Acceptance criteria:
 - [x] Managed run path reserves max charge, runs with managed child key, finalizes actual charge, and releases on failure/cancel.
 - [x] Managed mode is disabled by default and fails closed.
 - [x] Frontend exposes billing mode, top-ups, profile estimates, pre-run confirmation, receipts, and owner admin summary.
-- [ ] Stripe test-mode dashboard/CLI checkout smoke.
-- [ ] Supabase/Postgres migration applied to a beta database.
-- [ ] OpenRouter child-key provisioning smoke with a management key.
-- [ ] Vercel preview smoke with `MANAGED_MODE_ENABLED=false`.
+- [x] Temporary $1 test top-up is supported behind `STRIPE_PRICE_ID_1`.
+- [x] Stripe test-mode checkout smoke.
+- [x] Supabase/Postgres migration applied to a beta database.
+- [x] OpenRouter managed-run smoke with a management key.
+- [x] Vercel preview smoke with `MANAGED_MODE_ENABLED=false`.
+- [x] Real managed paid-run smoke under a $1 owner-approved cap.
+- [x] Managed run result displays the app-billed LLM Council Balance charge as actual cost.
 
 Verification:
 
@@ -31,6 +34,8 @@ Verification:
 - [x] `uv run python -m compileall backend api`
 - [x] `npm --prefix frontend run lint`
 - [x] `npm --prefix frontend run build`
+- [x] Preview managed paid-run smoke: max charge `$0.90`, actual app charge `$0.07`, remaining balance `$20.93`, and safe restore to `MANAGED_MODE_ENABLED=false`.
+- [x] Preview cost-display check: `ACTUAL ANSWER COST $0.07` matches receipt `Actual cost $0.07 - Remaining balance $20.93`.
 
 ### Task: Make LLM Council callable by Codex via MCP
 

@@ -18,7 +18,7 @@
 }
 
 .app-topbar-command {
-  min-width: 150px;
+  min-width: 0;
   flex: 1 1 auto;
   display: flex;
   align-items: center;
@@ -43,32 +43,103 @@
 }
 
 .app-topbar-council-button {
-  display: inline-flex;
+  width: 100%;
+  min-width: 0;
+  display: flex;
   align-items: center;
-  gap: 5px;
-  max-width: min(28vw, 300px);
-  min-height: 34px;
-  border: none;
+  gap: 9px;
+  min-height: 38px;
+  border: 1px solid transparent;
   border-radius: 7px;
   background: transparent;
   color: #172033;
   cursor: pointer;
   font: inherit;
-  font-size: 17px;
-  font-weight: 760;
+  text-align: left;
   line-height: 1.15;
   letter-spacing: 0;
-  padding: 4px 2px;
+  padding: 5px 7px;
 }
 
-.app-topbar-council-button span {
+.app-topbar-council-name {
   min-width: 0;
+  flex: 0 1 auto;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 16px;
+  font-weight: 780;
+}
+
+.app-topbar-provider-stack {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 2px;
+}
+
+.app-topbar-provider-avatar {
+  width: 23px;
+  height: 23px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: -6px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: var(--provider-color, #64748b);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 850;
+  line-height: 1;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.16);
+}
+
+.app-topbar-provider-avatar--logo {
+  background: #fff;
+  color: var(--provider-color, #64748b);
+}
+
+.app-topbar-provider-logo {
+  width: 15px;
+  height: 15px;
+  display: block;
+}
+
+.app-topbar-provider-avatar:first-child {
+  margin-left: 0;
+}
+
+.app-topbar-provider-more {
+  background: #e8eef7;
+  color: #344158;
+  font-size: 9px;
+}
+
+.app-topbar-council-meta {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  color: #536176;
+  font-size: 12px;
+  font-weight: 660;
+  line-height: 1.15;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.app-topbar-council-button:hover {
+.app-topbar-council-chevron {
+  flex: 0 0 auto;
+  color: #738198;
+}
+
+.app-topbar-council-button:hover,
+.app-topbar-council-button:focus-visible {
+  border-color: #cfe0ff;
+  background: #f6f9ff;
   color: #1f65bd;
 }
 
@@ -260,12 +331,8 @@
 }
 
 @media (max-width: 1180px) {
-  .app-topbar-badge {
-    display: none;
-  }
-
-  .app-topbar-council-button {
-    max-width: min(30vw, 240px);
+  .app-topbar-council-meta {
+    flex: 0 1 auto;
   }
 }
 
@@ -303,13 +370,6 @@
     justify-content: center;
   }
 
-  .app-topbar-council-row {
-    width: 100%;
-    min-width: 0;
-    justify-content: center;
-    text-align: center;
-  }
-
   .app-topbar-title-group {
     width: 100%;
     min-width: 0;
@@ -326,18 +386,23 @@
   .app-topbar-council-button {
     width: 100%;
     min-width: 0;
-    max-width: 100%;
-    min-height: 20px;
+    min-height: 38px;
     justify-content: center;
-    font-size: 14px;
-    line-height: 1.15;
-    padding: 0;
+    gap: 5px;
+    padding: 3px 6px;
   }
 
-  .app-topbar-council-button span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  .app-topbar-council-name {
+    max-width: 100%;
+    font-size: 14px;
+  }
+
+  .app-topbar-provider-stack {
+    display: none;
+  }
+
+  .app-topbar-council-meta {
+    display: none;
   }
 
   .app-topbar-mobile-summary {
@@ -367,9 +432,9 @@
     min-height: 38px;
     width: 38px;
     padding: 0;
-    background: #1f65bd !important;
-    border-color: #2f7dd4 !important;
-    color: #fff !important;
+    background: #fff !important;
+    border-color: #d5dce8 !important;
+    color: #556276 !important;
     box-shadow: none;
   }
 
@@ -404,7 +469,28 @@
   color: #edf1f8;
 }
 
-:root[data-theme='dark'] .app-topbar-council-button:hover {
+:root[data-theme='dark'] .app-topbar-council-meta,
+:root[data-theme='dark'] .app-topbar-council-chevron {
+  color: #9aa7bc;
+}
+
+:root[data-theme='dark'] .app-topbar-provider-avatar {
+  border-color: #171c26;
+}
+
+:root[data-theme='dark'] .app-topbar-provider-avatar--logo {
+  background: #f8fafc;
+}
+
+:root[data-theme='dark'] .app-topbar-provider-more {
+  background: #263247;
+  color: #c8d0e0;
+}
+
+:root[data-theme='dark'] .app-topbar-council-button:hover,
+:root[data-theme='dark'] .app-topbar-council-button:focus-visible {
+  background: #1a2030;
+  border-color: #2d3848;
   color: #9ac0f8;
 }
 

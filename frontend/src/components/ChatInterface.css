@@ -1179,62 +1179,231 @@
   flex: 1;
   display: grid;
   place-items: center;
-  padding: 28px;
+  padding: 28px clamp(18px, 4vw, 44px);
 }
 
 .openrouter-setup-panel {
-  width: min(100%, 620px);
+  width: min(100%, 820px);
   display: grid;
-  gap: 18px;
+  gap: 22px;
   padding: 28px;
-  border: 1px solid #bfd7f4;
-  border-radius: 8px;
-  background: #f4f8fd;
+  border: 1px solid #d8e4f3;
+  border-radius: 12px;
+  background: #ffffff;
   color: var(--text);
-  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.1);
 }
 
 .openrouter-setup-panel h2 {
+  margin: 0 0 4px;
   color: var(--text);
+  font-size: 24px;
+  line-height: 1.2;
+  letter-spacing: 0;
 }
 
 .openrouter-setup-panel p {
-  color: var(--muted);
-}
-
-.openrouter-setup-steps {
-  display: grid;
-  gap: 10px;
   margin: 0;
-  padding-left: 22px;
   color: var(--muted);
   line-height: 1.5;
 }
 
-.openrouter-setup-steps a,
+.account-setup-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.account-setup-options-single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.account-setup-option {
+  display: flex;
+  min-width: 0;
+  min-height: 260px;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid #dce5f0;
+  border-radius: 10px;
+  background: #f8fafd;
+}
+
+.account-setup-option.featured {
+  border-color: #8bbcf3;
+  background: #f1f7ff;
+}
+
+.account-setup-option-primary {
+  min-height: 220px;
+}
+
+.account-setup-kicker {
+  display: block;
+  margin-bottom: 8px;
+  color: #4d6686;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.account-setup-option h3 {
+  margin: 0 0 8px;
+  color: var(--text);
+  font-size: 18px;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.account-setup-option p {
+  font-size: 13px;
+}
+
+.account-setup-option .start-conversation-btn,
+.account-setup-option .adjust-models-btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.account-setup-option .start-conversation-btn:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.account-setup-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #dbe7f5;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.account-setup-meta span,
+.account-setup-meta strong {
+  display: block;
+}
+
+.account-setup-meta span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.account-setup-meta strong {
+  flex: 0 0 auto;
+  color: var(--text);
+  font-size: 18px;
+}
+
+.account-setup-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.account-setup-links a,
 .openrouter-docs-link {
   color: #2f6fb6;
   font-weight: 700;
   text-decoration: none;
 }
 
-.openrouter-setup-steps a:hover,
-.openrouter-setup-steps a:focus-visible,
+.account-setup-links a:hover,
+.account-setup-links a:focus-visible,
 .openrouter-docs-link:hover,
 .openrouter-docs-link:focus-visible {
   text-decoration: underline;
 }
 
-.openrouter-setup-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+.account-setup-note {
+  color: var(--muted);
+  font-size: 12px !important;
+}
+
+.account-setup-beta-row {
+  display: grid;
+  gap: 5px;
+  padding: 12px 14px;
+  border: 1px solid #dce5f0;
+  border-radius: 8px;
+  background: #f8fafd;
+  color: var(--muted);
+}
+
+.account-setup-beta-row span {
+  color: #4d6686;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.account-setup-beta-row p,
+.account-setup-beta-row small,
+.account-setup-beta-row strong {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.account-setup-beta-row strong {
+  color: var(--text);
+  font-weight: 760;
 }
 
 .openrouter-docs-link {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+:root[data-theme="dark"] .openrouter-setup-panel {
+  background: #11151d;
+  border-color: #2d3848;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.32);
+}
+
+:root[data-theme="dark"] .openrouter-setup-panel h2,
+:root[data-theme="dark"] .account-setup-option h3,
+:root[data-theme="dark"] .account-setup-meta strong {
+  color: #e8eaf0;
+}
+
+:root[data-theme="dark"] .openrouter-setup-panel p,
+:root[data-theme="dark"] .account-setup-note,
+:root[data-theme="dark"] .account-setup-meta span {
+  color: #9aa7bc;
+}
+
+:root[data-theme="dark"] .account-setup-option {
+  background: #151a23;
+  border-color: #2d3848;
+}
+
+:root[data-theme="dark"] .account-setup-option.featured {
+  background: #132033;
+  border-color: #376898;
+}
+
+:root[data-theme="dark"] .account-setup-kicker {
+  color: #82aee8;
+}
+
+:root[data-theme="dark"] .account-setup-meta {
+  background: rgba(8, 12, 20, 0.42);
+  border-color: #2d3848;
+}
+
+:root[data-theme="dark"] .account-setup-links a,
+:root[data-theme="dark"] .openrouter-docs-link {
+  color: #9ac0f8;
 }
 
 .onboarding-hint {
@@ -1578,30 +1747,6 @@ button,
   font-size: 11px;
 }
 
-.billing-receipt {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: center;
-  margin: 10px 0;
-  padding: 10px 12px;
-  border: 1px solid #c7dfc8;
-  background: #f2fbf2;
-  border-radius: 8px;
-  color: #1f5f2b;
-  font-size: 12px;
-}
-
-.billing-receipt strong,
-.billing-receipt span {
-  display: block;
-}
-
-.billing-receipt > span {
-  color: #45734b;
-  white-space: nowrap;
-}
-
 .estimate-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -1708,16 +1853,6 @@ button,
   border-color: #4c95e6;
 }
 
-:root[data-theme='dark'] .billing-receipt {
-  background: #132719;
-  border-color: #2b6138;
-  color: #a9edb8;
-}
-
-:root[data-theme='dark'] .billing-receipt > span {
-  color: #87c993;
-}
-
 :root[data-theme='dark'] .estimate-warning {
   background: #2a1d12;
   border-color: #7c4a18;
@@ -1730,8 +1865,22 @@ button,
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .billing-receipt {
-    align-items: flex-start;
-    flex-direction: column;
+  .openrouter-setup-state {
+    align-items: start;
+    padding: 18px 14px;
   }
+
+  .openrouter-setup-panel {
+    gap: 18px;
+    padding: 20px;
+  }
+
+  .account-setup-options {
+    grid-template-columns: 1fr;
+  }
+
+  .account-setup-option {
+    min-height: 0;
+  }
+
 }

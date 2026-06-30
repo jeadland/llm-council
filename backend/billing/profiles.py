@@ -11,6 +11,38 @@ from ..openrouter import estimate_council_costs, resolve_model_presets
 
 SERVICE_MULTIPLIER_DEFAULT = 1.35
 
+TOPUP_PACKAGE_DEFINITIONS: List[Dict[str, Any]] = [
+    {
+        "id": "test_1",
+        "amount_usd": 1.00,
+        "label": "$1 test",
+        "recommended": False,
+        "test": True,
+        "price_env_var": "STRIPE_PRICE_ID_1",
+    },
+    {
+        "id": "starter_5",
+        "amount_usd": 5.00,
+        "label": "$5",
+        "recommended": False,
+        "price_env_var": "STRIPE_PRICE_ID_5",
+    },
+    {
+        "id": "standard_10",
+        "amount_usd": 10.00,
+        "label": "$10",
+        "recommended": True,
+        "price_env_var": "STRIPE_PRICE_ID_10",
+    },
+    {
+        "id": "power_20",
+        "amount_usd": 20.00,
+        "label": "$20",
+        "recommended": False,
+        "price_env_var": "STRIPE_PRICE_ID_20",
+    },
+]
+
 
 PROFILE_DEFINITIONS: List[Dict[str, Any]] = [
     {
@@ -64,19 +96,35 @@ def managed_mode_enabled() -> bool:
 
 
 def package_amount(package_id: str) -> Optional[float]:
-    return {
-        "starter_5": 5.00,
-        "standard_10": 10.00,
-        "power_20": 20.00,
-    }.get(package_id)
+    package = next((item for item in TOPUP_PACKAGE_DEFINITIONS if item["id"] == package_id), None)
+    return float(package["amount_usd"]) if package else None
+
+
+def package_price_env_var(package_id: str) -> Optional[str]:
+    package = next((item for item in TOPUP_PACKAGE_DEFINITIONS if item["id"] == package_id), None)
+    return package.get("price_env_var") if package else None
 
 
 def topup_packages() -> List[Dict[str, Any]]:
-    return [
-        {"id": "starter_5", "amount_usd": 5.00, "label": "$5", "recommended": False},
-        {"id": "standard_10", "amount_usd": 10.00, "label": "$10", "recommended": True},
-        {"id": "power_20", "amount_usd": 20.00, "label": "$20", "recommended": False},
-    ]
+    packages = []
+    for definition in TOPUP_PACKAGE_DEFINITIONS:
+        price_env_var = definition.get("price_env_var")
+        configured = bool(os.getenv(price_env_var or "", "").strip())
+        if not configured and definition.get("id") == "test_1":
+            configured = bool(
+                os.getenv("STRIPE_SECRET_KEY", "").strip()
+                and os.getenv("STRIPE_PRICE_ID_10", "").strip()
+            )
+        packages.append({
+            "id": definition["id"],
+            "amount_usd": float(definition["amount_usd"]),
+            "label": definition["label"],
+            "recommended": bool(definition.get("recommended")),
+            "test": bool(definition.get("test")),
+            "configured": configured,
+            "status_label": "Ready" if configured else "Needs Stripe price",
+        })
+    return packages
 
 
 def _questions_per_topup(amount: float, low: Optional[float], high: Optional[float]) -> Optional[str]:

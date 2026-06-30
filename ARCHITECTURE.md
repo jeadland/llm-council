@@ -145,7 +145,7 @@ Hosted fallback is intentionally out of scope for v1. Production routing, hosted
 | `DATABASE_URL` | Managed billing beta | Supabase/Postgres connection string for billing ledger and reservations |
 | `STRIPE_SECRET_KEY` | Managed billing beta | Stripe secret key for Checkout Sessions |
 | `STRIPE_WEBHOOK_SECRET` | Managed billing beta | Stripe webhook signature verification secret |
-| `STRIPE_PRICE_ID_5` / `STRIPE_PRICE_ID_10` / `STRIPE_PRICE_ID_20` | Managed billing beta | Stripe Price IDs for fixed LLM Council Balance top-ups |
+| `STRIPE_PRICE_ID_1` / `STRIPE_PRICE_ID_5` / `STRIPE_PRICE_ID_10` / `STRIPE_PRICE_ID_20` | Managed billing beta | Stripe Price IDs for fixed LLM Council Balance top-ups; `$1` is a temporary test top-up |
 | `OPENROUTER_MANAGEMENT_KEY` | Managed billing beta | OpenRouter administrative key for child-key provisioning and credits checks |
 | `KEY_ENCRYPTION_SECRET` | Hosted secrets | Required for hosted encryption of BYOK and managed OpenRouter keys |
 | `SERVICE_MULTIPLIER_DEFAULT` | Managed billing beta | Defaults to `1.35`; converts raw OpenRouter cost to user-visible app cost |

@@ -270,9 +270,11 @@ def _ensure_sqlite_schema(conn: sqlite3.Connection) -> None:
     indexes = [
         "create index if not exists app_credit_ledger_user_idx on app_credit_ledger (user_id)",
         "create index if not exists app_credit_ledger_run_idx on app_credit_ledger (council_run_id)",
+        "create unique index if not exists app_credit_ledger_checkout_purchase_uidx on app_credit_ledger (stripe_checkout_session_id) where entry_type = 'purchase' and stripe_checkout_session_id is not null",
         "create index if not exists billing_reservations_user_status_idx on billing_reservations (user_id, status)",
         "create index if not exists stripe_events_status_idx on stripe_events (processed_status)",
         "create index if not exists stripe_payments_payment_intent_idx on stripe_payments (payment_intent_id)",
+        "create unique index if not exists stripe_payments_payment_intent_uidx on stripe_payments (payment_intent_id) where payment_intent_id is not null",
         "create index if not exists managed_run_receipts_user_idx on managed_run_receipts (user_id)",
         "create index if not exists openrouter_snapshots_created_idx on openrouter_account_snapshots (created_at)",
     ]
@@ -497,13 +499,30 @@ def finalize_reservation(reservation_id: str, actual_app_cost_usd: float, metada
         return _fetchone(conn, "select * from billing_reservations where reservation_id = %s", (reservation_id,)) or {}
 
 
-def insert_stripe_event(stripe_event_id: str, event_type: str, payload: Dict[str, Any]) -> bool:
+def insert_stripe_event(stripe_event_id: str, event_type: str, payload: Dict[str, Any]) -> str:
     ensure_schema()
     now = utc_now()
     with connect() as conn:
-        existing = _fetchone(conn, "select stripe_event_id from stripe_events where stripe_event_id = %s", (stripe_event_id,))
+        existing = _fetchone(
+            conn,
+            "select stripe_event_id, processed_status from stripe_events where stripe_event_id = %s",
+            (stripe_event_id,),
+        )
         if existing:
-            return False
+            status = existing.get("processed_status")
+            if status in {"processed", "ignored"}:
+                return "duplicate"
+            _execute(
+                conn,
+                """
+                update stripe_events
+                set event_type = %s, payload_json = %s, processed_status = 'pending',
+                    error_message = null, processed_at = null
+                where stripe_event_id = %s
+                """,
+                (event_type, _json(payload), stripe_event_id),
+            )
+            return "retry"
         _execute(
             conn,
             """
@@ -513,7 +532,7 @@ def insert_stripe_event(stripe_event_id: str, event_type: str, payload: Dict[str
             """,
             (stripe_event_id, event_type, _json(payload), now),
         )
-        return True
+        return "inserted"
 
 
 def mark_stripe_event(stripe_event_id: str, status: str, error_message: Optional[str] = None) -> None:
@@ -584,6 +603,32 @@ def get_stripe_payment_by_intent(payment_intent_id: Optional[str]) -> Optional[D
     ensure_schema()
     with connect() as conn:
         return _fetchone(conn, "select * from stripe_payments where payment_intent_id = %s", (payment_intent_id,))
+
+
+def get_stripe_payment_by_session(checkout_session_id: Optional[str]) -> Optional[Dict[str, Any]]:
+    if not checkout_session_id:
+        return None
+    ensure_schema()
+    with connect() as conn:
+        return _fetchone(conn, "select * from stripe_payments where checkout_session_id = %s", (checkout_session_id,))
+
+
+def stripe_purchase_credit_exists(checkout_session_id: Optional[str]) -> bool:
+    if not checkout_session_id:
+        return False
+    ensure_schema()
+    with connect() as conn:
+        row = _fetchone(
+            conn,
+            """
+            select id
+            from app_credit_ledger
+            where stripe_checkout_session_id = %s and entry_type = 'purchase'
+            limit 1
+            """,
+            (checkout_session_id,),
+        )
+    return bool(row)
 
 
 def ledger_adjustment_total(payment_intent_id: str, entry_type: str) -> float:

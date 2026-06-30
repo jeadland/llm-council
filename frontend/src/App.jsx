@@ -11,6 +11,8 @@ const STORAGE_KEY = "llm-council-ui-v1";
 const SIDEBAR_WIDTH_KEY = "llm-council-sidebar-width";
 const SIDEBAR_MIN = 240;
 const SIDEBAR_MAX = 480;
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const formatUsd = (value) => `$${Number(value || 0).toFixed(2)}`;
 
 function App() {
   const [conversations, setConversations] = useState([]);
@@ -26,6 +28,8 @@ function App() {
   const [modelPresets, setModelPresets] = useState([]);
   const [openRouterStatus, setOpenRouterStatus] = useState(null);
   const [billingStatus, setBillingStatus] = useState(null);
+  const [billingStatusError, setBillingStatusError] = useState("");
+  const [billingNotice, setBillingNotice] = useState(null);
   const [councilProfiles, setCouncilProfiles] = useState([]);
   const [adminFinance, setAdminFinance] = useState(null);
   const [sendError, setSendError] = useState("");
@@ -185,9 +189,11 @@ function App() {
     try {
       const status = await api.getBillingStatus();
       setBillingStatus(status);
+      setBillingStatusError("");
       return status;
     } catch (error) {
       console.error("Failed to load billing status:", error);
+      setBillingStatusError(error.message || "Billing status could not be loaded.");
       return null;
     }
   }
@@ -212,6 +218,49 @@ function App() {
     } catch (error) {
       console.error("Failed to load admin finance overview:", error);
       return null;
+    }
+  }
+
+  async function handleBillingReturn(role) {
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get("billing");
+    if (!result) return;
+
+    params.delete("billing");
+    const nextSearch = params.toString();
+    const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash}`;
+    window.history.replaceState({}, "", nextUrl);
+    setIsSidebarOpen(true);
+    setSidebarSettingsRequest({
+      section: "balance",
+      requestedAt: Date.now(),
+    });
+
+    if (result === "success") {
+      const previousAvailableBalance = Number(billingStatus?.available_balance_usd || 0);
+      setBillingNotice({
+        type: "info",
+        message: "Payment complete. Updating your LLM Council Balance...",
+      });
+      let latest = null;
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        latest = await loadBillingStatus();
+        if (Number(latest?.available_balance_usd || 0) > previousAvailableBalance) break;
+        if (attempt < 9) await sleep(1200);
+      }
+      setBillingNotice({
+        type: "success",
+        message: latest
+          ? `Payment complete. LLM Council Balance is now ${formatUsd(latest.available_balance_usd)}.`
+          : "Payment complete. LLM Council Balance will update shortly.",
+      });
+      loadAdminFinance(role);
+    } else if (result === "cancelled") {
+      await loadBillingStatus();
+      setBillingNotice({
+        type: "info",
+        message: "Checkout cancelled. Your LLM Council Balance was not changed.",
+      });
     }
   }
 
@@ -267,6 +316,7 @@ function App() {
     setIsLoading(false);
     setSendError("");
     setBillingStatus(null);
+    setBillingNotice(null);
     setCouncilProfiles([]);
     setAdminFinance(null);
     localStorage.removeItem(STORAGE_KEY);
@@ -366,6 +416,7 @@ function App() {
           loadBillingStatus();
           loadCouncilProfiles();
           loadAdminFinance(me.role);
+          handleBillingReturn(me.role);
           try {
             const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
             if (saved.currentConversationId)
@@ -423,19 +474,22 @@ function App() {
   const handleNewConversation = async () => {
     try {
       const newConv = await api.createConversation();
-      setConversations([
+      setConversations((prev) => [
         {
           id: newConv.id,
           created_at: newConv.created_at,
           message_count: 0,
           title: newConv.title,
         },
-        ...conversations,
+        ...prev,
       ]);
       setCurrentConversationId(newConv.id);
+      setCurrentConversation(newConv);
       setIsSidebarOpen(false);
+      return newConv;
     } catch (error) {
       console.error("Failed to create conversation:", error);
+      return null;
     }
   };
 
@@ -495,6 +549,8 @@ function App() {
     const session = await api.createBillingCheckout(packageId);
     if (session?.url) {
       window.location.assign(session.url);
+    } else {
+      throw new Error("Stripe checkout did not return a redirect URL.");
     }
     return session;
   };
@@ -506,18 +562,28 @@ function App() {
   };
 
   const handleSendMessage = async (content, runOptions = {}) => {
-    if (!currentConversationId || isLoading) return;
+    if (isLoading) return;
     setSendError("");
+    let conversationId = currentConversationId;
+
+    if (!conversationId) {
+      const newConv = await handleNewConversation();
+      if (!newConv?.id) {
+        setSendError("Could not start a conversation.");
+        return;
+      }
+      conversationId = newConv.id;
+    }
 
     // Optimistic user message only; assistant progress comes from run snapshots
     setCurrentConversation((prev) => ({
-      ...prev,
+      ...(prev || { id: conversationId, messages: [] }),
       messages: [...(prev?.messages || []), { role: "user", content }],
     }));
 
     try {
-      const created = await api.createRun(currentConversationId, content, runOptions);
-      await monitorRun(currentConversationId, created.run_id);
+      const created = await api.createRun(conversationId, content, runOptions);
+      await monitorRun(conversationId, created.run_id);
     } catch (error) {
       console.error("Failed to send message:", error);
       setSendError(error.message || "Failed to send message");
@@ -556,6 +622,8 @@ function App() {
         onLogout={handleLogout}
         onOpenRouterStatusChanged={setOpenRouterStatus}
         billingStatus={billingStatus}
+        billingStatusError={billingStatusError}
+        billingNotice={billingNotice}
         councilProfiles={councilProfiles}
         adminFinance={adminFinance}
         onBillingModeChange={handleBillingModeChange}
@@ -570,6 +638,7 @@ function App() {
         onSettingsRequestHandled={() => setSidebarSettingsRequest(null)}
         sidebarWidth={sidebarWidth}
         onResizeStart={handleResizeStart}
+        onOpenModels={() => setShowModelPicker(true)}
       />
 
       {isSidebarOpen && (
@@ -601,7 +670,6 @@ function App() {
           onOpenIntegrations={openIntegrationsPanel}
           openRouterStatus={openRouterStatus}
           billingStatus={billingStatus}
-          councilProfiles={councilProfiles}
           modelMap={modelMap}
           presets={modelPresets}
         />

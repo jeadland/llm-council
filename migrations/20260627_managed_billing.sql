@@ -28,6 +28,9 @@ create table if not exists app_credit_ledger (
 create index if not exists app_credit_ledger_user_idx on app_credit_ledger (user_id);
 create index if not exists app_credit_ledger_run_idx on app_credit_ledger (council_run_id);
 create index if not exists app_credit_ledger_stripe_event_idx on app_credit_ledger (stripe_event_id);
+create unique index if not exists app_credit_ledger_checkout_purchase_uidx
+  on app_credit_ledger (stripe_checkout_session_id)
+  where entry_type = 'purchase' and stripe_checkout_session_id is not null;
 
 create table if not exists billing_reservations (
   reservation_id text primary key,
@@ -72,6 +75,9 @@ create table if not exists stripe_payments (
 
 create index if not exists stripe_payments_user_idx on stripe_payments (user_id);
 create index if not exists stripe_payments_payment_intent_idx on stripe_payments (payment_intent_id);
+create unique index if not exists stripe_payments_payment_intent_uidx
+  on stripe_payments (payment_intent_id)
+  where payment_intent_id is not null;
 
 create table if not exists managed_openrouter_keys (
   user_id text primary key,

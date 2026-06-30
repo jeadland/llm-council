@@ -12,11 +12,12 @@ from typing import Any, Dict, Optional
 import httpx
 
 from . import db
-from .profiles import package_amount
+from .profiles import package_amount, package_price_env_var
 
 
 STRIPE_API_BASE = "https://api.stripe.com/v1"
 STRIPE_API_VERSION = "2026-02-25.clover"
+TEST_TOPUP_LOOKUP_KEY = "llm_council_balance_test_1"
 
 
 def _secret_key() -> str:
@@ -28,11 +29,77 @@ def _webhook_secret() -> str:
 
 
 def _price_id(package_id: str) -> Optional[str]:
-    return {
-        "starter_5": os.getenv("STRIPE_PRICE_ID_5", "").strip(),
-        "standard_10": os.getenv("STRIPE_PRICE_ID_10", "").strip(),
-        "power_20": os.getenv("STRIPE_PRICE_ID_20", "").strip(),
-    }.get(package_id)
+    price_env_var = package_price_env_var(package_id)
+    if not price_env_var:
+        return None
+    return os.getenv(price_env_var, "").strip()
+
+
+def _stripe_headers(secret_key: str, *, idempotency_key: Optional[str] = None) -> Dict[str, str]:
+    headers = {
+        "Authorization": f"Bearer {secret_key}",
+        "Stripe-Version": STRIPE_API_VERSION,
+    }
+    if idempotency_key:
+        headers["Idempotency-Key"] = idempotency_key
+    return headers
+
+
+async def _resolve_test_topup_price_id(secret_key: str) -> str:
+    configured_price_id = _price_id("test_1")
+    if configured_price_id:
+        return configured_price_id
+
+    reference_price_id = _price_id("standard_10")
+    if not reference_price_id:
+        raise RuntimeError("Stripe price id is not configured for standard_10")
+
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        existing = await client.get(
+            f"{STRIPE_API_BASE}/prices",
+            params=[("lookup_keys[]", TEST_TOPUP_LOOKUP_KEY), ("limit", "1")],
+            headers=_stripe_headers(secret_key),
+        )
+        existing.raise_for_status()
+        existing_payload = existing.json()
+        existing_prices = existing_payload.get("data") or []
+        if existing_prices:
+            return existing_prices[0]["id"]
+
+        reference = await client.get(
+            f"{STRIPE_API_BASE}/prices/{reference_price_id}",
+            headers=_stripe_headers(secret_key),
+        )
+        reference.raise_for_status()
+        product_id = reference.json().get("product")
+        if not product_id:
+            raise RuntimeError("Reference Stripe price is missing a product")
+
+        created = await client.post(
+            f"{STRIPE_API_BASE}/prices",
+            data={
+                "currency": "usd",
+                "unit_amount": "100",
+                "product": product_id,
+                "nickname": "LLM Council Balance $1 test",
+                "lookup_key": TEST_TOPUP_LOOKUP_KEY,
+                "metadata[llm_council_package]": "test_1",
+                "metadata[purpose]": "llm_council_balance",
+                "metadata[test_topup]": "true",
+            },
+            headers=_stripe_headers(
+                secret_key,
+                idempotency_key="llm-council-balance-test-1-usd-v1",
+            ),
+        )
+        created.raise_for_status()
+        return created.json()["id"]
+
+
+async def _resolve_price_id(package_id: str, secret_key: str) -> Optional[str]:
+    if package_id == "test_1":
+        return await _resolve_test_topup_price_id(secret_key)
+    return _price_id(package_id)
 
 
 def stripe_configured() -> bool:
@@ -41,12 +108,12 @@ def stripe_configured() -> bool:
 
 async def create_checkout_session(*, user_id: str, package_id: str, success_url: str, cancel_url: str) -> Dict[str, Any]:
     amount = package_amount(package_id)
-    price_id = _price_id(package_id)
     secret_key = _secret_key()
     if amount is None:
         raise ValueError("Unsupported balance package")
     if not secret_key:
         raise RuntimeError("STRIPE_SECRET_KEY is not configured")
+    price_id = await _resolve_price_id(package_id, secret_key)
     if not price_id:
         raise RuntimeError(f"Stripe price id is not configured for {package_id}")
 
@@ -67,10 +134,7 @@ async def create_checkout_session(*, user_id: str, package_id: str, success_url:
         response = await client.post(
             f"{STRIPE_API_BASE}/checkout/sessions",
             data=data,
-            headers={
-                "Authorization": f"Bearer {secret_key}",
-                "Stripe-Version": STRIPE_API_VERSION,
-            },
+            headers=_stripe_headers(secret_key),
         )
         response.raise_for_status()
         payload = response.json()
@@ -173,8 +237,8 @@ def fulfill_checkout_session(event: Dict[str, Any]) -> Dict[str, Any]:
     if not event_id:
         raise ValueError("Stripe event is missing id")
 
-    inserted = db.insert_stripe_event(event_id, event_type, event)
-    if not inserted:
+    event_claim = db.insert_stripe_event(event_id, event_type, event)
+    if event_claim == "duplicate":
         return {"status": "duplicate", "stripe_event_id": event_id}
 
     try:
@@ -193,15 +257,30 @@ def fulfill_checkout_session(event: Dict[str, Any]) -> Dict[str, Any]:
         amount = package_amount(package_id or "")
         if not user_id or amount is None:
             raise ValueError("Stripe checkout session is missing managed-balance metadata")
-        if session.get("payment_status") not in {None, "paid"}:
+        if session.get("mode") != "payment":
+            raise ValueError("Stripe checkout session is not a one-time payment")
+        if session.get("currency") != "usd":
+            raise ValueError("Stripe checkout currency is not supported")
+        if session.get("payment_status") != "paid":
             raise ValueError("Stripe checkout session is not paid")
 
         checkout_session_id = session.get("id")
         payment_intent_id = session.get("payment_intent")
+        if not checkout_session_id:
+            raise ValueError("Stripe checkout session is missing id")
+        if not payment_intent_id:
+            raise ValueError("Stripe checkout session is missing payment intent")
         expected_cents = int(round(amount * 100))
         paid_cents = int(session.get("amount_total") or 0)
         if paid_cents != expected_cents:
             raise ValueError("Stripe checkout amount does not match the selected balance package")
+        if db.stripe_purchase_credit_exists(checkout_session_id):
+            db.mark_stripe_event(event_id, "processed")
+            return {
+                "status": "duplicate_payment",
+                "stripe_event_id": event_id,
+                "checkout_session_id": checkout_session_id,
+            }
         gross_amount = paid_cents / 100.0
         db.upsert_stripe_payment(
             user_id=user_id,

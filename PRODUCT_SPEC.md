@@ -101,7 +101,7 @@ Steps:
 
 1. Sign in with Google.
 2. Select managed billing in Settings.
-3. Add $5, $10, or $20 of LLM Council Balance through Stripe Checkout.
+3. Add $1 test, $5, $10, or $20 of LLM Council Balance through Stripe Checkout.
 4. Choose a curated counsel profile.
 5. Review estimated cost, maximum charge, and current balance before running.
 6. Receive a post-run receipt with actual charge and remaining balance.

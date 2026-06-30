@@ -2,13 +2,26 @@
 
 ## LLM Council Managed Balance Beta
 
+Paid-version preview bootstrap details live in `docs/preview-bootstrap.md`.
+Read that file before re-debugging the test-site URL, Vercel Preview env, or
+Google OAuth redirect setup.
+
 Do not enable managed paid balance on production routing until all of these are true:
 
-- `DATABASE_URL`, Stripe test keys, Stripe webhook secret, Stripe price IDs, `OPENROUTER_MANAGEMENT_KEY`, `KEY_ENCRYPTION_SECRET`, and `PUBLIC_APP_URL=https://joshadland.com/llm-council` are configured in the Vercel project.
+- `DATABASE_URL`, Stripe test/live keys as appropriate, Stripe webhook secret, Stripe price IDs including `STRIPE_PRICE_ID_1` for the temporary $1 test top-up, `OPENROUTER_MANAGEMENT_KEY`, `KEY_ENCRYPTION_SECRET`, and `PUBLIC_APP_URL=https://joshadland.com/llm-council` are configured in the Vercel project.
 - The Postgres migration in `migrations/20260627_managed_billing.sql` has been applied to the selected Supabase/Postgres project.
 - Stripe webhook delivery has been tested against `/llm-council/api/stripe/webhook`.
 - OpenRouter coverage refresh and child-key provisioning have been tested with a small private-beta account.
 - `MANAGED_MODE_ENABLED` remains `false` for preview smoke, then requires explicit owner approval before changing to `true`.
+
+Preview evidence as of 2026-06-30:
+
+- Stable Preview alias: `https://llm-council-jeadland-josh-adlands-projects.vercel.app/llm-council`
+- Safe restored deployment: `dpl_3PoZfomLi1JJUv8Nu8GX8xvajw48`
+- Real managed paid-run smoke: max charge `$0.90`, actual app charge `$0.07`, remaining balance `$20.93`
+- Managed result display: `ACTUAL ANSWER COST $0.07` matches receipt `Actual cost $0.07 - Remaining balance $20.93`
+- Browser comment cleanup: selected providers use inline provider marks, and the duplicate balance receipt was consolidated into the Stage 3 cost metadata.
+- Safe restored health: `/llm-council/api/health` returns `managed_mode_enabled:false`
 
 This app is mounted inside Josh's personal site. Treat
 `https://joshadland.com/llm-council` as the production URL that matters.
