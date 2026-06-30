@@ -1349,25 +1349,26 @@ async def _execute_run(run_id: str):
         return
 
     conversation_id = run["conversation_id"]
-    content = run["content"]
     owner_email = run.get("owner_email") or auth.admin_email()
-    settings = storage.get_settings(owner_email)
-    agent_research = run.get("agent_research") or {}
     run_billing = run.get("billing") or {}
     billing_mode = run_billing.get("billing_mode") or "byok"
-    council_models = (
-        agent_research.get("council_models")
-        or run_billing.get("council_models")
-        or settings.get("council_models", [])
-    )
-    chairman_model = agent_research.get("chairman_model") or run_billing.get("chairman_model") or settings.get("chairman_model")
-    openrouter_api_key = _owner_openrouter_api_key(owner_email)
-    if billing_mode == "managed":
-        openrouter_api_key = await billing_service.ensure_managed_openrouter_key(owner_email)
-    if not openrouter_api_key and auth.is_auth_required() and not auth.is_owner_email(owner_email):
-        raise RuntimeError("Connect your OpenRouter API key before running the council.")
 
     try:
+        content = run["content"]
+        settings = storage.get_settings(owner_email)
+        agent_research = run.get("agent_research") or {}
+        council_models = (
+            agent_research.get("council_models")
+            or run_billing.get("council_models")
+            or settings.get("council_models", [])
+        )
+        chairman_model = agent_research.get("chairman_model") or run_billing.get("chairman_model") or settings.get("chairman_model")
+        openrouter_api_key = _owner_openrouter_api_key(owner_email)
+        if billing_mode == "managed":
+            openrouter_api_key = await billing_service.ensure_managed_openrouter_key(owner_email)
+        if not openrouter_api_key and auth.is_auth_required() and not auth.is_owner_email(owner_email):
+            raise RuntimeError("Connect your OpenRouter API key before running the council.")
+
         with use_openrouter_account_scope(owner_email, api_key=openrouter_api_key):
             storage.update_run(
                 run_id,

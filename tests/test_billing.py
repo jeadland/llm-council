@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 
 from backend import auth, storage
 from backend.billing import db, openrouter_management, service, stripe_service
+from backend import main as app_main
 from backend.main import app
 
 
@@ -479,6 +480,48 @@ class ManagedOpenRouterKeyTests(BillingTempMixin, unittest.IsolatedAsyncioTestCa
             with self.assertRaises(ValueError):
                 await service.prepare_managed_run("person@example.com", "run-1", profile, estimate)
         self.assertEqual(round(db.reserved_balance("person@example.com"), 2), 0.00)
+
+
+class ManagedRunExecutionTests(BillingTempMixin, unittest.IsolatedAsyncioTestCase):
+    async def test_execute_run_releases_managed_reservation_when_key_lookup_fails(self):
+        user_id = "person@example.com"
+        conversation_id = "conversation-1"
+        run_id = "run-1"
+        db.add_ledger_entry(user_id, "purchase", 5.00)
+        reservation = db.create_reservation(user_id, run_id, 0.90)
+        storage.create_conversation(conversation_id, user_id)
+        storage.add_user_message(conversation_id, "hello")
+        storage.create_run(run_id, conversation_id, "hello", user_id)
+        storage.update_run(
+            run_id,
+            {
+                "billing": {
+                    "billing_mode": "managed",
+                    "profile_slug": "balanced",
+                    "reservation_id": reservation["reservation_id"],
+                    "reserved_amount_usd": 0.90,
+                    "council_models": ["openai/gpt-test"],
+                    "chairman_model": "openai/gpt-test",
+                    "estimate": {"max_app_charge_usd": 0.90},
+                }
+            },
+        )
+        storage.upsert_assistant_message_for_run(conversation_id, run_id)
+
+        async def fail_key_lookup(_user_id):
+            raise RuntimeError("Managed key unavailable")
+
+        with (
+            patch.object(app_main.billing_service, "ensure_managed_openrouter_key", fail_key_lookup),
+            patch("traceback.print_exc"),
+        ):
+            await app_main._execute_run(run_id)
+
+        run = storage.get_run(run_id)
+        self.assertEqual(run["status"], "failed")
+        self.assertIn("Managed key unavailable", run["error"])
+        self.assertEqual(round(db.reserved_balance(user_id), 2), 0.00)
+        self.assertEqual(round(db.available_balance(user_id), 2), 5.00)
 
 
 class BillingApiTests(BillingTempMixin, unittest.TestCase):
