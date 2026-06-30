@@ -15,6 +15,7 @@ import {
   formatCurationWarnings,
   formatMoney,
   makeCustomGroupId,
+  presetNormalCost,
   shortModelName,
 } from '../modelUtils';
 import './ModelPicker.css';
@@ -148,6 +149,7 @@ function formatModelPricing(model) {
 }
 
 function PresetRow({ preset, selected, modelMap, onSelect, onCustomize }) {
+  const normalCost = presetNormalCost(preset) || 'Pricing unavailable';
   return (
     <section className={`preset-row${selected ? ' selected' : ''}`}>
       <button type="button" className="preset-radio" onClick={() => onSelect(preset)} aria-label={`Select ${preset.name}`}>
@@ -174,6 +176,10 @@ function PresetRow({ preset, selected, modelMap, onSelect, onCustomize }) {
               <Sparkles size={16} />
               {displayModelName(preset.chairman_model, modelMap).replace(/^.*?:\s*/, '')}
             </strong>
+          </div>
+          <div>
+            <span>Est. normal question</span>
+            <strong>{normalCost}</strong>
           </div>
         </div>
         <div className="preset-model-lineup">

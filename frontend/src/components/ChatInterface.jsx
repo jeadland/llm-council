@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { ChevronDown, Sparkles, Undo2, Loader2 } from "lucide-react";
+import { Sparkles, Undo2, Loader2 } from "lucide-react";
 import { api } from "../api";
 import Stage1 from "./Stage1";
 import Stage2 from "./Stage2";
@@ -10,6 +10,8 @@ import MarkdownContent from "./MarkdownContent";
 import CouncilProcessSteps from "./CouncilProcessSteps";
 import {
   displayModelName,
+  estimateCouncilCosts,
+  presetNormalCost,
   resolveActiveCouncil,
   shortModelName,
 } from "../modelUtils";
@@ -83,7 +85,16 @@ function EmptyStartSurface({
   const selectedModels = settings?.council_models || [];
   const chairman = settings?.chairman_model || "";
   const active = resolveActiveCouncil(settings, presets);
-  const modelCountLabel = `${selectedModels.length} model${selectedModels.length === 1 ? "" : "s"} active`;
+  const fallbackEstimate = estimateCouncilCosts(
+    selectedModels,
+    chairman,
+    modelMap,
+  );
+  const presetEstimate = active.selectionMatchesPreset
+    ? presetNormalCost(active.preset)
+    : null;
+  const estimate =
+    presetEstimate || fallbackEstimate?.display || "Pricing unavailable";
   const catalogLoaded = (modelMap?.size || 0) > 0;
   const hasConfiguredCouncil = selectedModels.length > 0 && !!chairman;
   const renderModelChips = () =>
@@ -117,11 +128,11 @@ function EmptyStartSurface({
             }}
           />
           <div>
-            <h2>{compact ? "Ask the council" : "Start a conversation"}</h2>
+            <h2>What's on your mind?</h2>
             <p>
               {compact
-                ? "The active council is ready for the first question."
-                : "Choose the first question and the selected models will deliberate."}
+                ? "Ask a question and the council will deliberate."
+                : "Start with the question you want the council to work through."}
             </p>
           </div>
         </div>
@@ -138,28 +149,22 @@ function EmptyStartSurface({
             <span>Chairman</span>
             <strong>{shortModelName(chairman) || "None"}</strong>
           </div>
+          <div>
+            <span>Est. cost</span>
+            <strong>{estimate}</strong>
+          </div>
         </div>
 
-        <div
-          className="empty-model-strip empty-model-strip-full"
-          aria-label="Selected models"
-        >
-          {renderModelChips()}
-        </div>
-
-        {compact && (
-          <details className="empty-model-disclosure">
-            <summary>
-              <span>{modelCountLabel}</span>
-              <ChevronDown size={16} aria-hidden="true" />
-            </summary>
-            <div className="empty-model-strip" aria-label="Selected models">
-              {renderModelChips()}
-            </div>
-          </details>
+        {!compact && (
+          <div
+            className="empty-model-strip empty-model-strip-full"
+            aria-label="Selected models"
+          >
+            {renderModelChips()}
+          </div>
         )}
 
-        {hasConfiguredCouncil && (
+        {!compact && hasConfiguredCouncil && (
           <CouncilProcessSteps
             variant="static"
             title="How your council deliberates"
@@ -176,13 +181,13 @@ function EmptyStartSurface({
               Start a conversation
             </button>
           )}
-          {onOpenModels && (
+          {!compact && onOpenModels && (
             <button
               type="button"
               className="adjust-models-btn"
               onClick={onOpenModels}
             >
-              Adjust models
+              Council setup
             </button>
           )}
         </div>
@@ -205,83 +210,10 @@ function EmptyStartSurface({
   );
 }
 
-function OpenRouterSetupSurface({ onOpenIntegrations }) {
-  return (
-    <div className="openrouter-setup-state">
-      <section
-        className="openrouter-setup-panel"
-        aria-labelledby="openrouter-setup-title"
-      >
-        <div className="empty-state-heading-row">
-          <img
-            src={`${import.meta.env.BASE_URL}images/llm-council-icon.svg`}
-            alt="LLM Council"
-            className="empty-state-logo"
-            width="46"
-            height="46"
-            onError={(e) => {
-              e.target.style.display = "none";
-            }}
-          />
-          <div>
-            <h2 id="openrouter-setup-title">
-              Add an OpenRouter key to use LLM Council
-            </h2>
-            <p>
-              Google sign-in creates your account. Council runs work after your
-              account has its own OpenRouter API key.
-            </p>
-          </div>
-        </div>
-
-        <ol className="openrouter-setup-steps">
-          <li>
-            Open{" "}
-            <a
-              href="https://openrouter.ai/settings/keys"
-              target="_blank"
-              rel="noreferrer"
-            >
-              OpenRouter API keys
-            </a>
-            .
-          </li>
-          <li>Create a key, optionally set a credit limit, then copy it.</li>
-          <li>
-            Paste it in API &amp; Integrations here. The full key is stored
-            server-side and is not shown again.
-          </li>
-        </ol>
-
-        <div className="openrouter-setup-actions">
-          {onOpenIntegrations && (
-            <button
-              type="button"
-              className="start-conversation-btn"
-              onClick={onOpenIntegrations}
-            >
-              Add OpenRouter key
-            </button>
-          )}
-          <a
-            className="adjust-models-btn openrouter-docs-link"
-            href="https://openrouter.ai/docs/api-reference/authentication"
-            target="_blank"
-            rel="noreferrer"
-          >
-            API key docs
-          </a>
-        </div>
-      </section>
-    </div>
-  );
-}
-
 export default function ChatInterface({
   conversation,
   onSendMessage,
   onStopRun,
-  onCreateConversation,
   isLoading,
   activeRunId,
   sendError,
@@ -289,13 +221,18 @@ export default function ChatInterface({
   onOpenModels,
   onOpenIntegrations,
   openRouterStatus,
+  billingStatus,
   modelMap,
   presets,
 }) {
   const [input, setInput] = useState("");
   const [isImproving, setIsImproving] = useState(false);
+  const [isEstimating, setIsEstimating] = useState(false);
+  const selectedProfileSlug = "balanced";
+  const [pendingEstimate, setPendingEstimate] = useState(null);
   const [preImproveInput, setPreImproveInput] = useState(null);
   const [improveError, setImproveError] = useState("");
+  const [accessGuardMessage, setAccessGuardMessage] = useState("");
   const [stageExpandRequest, setStageExpandRequest] = useState({
     messageIndex: null,
     stage: null,
@@ -307,6 +244,13 @@ export default function ChatInterface({
   const shouldAutoScrollRef = useRef(true);
   const hasConfiguredCouncil =
     (settings?.council_models?.length || 0) > 0 && !!settings?.chairman_model;
+  const managedReady =
+    billingStatus?.billing_mode === "managed" &&
+    billingStatus?.managed_mode_enabled;
+  const needsModelAccess = Boolean(
+    openRouterStatus && !openRouterStatus.configured && !managedReady,
+  );
+  const messages = conversation?.messages || [];
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -353,16 +297,43 @@ export default function ChatInterface({
     autoResize();
   }, [input, autoResize]);
 
-  const handleSubmit = (e) => {
+  const submitNow = (content, options = {}) => {
+    onSendMessage(content, options);
+    setInput("");
+    setPreImproveInput(null);
+    setImproveError("");
+    setAccessGuardMessage("");
+    setPendingEstimate(null);
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (input.trim() && !isLoading && !isImproving) {
-      onSendMessage(input);
-      setInput("");
-      setPreImproveInput(null);
-      setImproveError("");
-      if (textareaRef.current) {
-        textareaRef.current.style.height = "auto";
-      }
+    if (!input.trim() || isLoading || isImproving) return;
+    if (needsModelAccess) {
+      setAccessGuardMessage(
+        "Add an OpenRouter key in model access before running the council.",
+      );
+      return;
+    }
+    if (!managedReady) {
+      submitNow(input);
+      return;
+    }
+    setIsEstimating(true);
+    setImproveError("");
+    try {
+      const estimate = await api.estimateCouncilProfile({
+        content: input,
+        profileSlug: selectedProfileSlug,
+      });
+      setPendingEstimate({ content: input, estimate });
+    } catch (err) {
+      setImproveError(err?.message || "Could not estimate managed run.");
+    } finally {
+      setIsEstimating(false);
     }
   };
 
@@ -370,6 +341,7 @@ export default function ChatInterface({
     setInput(e.target.value);
     if (preImproveInput !== null) setPreImproveInput(null);
     if (improveError) setImproveError("");
+    if (accessGuardMessage) setAccessGuardMessage("");
   };
 
   const handleImprove = async () => {
@@ -410,28 +382,6 @@ export default function ChatInterface({
     }
   };
 
-  if (openRouterStatus && !openRouterStatus.configured) {
-    return (
-      <div className="chat-interface">
-        <OpenRouterSetupSurface onOpenIntegrations={onOpenIntegrations} />
-      </div>
-    );
-  }
-
-  if (!conversation) {
-    return (
-      <div className="chat-interface">
-        <EmptyStartSurface
-          settings={settings}
-          modelMap={modelMap}
-          presets={presets}
-          onCreateConversation={onCreateConversation}
-          onOpenModels={onOpenModels}
-        />
-      </div>
-    );
-  }
-
   return (
     <div className="chat-interface">
       <div
@@ -439,7 +389,7 @@ export default function ChatInterface({
         ref={containerRef}
         onScroll={handleScroll}
       >
-        {conversation.messages.length === 0 ? (
+        {messages.length === 0 ? (
           <EmptyStartSurface
             compact
             settings={settings}
@@ -455,7 +405,7 @@ export default function ChatInterface({
             }}
           />
         ) : (
-          conversation.messages.map((msg, index) => (
+          messages.map((msg, index) => (
             <div key={index} className="message-group">
               {msg.role === "user" ? (
                 <div className="user-message">
@@ -499,6 +449,9 @@ export default function ChatInterface({
                         finalResponse={msg.stage3}
                         costSummary={
                           msg.cost_summary || msg.metadata?.cost_summary
+                        }
+                        billingReceipt={
+                          msg.billing_receipt || msg.metadata?.billing_receipt
                         }
                         modelMap={modelMap}
                       />
@@ -632,9 +585,27 @@ export default function ChatInterface({
                 className="onboarding-hint-settings-link"
                 onClick={onOpenIntegrations}
               >
-                Open API settings
+                Open model access
               </button>
             </>
+          )}
+        </div>
+      )}
+
+      {accessGuardMessage && (
+        <div className="onboarding-hint onboarding-hint--warn" role="alert">
+          {accessGuardMessage}{" "}
+          {onOpenIntegrations && (
+            <button
+              type="button"
+              className="onboarding-hint-settings-link"
+              onClick={() => {
+                setAccessGuardMessage("");
+                onOpenIntegrations();
+              }}
+            >
+              Open model access
+            </button>
           )}
         </div>
       )}
@@ -747,7 +718,7 @@ export default function ChatInterface({
                   <button
                     type="submit"
                     className="send-button"
-                    disabled={!input.trim() || isLoading}
+                    disabled={!input.trim() || isLoading || isEstimating}
                     aria-label="Send message"
                   >
                     {/* Paper-plane icon */}
@@ -765,7 +736,13 @@ export default function ChatInterface({
                       <path d="M22 2L11 13" />
                       <path d="M22 2L15 22L11 13L2 9L22 2Z" />
                     </svg>
-                    <span>Send</span>
+                    {isEstimating ? (
+                      <span>...</span>
+                    ) : (
+                      <>
+                        <span>Send</span>
+                      </>
+                    )}
                   </button>
                 )}
               </div>
@@ -773,6 +750,73 @@ export default function ChatInterface({
           </div>
         </div>
       </form>
+
+      {pendingEstimate && (
+        <div className="estimate-modal-backdrop" role="presentation">
+          <div className="estimate-modal" role="dialog" aria-modal="true" aria-labelledby="estimate-title">
+            <div className="estimate-modal-header">
+              <div>
+                <h3 id="estimate-title">
+                  {pendingEstimate.estimate.profile?.display_name || "Managed Council"}
+                </h3>
+                <p>{pendingEstimate.estimate.profile?.best_for}</p>
+              </div>
+              <button
+                type="button"
+                className="estimate-close-btn"
+                onClick={() => setPendingEstimate(null)}
+                aria-label="Close estimate"
+              >
+                Close
+              </button>
+            </div>
+            <div className="estimate-grid">
+              <div>
+                <span>Estimated cost</span>
+                <strong>
+                  ${Number(pendingEstimate.estimate.estimated_app_cost_low_usd || 0).toFixed(2)}
+                  -
+                  ${Number(pendingEstimate.estimate.estimated_app_cost_high_usd || 0).toFixed(2)}
+                </strong>
+              </div>
+              <div>
+                <span>Maximum charge</span>
+                <strong>${Number(pendingEstimate.estimate.max_app_charge_usd || 0).toFixed(2)}</strong>
+              </div>
+              <div>
+                <span>Your balance</span>
+                <strong>${Number(billingStatus?.available_balance_usd || 0).toFixed(2)}</strong>
+              </div>
+            </div>
+            <p className="estimate-copy">
+              Cost includes model usage, routing, storage, and service fee. You are charged after the run for completed usage, up to the maximum charge.
+            </p>
+            {!pendingEstimate.estimate.can_run && (
+              <div className="estimate-warning">
+                Your balance is too low for this counsel profile. Add balance or switch to your own OpenRouter key.
+              </div>
+            )}
+            <div className="estimate-actions">
+              <button type="button" className="adjust-models-btn" onClick={() => setPendingEstimate(null)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="start-conversation-btn"
+                disabled={!pendingEstimate.estimate.can_run}
+                onClick={() =>
+                  submitNow(pendingEstimate.content, {
+                    billingMode: "managed",
+                    profileSlug: pendingEstimate.estimate.profile?.slug || selectedProfileSlug,
+                  })
+                }
+              >
+                Run Council
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

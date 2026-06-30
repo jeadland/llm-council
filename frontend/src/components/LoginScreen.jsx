@@ -39,7 +39,7 @@ export default function LoginScreen({ onGoogleLogin }) {
           />
           <div>
             <h1 id="llm-council-login-title">LLM Council</h1>
-            <p>Sign in to continue.</p>
+            <p>Sign in with Google to open your private council workspace.</p>
           </div>
         </div>
 
@@ -54,6 +54,10 @@ export default function LoginScreen({ onGoogleLogin }) {
         </button>
 
         {error && <div className="login-error">{error}</div>}
+        <p className="login-privacy-note">
+          No password. Google verifies your email; conversations stay scoped to
+          your account.
+        </p>
       </section>
     </div>
   );

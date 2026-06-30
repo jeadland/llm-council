@@ -4,6 +4,39 @@ Use this file as the lightweight source of truth for current and upcoming work. 
 
 ## Now
 
+### Task: Managed balance private beta
+
+Status: Implemented on `codex/managed-balance-test`; Preview paid-run verification passed
+
+Goal:
+
+Add optional Stripe-backed LLM Council Balance for curated managed profiles while preserving BYOK.
+
+Acceptance criteria:
+
+- [x] BYOK OpenRouter keys are encrypted at rest with legacy plaintext read compatibility.
+- [x] Billing ledger, reservations, Stripe event idempotency, payments, managed keys, receipts, coverage snapshots, and audit scaffolding are backed by billing storage.
+- [x] Stripe Checkout top-up endpoint and signature-verified webhook fulfillment exist.
+- [x] Managed run path reserves max charge, runs with managed child key, finalizes actual charge, and releases on failure/cancel.
+- [x] Managed mode is disabled by default and fails closed.
+- [x] Frontend exposes billing mode, top-ups, profile estimates, pre-run confirmation, receipts, and owner admin summary.
+- [x] Temporary $1 test top-up is supported behind `STRIPE_PRICE_ID_1`.
+- [x] Stripe test-mode checkout smoke.
+- [x] Supabase/Postgres migration applied to a beta database.
+- [x] OpenRouter managed-run smoke with a management key.
+- [x] Vercel preview smoke with `MANAGED_MODE_ENABLED=false`.
+- [x] Real managed paid-run smoke under a $1 owner-approved cap.
+- [x] Managed run result displays the app-billed LLM Council Balance charge as actual cost.
+
+Verification:
+
+- [x] `uv run python -m unittest discover tests -p 'test_billing.py'`
+- [x] `uv run python -m compileall backend api`
+- [x] `npm --prefix frontend run lint`
+- [x] `npm --prefix frontend run build`
+- [x] Preview managed paid-run smoke: max charge `$0.90`, actual app charge `$0.07`, remaining balance `$20.93`, and safe restore to `MANAGED_MODE_ENABLED=false`.
+- [x] Preview cost-display check: `ACTUAL ANSWER COST $0.07` matches receipt `Actual cost $0.07 - Remaining balance $20.93`.
+
 ### Task: Make LLM Council callable by Codex via MCP
 
 Status: Implemented on `codex/llm-council-mcp`; verification in progress
@@ -132,7 +165,6 @@ Notes:
 
 ## Completed
 
-- 2026-06-27: Parked the managed-balance/Stripe implementation on `codex/managed-balance-test` and restored `web/vercel` to BYOK-only hosted behavior.
 - 2026-06-24: Switched hosted auth to Google-only while preserving BYOK model-access gating.
 - 2026-06-24: Added top-level model bar, richer curated/custom model picker, owner-scoped OpenRouter key handling, cost estimates, and reviewable weekly curation draft endpoints.
 - 2026-06-24: Added no-invite BYOK foundation with per-user data scoping, key masking, and non-owner server-key fallback protection.

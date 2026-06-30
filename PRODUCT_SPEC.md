@@ -15,6 +15,7 @@ LLM Council lets the owner ask one question to a panel of AI models, inspect the
 | Primary user | Josh Adland, private owner/operator | Better answers through model disagreement, transparent ranking, and reusable conversations |
 | Admin/owner | Same as primary user | Private Google sign-in, model selection, safe deployment |
 | BYOK beta users | Invited or trusted users with their own OpenRouter account | Sign in with Google, connect their own API key, and keep private conversations/settings |
+| Managed-balance beta users | Invited or trusted users who do not want to manage OpenRouter | Add LLM Council Balance, choose curated counsel profiles, see estimated/max cost, and receive a post-run receipt |
 
 ## Core Problem
 
@@ -92,6 +93,27 @@ Success criteria:
 - Non-owner users cannot use Josh's/server OpenRouter key.
 - Conversations, settings, runs, and integration status are private to the authenticated user.
 
+### Managed LLM Council Balance
+
+User goal: use the hosted app without pasting an OpenRouter key.
+
+Steps:
+
+1. Sign in with Google.
+2. Select managed billing in Settings.
+3. Add $1 test, $5, $10, or $20 of LLM Council Balance through Stripe Checkout.
+4. Choose a curated counsel profile.
+5. Review estimated cost, maximum charge, and current balance before running.
+6. Receive a post-run receipt with actual charge and remaining balance.
+
+Success criteria:
+
+- Managed balance is called LLM Council Balance, not OpenRouter credits.
+- Stripe webhook fulfillment is idempotent and is the source of truth for credited balance.
+- One OpenRouter child key is provisioned per managed user and used only server-side.
+- Managed runs reserve the maximum charge before execution and release unused balance.
+- BYOK remains available when managed mode is paused or underfunded.
+
 ## Functional Requirements
 
 | Area | Requirement | Priority | Notes |
@@ -103,6 +125,7 @@ Success criteria:
 | Private auth | Restrict hosted access to authenticated Google users | High | Owner plus BYOK users |
 | Google-only login | Hosted login uses only the Google button | High | Password signup/login/reset/change routes return 403 |
 | BYOK integration | Users save their own OpenRouter key after Google sign-in | High | Non-owner runs require an account key |
+| Managed balance beta | Invited users can buy LLM Council Balance and spend it on curated council profiles | High | Private beta only; disabled by default until Stripe/Postgres/OpenRouter env is configured |
 | Branch split | Keep local/OpenClaw branch separate from Vercel branch | High | `main` vs `web/vercel` |
 
 ## Non-Functional Requirements
@@ -115,13 +138,13 @@ Success criteria:
 | Data persistence | Avoid data loss across reload/deploy |
 | Privacy | Do not expose conversations or paid model access publicly |
 | Security | Use verified Google identity, server-side sessions, and HttpOnly cookies |
-| Cost control | Keep model count configurable and avoid accidental public usage |
+| Cost control | Keep model count configurable, use managed profile caps, reserve before managed runs, and avoid accidental public usage |
 
 ## Non-Goals
 
-- Password login, email confirmation, email reset links, billing, managed credits, and role-management UI.
+- Password login, email confirmation, email reset links, subscriptions, public billing launch, and role-management UI.
 - Public marketing site.
-- Billing or subscriptions.
+- Subscriptions or public self-serve paid launch.
 - Full analytics/reporting over model performance.
 - Replacing OpenClaw local install flow on `main`.
 
@@ -130,7 +153,7 @@ Success criteria:
 - Tech stack: React/Vite frontend, FastAPI backend.
 - Deployment target: local LAN and Vercel.
 - Authentication: Google-only hosted sign-in plus BYOK OpenRouter integration.
-- Data storage: local JSON for dev, Upstash Redis for hosted.
+- Data storage: local JSON for dev, Upstash Redis for hosted conversations/settings/runs, and Postgres for managed billing.
 - Approval gates: auth, persistence, paid services, model/vendor changes, and production deployment require explicit owner approval.
 
 ## Design Direction

@@ -14,6 +14,7 @@ LLM Council is a React + FastAPI app that asks multiple LLMs the same user quest
 | Model API | OpenClaw local proxy + OpenRouter direct | OpenClaw first locally; OpenRouter direct for Vercel |
 | Persistence | JSON files locally; Upstash Redis on Vercel | Selected by env |
 | Auth | Google-only hosted sign-in plus BYOK OpenRouter integration | Required in hosted mode |
+| Billing | Stripe Checkout + Postgres ledger | Managed balance private beta; disabled by default |
 | Package managers | `uv` and `npm` | Python backend, JS frontend |
 | Deployment | Local LAN, Vercel | `main` for local/OpenClaw, `web/vercel` for hosted |
 
@@ -40,6 +41,11 @@ docs/                  Agent handoff and brand guidance
 | Cost summary | Actual tracked OpenRouter usage/cost for one completed council run | Embedded in run and assistant message when available |
 | Settings | Available models, active council/chairman, custom groups, theme, scoped by user | Owner defaults in `data/settings.json`, user settings in `data/user-settings.json`; Redis keys on Vercel |
 | Integration credential | Per-user OpenRouter API key status and server-side secret | `data/integrations.json` locally; Redis key on Vercel |
+| Billing profile | User billing mode, multiplier, and Stripe customer metadata | Postgres via `DATABASE_URL`; SQLite fallback for local tests |
+| App credit ledger | Append-only LLM Council Balance credits/usages | Postgres; never mutate rows to change balance |
+| Billing reservation | Maximum managed-run charge hold | Postgres transaction before model execution |
+| Managed OpenRouter key | Per-managed-user child key metadata and encrypted key | Postgres; plaintext only in memory during execution |
+| Managed run receipt | Actual raw/provider cost, app cost, and remaining balance | Postgres plus run snapshot metadata |
 | Model curation state | App-core curator model and promotion history | `data/model-curation-state.json` locally; Redis key on Vercel |
 | Model curation draft | Reviewable weekly curated-preset recommendation | `data/model-curation-drafts.json` locally; Redis keys on Vercel |
 | Agent research approval | Codex MCP prepared prompt, approved preset, payload hash, cost cap, and linked run | `data/agent-research-approvals.json` locally; Redis keys on Vercel if enabled |
@@ -56,10 +62,11 @@ Persistence changes are high-risk. Do not change storage shape or key format wit
 4. Authenticated user creates/selects a conversation in their own scope.
 5. Sending a message creates a user-scoped run.
 6. Non-owner runs require a saved account OpenRouter key and never fall back to the server owner key.
-7. Stage 1 queries council models in parallel.
-8. Stage 2 anonymizes Stage 1 answers, asks every configured council model to rank responses, retries missing reviewers, and persists progress as rankings arrive.
-9. Stage 3 asks chairman to synthesize a final answer only after every expected Stage 2 reviewer returns a usable ranking.
-10. Frontend displays all stages and metadata.
+7. Managed-balance users can run only when managed mode is enabled, balance covers the profile maximum, OpenRouter coverage is safe, and a managed child key is available.
+8. Stage 1 queries council models in parallel.
+9. Stage 2 anonymizes Stage 1 answers, asks every configured council model to rank responses, retries missing reviewers, and persists progress as rankings arrive.
+10. Stage 3 asks chairman to synthesize a final answer only after every expected Stage 2 reviewer returns a usable ranking.
+11. Frontend displays all stages and metadata.
 
 Local mode uses background run tasks and polling. Vercel mode uses `RUN_EXECUTION_MODE=sync`, so the create-run request completes the full council run in one function invocation.
 
@@ -93,6 +100,17 @@ Hosted fallback is intentionally out of scope for v1. Production routing, hosted
 | `/api/auth/reset-password` | Disabled; returns 403 because hosted auth is Google-only |
 | `/api/settings` | Read/update active model group, custom groups, chairman, and theme settings |
 | `/api/integrations/openrouter` | Read masked OpenRouter key status and save/clear the current user's account key |
+| `/api/billing/status` | Read current BYOK/managed billing state, balance, packages, and setup flags |
+| `/api/billing/mode` | Switch between BYOK and managed billing mode |
+| `/api/billing/checkout` | Create a Stripe Checkout Session for allowed top-up packages |
+| `/api/billing/ledger` | Read the current user's LLM Council Balance ledger |
+| `/api/council/profiles` | Read curated managed-balance counsel profiles and estimates |
+| `/api/council/estimate` | Estimate one managed run and return the maximum charge |
+| `/api/stripe/webhook` | Stripe webhook fulfillment endpoint; public but signature-verified |
+| `/api/admin/finance/overview` | Owner-only finance, coverage, webhook, user balance, and run overview |
+| `/api/admin/openrouter/coverage` | Owner-only OpenRouter coverage snapshot and refresh |
+| `/api/admin/managed-mode/pause` | Owner-only managed-run kill switch |
+| `/api/admin/managed-mode/resume` | Owner-only managed-run resume path |
 | `/api/models/status` | Safe model-provider status booleans and catalog reachability |
 | `/api/models/catalog` | OpenRouter text model catalog metadata plus app-level council presets |
 | `/api/model-curation/latest` | Read latest model curation draft and app-core curation state |
@@ -124,6 +142,15 @@ Hosted fallback is intentionally out of scope for v1. Production routing, hosted
 | `LLM_COUNCIL_AGENT_OWNER_EMAIL` | Optional local MCP agent | Account scope used for agent runs; defaults to `ADMIN_EMAIL` or local owner scope |
 | `LLM_COUNCIL_AGENT_MAX_USD` | Optional local MCP agent | Maximum estimated/approved spend for one agent run, default `3.00` |
 | `CRON_SECRET` | Hosted cron | Secret Vercel sends as `Authorization: Bearer ...` for weekly curation |
+| `DATABASE_URL` | Managed billing beta | Supabase/Postgres connection string for billing ledger and reservations |
+| `STRIPE_SECRET_KEY` | Managed billing beta | Stripe secret key for Checkout Sessions |
+| `STRIPE_WEBHOOK_SECRET` | Managed billing beta | Stripe webhook signature verification secret |
+| `STRIPE_PRICE_ID_1` / `STRIPE_PRICE_ID_5` / `STRIPE_PRICE_ID_10` / `STRIPE_PRICE_ID_20` | Managed billing beta | Stripe Price IDs for fixed LLM Council Balance top-ups; `$1` is a temporary test top-up |
+| `OPENROUTER_MANAGEMENT_KEY` | Managed billing beta | OpenRouter administrative key for child-key provisioning and credits checks |
+| `KEY_ENCRYPTION_SECRET` | Hosted secrets | Required for hosted encryption of BYOK and managed OpenRouter keys |
+| `SERVICE_MULTIPLIER_DEFAULT` | Managed billing beta | Defaults to `1.35`; converts raw OpenRouter cost to user-visible app cost |
+| `MANAGED_MODE_ENABLED` | Managed billing beta | Defaults off; must be `true` before managed runs can execute |
+| `PUBLIC_APP_URL` or `APP_URL` | Hosted checkout redirects | Optional explicit app URL, usually `https://joshadland.com/llm-council`; otherwise the request root path is used |
 | `OPENCLAW_GATEWAY_TOKEN` | Optional local | Override OpenClaw gateway token |
 | `OPENCLAW_CONFIG_PATH` | Optional local | Override OpenClaw config path |
 | `STORAGE_BACKEND=redis` | Vercel | Force Redis storage |
@@ -178,6 +205,7 @@ Hosted:
 | Model catalog | OpenClaw aliases and OpenRouter IDs differ | Verify settings output and direct query IDs |
 | Local vs hosted branches | Easy to break one mode while fixing the other | Verify branch intent before editing |
 | Public deployment | Private app with paid model calls | Protect APIs and avoid unauthenticated access |
+| Managed billing | Can create real financial liability | Keep disabled by default, use Stripe test mode first, verify webhook idempotency, and fail closed on unsafe coverage |
 
 ## Known Risks
 

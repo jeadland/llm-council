@@ -1,7 +1,44 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { LogOut, Settings as SettingsIcon, UserCircle } from "lucide-react";
 import { api } from "../api";
+import { shortModelName } from "../modelUtils";
 import "./Sidebar.css";
+
+const formatUsd = (value) => `$${Number(value || 0).toFixed(2)}`;
+const packageConfigured = (pkg) => pkg?.configured !== false;
+
+const plainProfileName = (profile) =>
+  (profile?.display_name || "Balanced Council").replace(" Council", "");
+
+const questionFitCopy = (pkg, councilProfiles = []) => {
+  const amount = Number(pkg?.amount_usd || 0);
+  const profile =
+    councilProfiles.find((item) => item.slug === "balanced") ||
+    councilProfiles.find((item) => item.pricing_available);
+  const low = Number(profile?.estimated_app_cost_low_usd || 0);
+  const high = Number(profile?.estimated_app_cost_high_usd || 0);
+  const cap = Number(profile?.max_user_visible_charge_usd || high || 0);
+  const upperCost = cap > 0 ? Math.min(high || cap, cap) : high;
+
+  if (pkg?.test || pkg?.id === "test_1") {
+    return "Small checkout and webhook test top-up.";
+  }
+
+  if (amount > 0 && low > 0 && upperCost > 0) {
+    const minQuestions = Math.max(1, Math.floor(amount / upperCost));
+    const maxQuestions = Math.max(minQuestions, Math.floor(amount / low));
+    const count =
+      minQuestions === maxQuestions
+        ? `${minQuestions}`
+        : `${minQuestions}-${maxQuestions}`;
+    return `About ${count} ${plainProfileName(profile).toLowerCase()} questions.`;
+  }
+
+  if (pkg?.id === "starter_5") return "Good for trying a few everyday questions.";
+  if (pkg?.id === "power_20") return "Good for heavier planning or deeper sessions.";
+  return "Good for a normal batch of planning and writing questions.";
+};
 
 export default function Sidebar({
   conversations,
@@ -16,11 +53,21 @@ export default function Sidebar({
   auth,
   onLogout,
   onOpenRouterStatusChanged,
+  billingStatus,
+  billingStatusError,
+  billingNotice,
+  councilProfiles,
+  adminFinance,
+  onBillingModeChange,
+  onStartCheckout,
+  onRefreshBilling,
+  onManagedPauseChange,
   isOpen,
   settingsRequest,
   onSettingsRequestHandled,
   sidebarWidth,
   onResizeStart,
+  onOpenModels,
 }) {
   const [showSettings, setShowSettings] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -49,6 +96,20 @@ export default function Sidebar({
   const [openRouterKey, setOpenRouterKey] = useState("");
   const [openRouterStatusMessage, setOpenRouterStatusMessage] = useState("");
   const [openRouterBusy, setOpenRouterBusy] = useState(false);
+  const [billingMessage, setBillingMessage] = useState("");
+  const [billingBusy, setBillingBusy] = useState(false);
+  const [settingsView, setSettingsView] = useState("settings");
+  const [addBalanceOpen, setAddBalanceOpen] = useState(false);
+  const [selectedTopupId, setSelectedTopupId] = useState("");
+  const [settingsDialog, setSettingsDialog] = useState(null);
+  const councilModelCount = settings?.council_models?.length || 0;
+  const chairmanLabel = shortModelName(settings?.chairman_model) || "None";
+
+  const openCouncilSetup = () => {
+    setShowSettings(false);
+    setSettingsDialog(null);
+    onOpenModels?.();
+  };
 
   const loadOpenRouterStatus = useCallback(async () => {
     try {
@@ -76,12 +137,15 @@ export default function Sidebar({
     setDraftThemeMode(settings?.theme_mode || "system");
     setOpenRouterKey("");
     setOpenRouterStatusMessage("");
+    setBillingMessage("");
+    setSettingsView("settings");
+    setAddBalanceOpen(false);
+    setSettingsDialog(focusIntegrations ? "model-access" : null);
     setShowSettings(true);
   };
 
   const closeSettings = () => {
-    // Revert live theme preview to the saved/persisted setting
-    if (onThemePreview) onThemePreview(settings?.theme_mode || "system");
+    setSettingsDialog(null);
     setShowSettings(false);
   };
 
@@ -90,6 +154,10 @@ export default function Sidebar({
     const focusIntegrations = settingsRequest.section === "integrations";
     const wasOpen = showSettings;
     openSettings({ focusIntegrations });
+    if (settingsRequest.action === "add-balance" && canAddBalance) {
+      setSelectedTopupId(recommendedTopup?.id || "");
+      setAddBalanceOpen(true);
+    }
     if (focusIntegrations && wasOpen) {
       focusIntegrationsRef.current = false;
       scrollToIntegrations();
@@ -106,11 +174,14 @@ export default function Sidebar({
     }
   }, [showSettings, loadOpenRouterStatus, scrollToIntegrations]);
 
-  const save = async () => {
-    await onSaveSettings({
-      theme_mode: draftThemeMode,
-    });
-    setShowSettings(false);
+  const selectThemeMode = async (mode) => {
+    setDraftThemeMode(mode);
+    onThemePreview?.(mode);
+    try {
+      await onSaveSettings({ theme_mode: mode });
+    } catch (error) {
+      console.error("Theme could not be saved:", error);
+    }
   };
 
   const submitOpenRouterKey = async () => {
@@ -151,6 +222,96 @@ export default function Sidebar({
     }
   };
 
+  const updateBillingMode = async (mode) => {
+    setBillingMessage("");
+    setBillingBusy(true);
+    try {
+      await onBillingModeChange?.(mode);
+      setBillingMessage(
+        mode === "managed"
+          ? "LLM Council Balance will be used for future runs."
+          : "Your OpenRouter key will be used for future runs.",
+      );
+    } catch (e) {
+      setBillingMessage(e.message || "Billing mode could not be updated.");
+    } finally {
+      setBillingBusy(false);
+    }
+  };
+
+  const startCheckout = async (packageId) => {
+    setBillingMessage("");
+    setBillingBusy(true);
+    try {
+      await onStartCheckout?.(packageId);
+    } catch (e) {
+      setBillingMessage(e.message || "Checkout could not be started.");
+      setBillingBusy(false);
+    }
+  };
+
+  const topupPackages = billingStatus?.topup_packages || [];
+  const configuredTopupPackages = topupPackages.filter(packageConfigured);
+  const recommendedTopup =
+    configuredTopupPackages.find((pkg) => pkg.recommended) ||
+    configuredTopupPackages[0] ||
+    null;
+  const selectedTopup =
+    configuredTopupPackages.find((pkg) => pkg.id === selectedTopupId) || recommendedTopup;
+  const availableBalance = Number(billingStatus?.available_balance_usd || 0);
+  const canAddBalance =
+    !billingStatusError &&
+    Boolean(billingStatus?.managed_mode_enabled) &&
+    Boolean(billingStatus?.stripe_configured) &&
+    configuredTopupPackages.length > 0;
+  const canUseManagedBalance =
+    !billingStatusError &&
+    Boolean(billingStatus?.managed_mode_enabled) &&
+    availableBalance > 0;
+  const managedBalanceActive = billingStatus?.billing_mode === "managed";
+  const managedBalanceModeLabel = managedBalanceActive
+    ? "Balance will be used for runs"
+    : "Use balance for runs";
+  const balanceStatusLabel = billingStatusError
+    ? "Check status"
+    : canAddBalance
+      ? "Ready"
+      : billingStatus?.managed_mode_enabled
+        ? "Setup needed"
+        : "Private beta";
+  const balanceSummary = billingStatusError
+    ? "Billing status could not be loaded."
+    : canAddBalance
+      ? "Add balance through Stripe Checkout."
+      : billingStatus?.managed_mode_enabled
+        ? "Stripe setup is incomplete."
+        : "Use OpenRouter key access until the private beta is enabled.";
+
+  const openAddBalance = () => {
+    setBillingMessage("");
+    setSelectedTopupId(recommendedTopup?.id || "");
+    setAddBalanceOpen(true);
+  };
+
+  const confirmAddBalance = () => {
+    if (!selectedTopup?.id) return;
+    startCheckout(selectedTopup.id);
+  };
+
+  const toggleManagedPause = async (paused) => {
+    setBillingMessage("");
+    setBillingBusy(true);
+    try {
+      await onManagedPauseChange?.(paused);
+      setBillingMessage(paused ? "Managed runs paused." : "Managed runs resumed.");
+      await onRefreshBilling?.();
+    } catch (e) {
+      setBillingMessage(e.message || "Managed mode could not be updated.");
+    } finally {
+      setBillingBusy(false);
+    }
+  };
+
   const accountTitle = auth?.role === "owner" ? "Owner" : "Account";
   const ownerLabel =
     auth?.name ||
@@ -161,14 +322,215 @@ export default function Sidebar({
     .trim()
     .slice(0, 1)
     .toUpperCase();
+  const billingModal = addBalanceOpen ? (
+    <div className="billing-modal-backdrop" role="presentation">
+      <div
+        className="billing-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="billing-modal-title"
+      >
+        <div className="billing-modal-header">
+          <div>
+            <strong id="billing-modal-title">Add Balance</strong>
+            <span>Choose an amount, then continue to Stripe.</span>
+          </div>
+          <button
+            type="button"
+            className="billing-modal-close"
+            onClick={() => setAddBalanceOpen(false)}
+            aria-label="Close Add Balance"
+          >
+            Close
+          </button>
+        </div>
+
+        <div className="billing-package-list" role="radiogroup" aria-label="Balance amount">
+          {topupPackages.map((pkg) => (
+            <button
+              type="button"
+              key={pkg.id}
+              role="radio"
+              aria-checked={selectedTopup?.id === pkg.id}
+              aria-disabled={!packageConfigured(pkg)}
+              className={`billing-package-option${selectedTopup?.id === pkg.id ? " selected" : ""}${packageConfigured(pkg) ? "" : " disabled"}`}
+              onClick={() => {
+                if (packageConfigured(pkg)) setSelectedTopupId(pkg.id);
+              }}
+              disabled={!packageConfigured(pkg)}
+            >
+              <strong>{pkg.label}</strong>
+              <span>
+                {questionFitCopy(pkg, councilProfiles)}
+                {!packageConfigured(pkg) ? ` ${pkg.status_label || "Needs Stripe price"}.` : ""}
+              </span>
+              {!packageConfigured(pkg) ? (
+                <em className="warn">Needs price</em>
+              ) : pkg.test ? (
+                <em>Test</em>
+              ) : pkg.recommended ? (
+                <em>Recommended</em>
+              ) : null}
+            </button>
+          ))}
+        </div>
+
+        <div className="billing-modal-actions">
+          <button
+            type="button"
+            className="settings-cancel-btn"
+            onClick={() => setAddBalanceOpen(false)}
+            disabled={billingBusy}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="settings-save-btn"
+            onClick={confirmAddBalance}
+            disabled={billingBusy || !selectedTopup?.id}
+          >
+            {billingBusy
+              ? "Opening Stripe..."
+              : `Continue with ${selectedTopup?.label || "selected amount"}`}
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
+  const settingsActionDialog =
+    settingsDialog === "model-access" ? (
+      <div
+        className="settings-modal-backdrop"
+        role="presentation"
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setSettingsDialog(null);
+        }}
+      >
+        <div
+          className="settings-action-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="model-access-title"
+        >
+          <div className="settings-action-modal-header">
+            <div>
+              <span className="settings-overline">Model access</span>
+              <h3 id="model-access-title">OpenRouter key</h3>
+              <p>
+                LLM Council uses this key server-side for your account. Model
+                costs stay on your OpenRouter account.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="settings-modal-close"
+              onClick={() => setSettingsDialog(null)}
+              aria-label="Close model access"
+            >
+              Close
+            </button>
+          </div>
+
+          <div className="settings-modal-status-row">
+            <span
+              className={`settings-status-badge${openRouterStatus?.configured ? " ready" : " warn"}`}
+            >
+              {openRouterStatus?.configured ? "Ready" : "Needs key"}
+            </span>
+            <span>
+              {openRouterStatus?.configured
+                ? openRouterStatus.source === "environment"
+                  ? "Configured for this account"
+                  : `Saved (${openRouterStatus.masked_key})`
+                : "No key saved"}
+            </span>
+          </div>
+
+          <label className="account-field">
+            <span>OpenRouter API key</span>
+            <input
+              id="llm-council-settings-openrouter-api-key"
+              name="openrouter-api-key"
+              type="password"
+              autoComplete="off"
+              value={openRouterKey}
+              onChange={(e) => setOpenRouterKey(e.target.value)}
+              placeholder={
+                openRouterStatus?.configured
+                  ? "Leave blank to keep the saved key"
+                  : "sk-or-v1-..."
+              }
+            />
+          </label>
+
+          <div className="settings-modal-link-row">
+            <a
+              href="https://openrouter.ai/settings/keys"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Create an OpenRouter key
+            </a>
+            <a
+              href="https://openrouter.ai/docs/api-reference/authentication"
+              target="_blank"
+              rel="noreferrer"
+            >
+              How keys are used
+            </a>
+          </div>
+
+          {openRouterStatusMessage && (
+            <div
+              className={`account-status${openRouterStatusMessage.includes("saved") || openRouterStatusMessage.includes("cleared") ? " success" : ""}`}
+            >
+              {openRouterStatusMessage}
+            </div>
+          )}
+
+          <div className="settings-modal-actions">
+            <button
+              type="button"
+              className="settings-primary-action"
+              onClick={submitOpenRouterKey}
+              disabled={openRouterBusy || !openRouterKey.trim()}
+            >
+              {openRouterBusy ? "Saving..." : "Save key"}
+            </button>
+            <button
+              type="button"
+              className="settings-secondary-action"
+              onClick={clearOpenRouterKey}
+              disabled={openRouterBusy || openRouterStatus?.source !== "account"}
+            >
+              Clear key
+            </button>
+          </div>
+
+          {openRouterStatus?.configured && (
+            <button
+              type="button"
+              className="settings-secondary-action wide"
+              onClick={() => updateBillingMode("byok")}
+              disabled={billingBusy}
+            >
+              Use this key for runs
+            </button>
+          )}
+        </div>
+      </div>
+    ) : null;
 
   return (
-    <div
-      className={`sidebar ${isOpen ? "open" : ""} ${showSettings ? "settings-fullpanel" : ""}`}
-      style={
-        sidebarWidth ? { "--sidebar-width": `${sidebarWidth}px` } : undefined
-      }
-    >
+    <>
+      <div
+        className={`sidebar ${isOpen ? "open" : ""} ${showSettings ? "settings-fullpanel" : ""}`}
+        style={
+          sidebarWidth ? { "--sidebar-width": `${sidebarWidth}px` } : undefined
+        }
+      >
       {/* Drag resize handle — desktop only, hidden on mobile via CSS */}
       <div
         className={`sidebar-resize-handle${isDragging ? " dragging" : ""}`}
@@ -209,196 +571,246 @@ export default function Sidebar({
 
           {/* Settings body — scrollable */}
           <div className="settings-fullpanel-body">
-            <div className="settings-subtitle">Appearance</div>
-            <div
-              className="appearance-icon-row"
-              role="group"
-              aria-label="Theme mode"
-            >
-              {/* Light — Sun */}
-              <button
-                className={`appearance-icon-btn${draftThemeMode === "light" ? " selected" : ""}`}
-                onClick={() => {
-                  setDraftThemeMode("light");
-                  onThemePreview?.("light");
-                }}
-                aria-pressed={draftThemeMode === "light"}
-                title="Light"
-              >
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill={draftThemeMode === "light" ? "currentColor" : "none"}
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <circle cx="12" cy="12" r="4" />
-                  <line x1="12" y1="2" x2="12" y2="5" />
-                  <line x1="12" y1="19" x2="12" y2="22" />
-                  <line x1="4.22" y1="4.22" x2="6.34" y2="6.34" />
-                  <line x1="17.66" y1="17.66" x2="19.78" y2="19.78" />
-                  <line x1="2" y1="12" x2="5" y2="12" />
-                  <line x1="19" y1="12" x2="22" y2="12" />
-                  <line x1="4.22" y1="19.78" x2="6.34" y2="17.66" />
-                  <line x1="17.66" y1="6.34" x2="19.78" y2="4.22" />
-                </svg>
-                <span>Light</span>
-              </button>
-
-              {/* Dark — Moon */}
-              <button
-                className={`appearance-icon-btn${draftThemeMode === "dark" ? " selected" : ""}`}
-                onClick={() => {
-                  setDraftThemeMode("dark");
-                  onThemePreview?.("dark");
-                }}
-                aria-pressed={draftThemeMode === "dark"}
-                title="Dark"
-              >
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill={draftThemeMode === "dark" ? "currentColor" : "none"}
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-                </svg>
-                <span>Dark</span>
-              </button>
-
-              {/* System — Monitor */}
-              <button
-                className={`appearance-icon-btn${draftThemeMode === "system" ? " selected" : ""}`}
-                onClick={() => {
-                  setDraftThemeMode("system");
-                  onThemePreview?.("system");
-                }}
-                aria-pressed={draftThemeMode === "system"}
-                title="System"
-              >
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill={draftThemeMode === "system" ? "currentColor" : "none"}
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-                  <line x1="8" y1="21" x2="16" y2="21" />
-                  <line x1="12" y1="17" x2="12" y2="21" />
-                </svg>
-                <span>System</span>
-              </button>
-            </div>
-
-            <div className="settings-subtitle settings-account-subtitle">
-              <span>API &amp; Integrations</span>
-              <span className="settings-chairman-hint">
-                {openRouterStatus?.configured
-                  ? "Configured"
-                  : "Required for hosted direct runs"}
-              </span>
-            </div>
-            <div className="integration-settings-card" ref={integrationCardRef}>
-              <div className="integration-card-header">
-                <div>
-                  <strong>OpenRouter</strong>
-                  <span>
-                    {openRouterStatus?.configured
-                      ? openRouterStatus.source === "environment"
-                        ? "Configured by server environment"
-                        : `Your key is saved (${openRouterStatus.masked_key})`
-                      : "No key saved"}
-                  </span>
-                </div>
-                <span
-                  className={`integration-status-pill${openRouterStatus?.configured ? " configured" : ""}`}
-                >
-                  {openRouterStatus?.configured ? "Ready" : "Needs key"}
-                </span>
-              </div>
-              <p>
-                Your OpenRouter key pays for your council runs. The full key is
-                stored server-side only and is never returned to the browser.
-              </p>
-              <label className="account-field">
-                <span>OpenRouter API key</span>
-                <input
-                  id="llm-council-settings-openrouter-api-key"
-                  name="openrouter-api-key"
-                  type="password"
-                  autoComplete="off"
-                  value={openRouterKey}
-                  onChange={(e) => setOpenRouterKey(e.target.value)}
-                  placeholder={
-                    openRouterStatus?.configured
-                      ? "Leave blank to keep the saved key"
-                      : "sk-or-v1-..."
-                  }
-                />
-              </label>
-              {openRouterStatusMessage && (
-                <div
-                  className={`account-status${openRouterStatusMessage.includes("saved") || openRouterStatusMessage.includes("cleared") ? " success" : ""}`}
-                >
-                  {openRouterStatusMessage}
-                </div>
-              )}
-              <div className="account-actions integration-actions">
+            {auth?.role === "owner" && (
+              <div className="settings-view-tabs" role="tablist" aria-label="Settings views">
                 <button
                   type="button"
-                  className="settings-save-btn account-password-btn"
-                  onClick={submitOpenRouterKey}
-                  disabled={openRouterBusy || !openRouterKey.trim()}
+                  role="tab"
+                  aria-selected={settingsView === "settings"}
+                  className={settingsView === "settings" ? "selected" : ""}
+                  onClick={() => setSettingsView("settings")}
                 >
-                  {openRouterBusy ? "Saving..." : "Save key"}
+                  Settings
                 </button>
                 <button
                   type="button"
-                  className="settings-cancel-btn account-logout-btn"
-                  onClick={clearOpenRouterKey}
-                  disabled={
-                    openRouterBusy || openRouterStatus?.source !== "account"
-                  }
+                  role="tab"
+                  aria-selected={settingsView === "admin"}
+                  className={settingsView === "admin" ? "selected" : ""}
+                  onClick={() => setSettingsView("admin")}
                 >
-                  Clear account key
+                  Owner Admin
                 </button>
               </div>
-            </div>
+            )}
 
-            {auth?.auth_required && (
+            {settingsView === "admin" && auth?.role === "owner" ? (
               <>
                 <div className="settings-subtitle settings-account-subtitle">
-                  <span>Account</span>
-                  <span className="settings-chairman-hint">{auth.email}</span>
+                  <span>Owner Admin</span>
+                  <span className="settings-chairman-hint">
+                    {adminFinance?.coverage?.status || "No coverage snapshot"}
+                  </span>
                 </div>
-                <div className="account-settings">
-                  <div className="account-status success">
-                    Signed in with Google.
+                <div className="integration-settings-card admin-finance-card">
+                  <div className="admin-finance-grid">
+                    <div>
+                      <span>Outstanding balance</span>
+                      <strong>{formatUsd(adminFinance?.app_credits_outstanding_usd)}</strong>
+                    </div>
+                    <div>
+                      <span>Provider reserve</span>
+                      <strong>{formatUsd(adminFinance?.managed_raw_liability_usd)}</strong>
+                    </div>
+                    <div>
+                      <span>Payment alerts</span>
+                      <strong>{adminFinance?.failed_webhooks_count || 0}</strong>
+                    </div>
+                    <div>
+                      <span>Balance runs</span>
+                      <strong>{adminFinance?.managed_mode_paused ? "Paused" : "Allowed"}</strong>
+                    </div>
                   </div>
-                  <div className="account-actions">
+                  <div className="account-actions integration-actions">
                     <button
                       type="button"
                       className="settings-cancel-btn account-logout-btn"
+                      onClick={() => toggleManagedPause(true)}
+                      disabled={billingBusy || adminFinance?.managed_mode_paused}
+                    >
+                      Pause balance runs
+                    </button>
+                    <button
+                      type="button"
+                      className="settings-save-btn account-password-btn"
+                      onClick={() => toggleManagedPause(false)}
+                      disabled={billingBusy || !adminFinance?.managed_mode_paused}
+                    >
+                      Resume
+                    </button>
+                  </div>
+                  {billingMessage && (
+                    <div
+                      className={`account-status${billingMessage.includes("resumed") || billingMessage.includes("paused") ? " success" : ""}`}
+                    >
+                      {billingMessage}
+                    </div>
+                  )}
+                </div>
+
+                <div className="settings-subtitle settings-account-subtitle">
+                  <span>User Balances</span>
+                  <span className="settings-chairman-hint">
+                    {(adminFinance?.users_by_balance || []).length} accounts
+                  </span>
+                </div>
+                <div className="integration-settings-card admin-finance-card">
+                  {(adminFinance?.users_by_balance || []).length > 0 ? (
+                    <div className="admin-balance-list">
+                      {(adminFinance?.users_by_balance || []).slice(0, 12).map((user) => (
+                        <div className="admin-balance-row" key={user.user_id}>
+                          <div>
+                            <strong>{user.user_id}</strong>
+                            <span>
+                              Available {formatUsd(user.available_balance_usd)}
+                              {Number(user.reserved_balance_usd || 0) > 0
+                                ? `, ${formatUsd(user.reserved_balance_usd)} held`
+                                : ""}
+                            </span>
+                          </div>
+                          <strong>{formatUsd(user.balance)}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="billing-note">No account balances yet.</p>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="settings-hub">
+                  <section className="settings-primary-card settings-balance-card">
+                    <div>
+                      <span className="settings-overline">LLM Council Balance</span>
+                      <h3>{formatUsd(availableBalance)} available</h3>
+                      <p>{balanceSummary}</p>
+                    </div>
+                    <span
+                      className={`settings-status-badge${canAddBalance ? " ready" : " warn"}`}
+                    >
+                      {balanceStatusLabel}
+                    </span>
+                    <div className="settings-balance-actions">
+                      <button
+                        type="button"
+                        className="settings-primary-action"
+                        onClick={openAddBalance}
+                        disabled={!canAddBalance || billingBusy}
+                      >
+                        Add balance
+                      </button>
+                      {canUseManagedBalance && (
+                        <button
+                          type="button"
+                          className="settings-secondary-action"
+                          onClick={() => updateBillingMode("managed")}
+                          disabled={billingBusy || managedBalanceActive}
+                        >
+                          {managedBalanceModeLabel}
+                        </button>
+                      )}
+                    </div>
+                    {billingStatusError && (
+                      <div className="account-status">{billingStatusError}</div>
+                    )}
+                    {billingMessage && (
+                      <div
+                        className={`account-status${billingMessage.includes("updated") || billingMessage.includes("used") || billingMessage.includes("saved") || billingMessage.includes("will be used") ? " success" : ""}`}
+                      >
+                        {billingMessage}
+                      </div>
+                    )}
+                    {billingNotice && (
+                      <div
+                        className={`account-status${billingNotice.type === "success" || billingNotice.type === "info" ? " success" : ""}`}
+                      >
+                        {billingNotice.message}
+                      </div>
+                    )}
+                  </section>
+
+                  <section
+                    className={`settings-primary-card${openRouterStatus?.configured ? "" : " needs-action"}`}
+                    ref={integrationCardRef}
+                  >
+                    <div>
+                      <span className="settings-overline">Model access</span>
+                      <h3>
+                        {openRouterStatus?.configured
+                          ? "OpenRouter connected"
+                          : "Add your OpenRouter key"}
+                      </h3>
+                      <p>
+                        {openRouterStatus?.configured
+                          ? "Runs use your OpenRouter account."
+                          : "Required before your first council run."}
+                      </p>
+                    </div>
+                    <span
+                      className={`settings-status-badge${openRouterStatus?.configured ? " ready" : " warn"}`}
+                    >
+                      {openRouterStatus?.configured ? "Ready" : "Needs key"}
+                    </span>
+                    <button
+                      type="button"
+                      className="settings-primary-action"
+                      onClick={() => setSettingsDialog("model-access")}
+                    >
+                      {openRouterStatus?.configured ? "Manage key" : "Add key"}
+                    </button>
+                  </section>
+
+                  <button
+                    type="button"
+                    className="settings-clean-row"
+                    onClick={openCouncilSetup}
+                  >
+                    <span>
+                      <strong>Council</strong>
+                      <small>
+                        {councilModelCount} model{councilModelCount === 1 ? "" : "s"}
+                        {" "}· Chair: {chairmanLabel}
+                      </small>
+                    </span>
+                    <em>Edit</em>
+                  </button>
+
+                  <div className="settings-clean-row settings-theme-row">
+                    <span>
+                      <strong>Theme</strong>
+                      <small>{draftThemeMode[0].toUpperCase() + draftThemeMode.slice(1)}</small>
+                    </span>
+                    <div className="settings-theme-switch" role="group" aria-label="Theme mode">
+                      {["light", "dark", "system"].map((mode) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          className={draftThemeMode === mode ? "selected" : ""}
+                          onClick={() => selectThemeMode(mode)}
+                          aria-pressed={draftThemeMode === mode}
+                        >
+                          {mode[0].toUpperCase() + mode.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="settings-account-row">
+                    <span>
+                      <strong>{auth?.email || "Google account"}</strong>
+                      <small>Signed in with Google</small>
+                    </span>
+                    <button
+                      type="button"
+                      className="settings-secondary-action compact"
                       onClick={() => {
                         setShowSettings(false);
+                        setSettingsDialog(null);
                         onLogout?.();
                       }}
                     >
-                      <LogOut size={16} />
+                      <LogOut size={15} />
                       Sign out
                     </button>
                   </div>
@@ -407,15 +819,6 @@ export default function Sidebar({
             )}
           </div>
 
-          {/* Sticky footer with actions — even-width buttons */}
-          <div className="settings-fullpanel-footer">
-            <button className="settings-cancel-btn" onClick={closeSettings}>
-              Cancel
-            </button>
-            <button className="settings-save-btn" onClick={save}>
-              Save
-            </button>
-          </div>
         </div>
       )}
 
@@ -583,6 +986,9 @@ export default function Sidebar({
           </div>
         </>
       )}
-    </div>
+      </div>
+      {billingModal ? createPortal(billingModal, document.body) : null}
+      {settingsActionDialog ? createPortal(settingsActionDialog, document.body) : null}
+    </>
   );
 }
