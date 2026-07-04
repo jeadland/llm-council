@@ -9,7 +9,8 @@ import "./App.css";
 
 const STORAGE_KEY = "llm-council-ui-v1";
 const SIDEBAR_WIDTH_KEY = "llm-council-sidebar-width";
-const SIDEBAR_MIN = 240;
+const SIDEBAR_PINNED_KEY = "llm-council-sidebar-pinned";
+const SIDEBAR_MIN = 280;
 const SIDEBAR_MAX = 480;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const formatUsd = (value) => `$${Number(value || 0).toFixed(2)}`;
@@ -20,6 +21,13 @@ function App() {
   const [currentConversation, setCurrentConversation] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [sidebarPinned, setSidebarPinned] = useState(() => {
+    try {
+      return localStorage.getItem(SIDEBAR_PINNED_KEY) === "true";
+    } catch {
+      return false;
+    }
+  });
   const [sidebarSettingsRequest, setSidebarSettingsRequest] = useState(null);
   const [activeRunId, setActiveRunId] = useState(null);
   const [settings, setSettings] = useState(null);
@@ -51,7 +59,7 @@ function App() {
     } catch {
       /* ignore */
     }
-    return 300; // default width
+    return 320; // default width
   });
   const dragStartX = useRef(null);
   const dragStartWidth = useRef(null);
@@ -219,6 +227,12 @@ function App() {
       console.error("Failed to load admin finance overview:", error);
       return null;
     }
+  }
+
+  async function refreshAdminCoverage() {
+    const coverage = await api.refreshAdminCoverage();
+    setAdminFinance((prev) => (prev ? { ...prev, coverage } : { coverage }));
+    return coverage;
   }
 
   async function handleBillingReturn(role) {
@@ -493,6 +507,37 @@ function App() {
     }
   };
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(SIDEBAR_PINNED_KEY, String(sidebarPinned));
+    } catch {
+      /* ignore */
+    }
+  }, [sidebarPinned]);
+
+  const sidebarDrawerOpen = isSidebarOpen || sidebarPinned;
+
+  const handleToggleConversations = () => {
+    if (sidebarPinned) {
+      setSidebarPinned(false);
+      setIsSidebarOpen(false);
+      return;
+    }
+    setIsSidebarOpen((open) => !open);
+  };
+
+  const handleToggleSidebarPin = () => {
+    setSidebarPinned((pinned) => {
+      const next = !pinned;
+      if (next) {
+        setIsSidebarOpen(true);
+      } else {
+        setIsSidebarOpen(false);
+      }
+      return next;
+    });
+  };
+
   const handleSelectConversation = (id) => {
     setCurrentConversationId(id);
     setIsSidebarOpen(false);
@@ -633,7 +678,10 @@ function App() {
           await loadAdminFinance();
         }}
         onManagedPauseChange={handleManagedPauseChange}
-        isOpen={isSidebarOpen}
+        isOpen={sidebarDrawerOpen}
+        isPinned={sidebarPinned}
+        onToggleSidebarPin={handleToggleSidebarPin}
+        onRefreshAdminCoverage={refreshAdminCoverage}
         settingsRequest={sidebarSettingsRequest}
         onSettingsRequestHandled={() => setSidebarSettingsRequest(null)}
         sidebarWidth={sidebarWidth}
@@ -641,10 +689,11 @@ function App() {
         onOpenModels={() => setShowModelPicker(true)}
       />
 
-      {isSidebarOpen && (
+      {isSidebarOpen && !sidebarPinned && (
         <div
-          className="mobile-backdrop"
+          className="sidebar-backdrop"
           onClick={() => setIsSidebarOpen(false)}
+          aria-hidden="true"
         />
       )}
 
@@ -654,7 +703,8 @@ function App() {
           modelMap={modelMap}
           presets={modelPresets}
           onOpenModels={() => setShowModelPicker(true)}
-          onOpenConversations={() => setIsSidebarOpen((v) => !v)}
+          onOpenConversations={handleToggleConversations}
+          sidebarPinned={sidebarPinned}
         />
 
         <ChatInterface

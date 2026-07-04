@@ -1,12 +1,64 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
-import { LogOut, Settings as SettingsIcon, UserCircle } from "lucide-react";
+import { LogOut, Pin, Settings as SettingsIcon, UserCircle } from "lucide-react";
 import { api } from "../api";
 import { shortModelName } from "../modelUtils";
 import "./Sidebar.css";
 
 const formatUsd = (value) => `$${Number(value || 0).toFixed(2)}`;
 const packageConfigured = (pkg) => pkg?.configured !== false;
+
+function buildCoverageGuidance(coverage) {
+  if (!coverage || coverage.status === "not_configured") {
+    return {
+      tone: "muted",
+      headline: "OpenRouter management not configured",
+      action: "Set OPENROUTER_MANAGEMENT_KEY to enable live balance checks.",
+    };
+  }
+  if (coverage.status === "unknown") {
+    return {
+      tone: "muted",
+      headline: "No live snapshot yet",
+      action: "Refresh to pull OpenRouter credits and compute the target floor.",
+    };
+  }
+
+  const available = Number(coverage.available_credits_usd);
+  const floor = Number(coverage.required_floor_usd);
+  const gap = floor - available;
+  const hasNumbers = Number.isFinite(available) && Number.isFinite(floor);
+
+  if (!hasNumbers) {
+    return {
+      tone: "muted",
+      headline: "Coverage data incomplete",
+      action: "Refresh the OpenRouter balance snapshot.",
+    };
+  }
+
+  if (gap > 0.5) {
+    const topUp = Math.max(5, Math.ceil(gap / 5) * 5);
+    const urgent = coverage.status === "emergency" || coverage.status === "critical";
+    return {
+      tone: urgent ? "danger" : "warn",
+      headline: `Below target by ${formatUsd(gap)}`,
+      action: urgent
+        ? `Add about ${formatUsd(topUp)} to OpenRouter and consider pausing balance runs.`
+        : `Add about ${formatUsd(topUp)} to OpenRouter to restore the safety floor.`,
+    };
+  }
+
+  const surplus = Math.abs(gap);
+  return {
+    tone: coverage.status === "healthy" ? "good" : "warn",
+    headline: surplus > 0.5 ? `Above target by ${formatUsd(surplus)}` : "On target",
+    action:
+      coverage.status === "healthy"
+        ? "No action needed."
+        : `Status is ${coverage.status}. Monitor after the next managed runs.`,
+  };
+}
 
 const plainProfileName = (profile) =>
   (profile?.display_name || "Balanced Council").replace(" Council", "");
@@ -63,6 +115,9 @@ export default function Sidebar({
   onRefreshBilling,
   onManagedPauseChange,
   isOpen,
+  isPinned = false,
+  onToggleSidebarPin,
+  onRefreshAdminCoverage,
   settingsRequest,
   onSettingsRequestHandled,
   sidebarWidth,
@@ -71,6 +126,7 @@ export default function Sidebar({
 }) {
   const [showSettings, setShowSettings] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [coverageBusy, setCoverageBusy] = useState(false);
   const integrationCardRef = useRef(null);
   const focusIntegrationsRef = useRef(false);
 
@@ -312,6 +368,23 @@ export default function Sidebar({
     }
   };
 
+  const refreshCoverage = async () => {
+    if (!onRefreshAdminCoverage) return;
+    setBillingMessage("");
+    setCoverageBusy(true);
+    try {
+      await onRefreshAdminCoverage();
+      setBillingMessage("OpenRouter balance refreshed.");
+    } catch (e) {
+      setBillingMessage(e.message || "Could not refresh OpenRouter balance.");
+    } finally {
+      setCoverageBusy(false);
+    }
+  };
+
+  const coverage = adminFinance?.coverage;
+  const coverageGuidance = buildCoverageGuidance(coverage);
+
   const accountTitle = auth?.role === "owner" ? "Owner" : "Account";
   const ownerLabel =
     auth?.name ||
@@ -526,7 +599,7 @@ export default function Sidebar({
   return (
     <>
       <div
-        className={`sidebar ${isOpen ? "open" : ""} ${showSettings ? "settings-fullpanel" : ""}`}
+        className={`sidebar ${isOpen ? "open" : ""} ${isPinned ? "pinned" : ""} ${showSettings ? "settings-fullpanel" : ""}`}
         style={
           sidebarWidth ? { "--sidebar-width": `${sidebarWidth}px` } : undefined
         }
@@ -599,8 +672,63 @@ export default function Sidebar({
                 <div className="settings-subtitle settings-account-subtitle">
                   <span>Owner Admin</span>
                   <span className="settings-chairman-hint">
-                    {adminFinance?.coverage?.status || "No coverage snapshot"}
+                    {coverage?.status || "No coverage snapshot"}
                   </span>
+                </div>
+                <div className="integration-settings-card admin-coverage-card">
+                  <div className="admin-coverage-head">
+                    <div>
+                      <span className="settings-overline">OpenRouter target</span>
+                      <strong className={`admin-coverage-headline admin-coverage-headline--${coverageGuidance.tone}`}>
+                        {coverageGuidance.headline}
+                      </strong>
+                    </div>
+                    <button
+                      type="button"
+                      className="settings-secondary-action compact admin-coverage-refresh"
+                      onClick={refreshCoverage}
+                      disabled={coverageBusy || billingBusy}
+                    >
+                      {coverageBusy ? "Refreshing..." : "Refresh"}
+                    </button>
+                  </div>
+                  <div className="admin-finance-grid admin-coverage-grid">
+                    <div>
+                      <span>OpenRouter available</span>
+                      <strong>
+                        {coverage?.available_credits_usd != null
+                          ? formatUsd(coverage.available_credits_usd)
+                          : "—"}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>Target floor</span>
+                      <strong>
+                        {coverage?.required_floor_usd != null
+                          ? formatUsd(coverage.required_floor_usd)
+                          : "—"}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>Safety buffer</span>
+                      <strong>
+                        {coverage?.operating_buffer_usd != null
+                          ? formatUsd(coverage.operating_buffer_usd)
+                          : "—"}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>Coverage ratio</span>
+                      <strong>
+                        {coverage?.coverage_ratio != null
+                          ? `${Number(coverage.coverage_ratio).toFixed(2)}x`
+                          : "—"}
+                      </strong>
+                    </div>
+                  </div>
+                  <p className={`admin-coverage-action admin-coverage-action--${coverageGuidance.tone}`}>
+                    {coverageGuidance.action}
+                  </p>
                 </div>
                 <div className="integration-settings-card admin-finance-card">
                   <div className="admin-finance-grid">
@@ -840,6 +968,16 @@ export default function Sidebar({
                 />
                 <h1>LLM Council</h1>
               </div>
+              <button
+                type="button"
+                className={`sidebar-drawer-pin${isPinned ? " active" : ""}`}
+                onClick={onToggleSidebarPin}
+                aria-label={isPinned ? "Unpin conversations drawer" : "Pin conversations drawer open"}
+                aria-pressed={isPinned}
+                title={isPinned ? "Unpin drawer" : "Pin drawer open"}
+              >
+                <Pin size={15} aria-hidden="true" />
+              </button>
             </div>
 
             <button

@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AlertTriangle, ArrowDown, ArrowUp, Check, ChevronRight, Crown } from 'lucide-react';
-import { formatModelLabel, resolveModelLabel, providerMeta } from '../modelUtils';
+import { formatModelLabel, resolveModelLabel } from '../modelUtils';
+import ProviderAvatar from './ProviderAvatar';
 import {
   deriveCouncilAgents,
   displayCouncilAgents,
@@ -32,7 +33,6 @@ function formatRaceStatus(agent, raceActive) {
 }
 
 function AgentCard({ agent, modelMap, onSelect, raceActive, rankShift }) {
-  const meta = providerMeta(agent.model);
   const name = resolveModelLabel(agent.model, modelMap);
   const fullName = formatModelLabel(agent.model);
   const interactive = agent.answered || agent.ranked;
@@ -54,14 +54,13 @@ function AgentCard({ agent, modelMap, onSelect, raceActive, rankShift }) {
         </span>
       )}
 
-      <span className="agent-avatar" style={{ '--agent-color': meta.color }} aria-hidden="true">
-        {meta.glyph}
+      <ProviderAvatar className="agent-avatar" modelId={agent.model} aria-hidden="true">
         {agent.state === 'winner' && (
           <span className="agent-avatar-crown" aria-hidden="true">
             <Crown size={11} />
           </span>
         )}
-      </span>
+      </ProviderAvatar>
 
       <span className="agent-card-body">
         <span className="agent-name">{name}</span>

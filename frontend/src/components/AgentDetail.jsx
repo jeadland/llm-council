@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { X } from 'lucide-react';
 import MarkdownContent from './MarkdownContent';
-import { resolveModelLabel, providerMeta } from '../modelUtils';
+import { providerMeta, resolveModelLabel } from '../modelUtils';
+import ProviderAvatar from './ProviderAvatar';
 
 const STATE_LABEL = {
   pending: 'Waiting to start',
@@ -45,9 +46,7 @@ export default function AgentDetail({ agent, labelToModel, modelMap, onClose }) 
       <button type="button" className="agent-detail-scrim" aria-label="Close" onClick={onClose} />
       <div className="agent-detail-panel">
         <div className="agent-detail-header">
-          <span className="agent-avatar" style={{ '--agent-color': meta.color }} aria-hidden="true">
-            {meta.glyph}
-          </span>
+          <ProviderAvatar className="agent-avatar" modelId={agent.model} aria-hidden="true" />
           <div className="agent-detail-heading">
             <h3>{name}</h3>
             <span className="agent-detail-sub">

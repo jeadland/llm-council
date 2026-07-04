@@ -141,6 +141,17 @@ export const api = {
     return response.json();
   },
 
+  async refreshAdminCoverage() {
+    const response = await fetch(`${API_BASE}/api/admin/openrouter/coverage?refresh=true`, {
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.detail || 'Failed to refresh OpenRouter coverage');
+    }
+    return response.json();
+  },
+
   async getModelCatalog(params = {}) {
     const search = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {

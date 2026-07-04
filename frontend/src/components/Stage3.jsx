@@ -1,8 +1,51 @@
 import { useState, useCallback, useMemo } from 'react';
-import { AlertTriangle, Check, ChevronDown, ClipboardCopy, Star } from 'lucide-react';
-import { abbreviateModelName, formatModelLabel, formatMoney, providerMeta, resolveModelLabel } from '../modelUtils';
+import { AlertTriangle, Check, ChevronDown, ClipboardCopy, Share2, Star } from 'lucide-react';
+import { abbreviateModelName, formatModelLabel, formatMoney, resolveModelLabel } from '../modelUtils';
+import ProviderAvatar from './ProviderAvatar';
 import MarkdownContent from './MarkdownContent';
 import './Stage3.css';
+
+async function copyTextToClipboard(content) {
+  const text = content || '';
+
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (err) {
+      console.warn('[clipboard] API failed:', err);
+    }
+  }
+
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.top = '0';
+    ta.style.left = '0';
+    ta.style.opacity = '0';
+    ta.setAttribute('readonly', '');
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch (err) {
+    console.error('[clipboard] Fallback copy failed:', err);
+    return false;
+  }
+}
+
+function buildSharePayload(text, chairmanLabel) {
+  const body = text?.trim() || '';
+  const title = 'Council Verdict';
+  const attribution = chairmanLabel ? ` · ${chairmanLabel}` : '';
+  return {
+    title,
+    text: `Council Verdict${attribution}\n\n${body}`,
+  };
+}
 
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false);
@@ -10,53 +53,20 @@ function CopyButton({ text }) {
 
   const handleCopy = useCallback(async () => {
     setError(false);
-    const content = text || '';
-
-    // Try modern Clipboard API first (requires secure context: HTTPS or localhost)
-    if (navigator.clipboard && window.isSecureContext) {
-      try {
-        await navigator.clipboard.writeText(content);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-        return;
-      } catch (err) {
-        console.warn('[CopyButton] Clipboard API failed:', err);
-      }
-    } else {
-      console.warn('[CopyButton] Clipboard API unavailable (not secure context or missing API)');
+    const ok = await copyTextToClipboard(text);
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      return;
     }
-
-    // Fallback: create a temporary textarea and use execCommand('copy')
-    try {
-      const ta = document.createElement('textarea');
-      ta.value = content;
-      ta.style.position = 'fixed';
-      ta.style.top = '0';
-      ta.style.left = '0';
-      ta.style.opacity = '0';
-      ta.setAttribute('readonly', '');
-      document.body.appendChild(ta);
-      ta.focus();
-      ta.select();
-      const ok = document.execCommand('copy');
-      document.body.removeChild(ta);
-      if (ok) {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      } else {
-        throw new Error('execCommand returned false');
-      }
-    } catch (err2) {
-      console.error('[CopyButton] Fallback copy also failed:', err2);
-      setError(true);
-      setTimeout(() => setError(false), 3000);
-    }
+    setError(true);
+    setTimeout(() => setError(false), 3000);
   }, [text]);
 
   return (
     <button
       type="button"
-      className={`copy-synthesis-btn${error ? ' copy-error' : ''}`}
+      className={`verdict-action-btn copy-synthesis-btn${error ? ' copy-error' : ''}`}
       onClick={handleCopy}
       title={error ? 'Copy failed — try selecting text manually' : 'Copy to clipboard'}
       aria-label={
@@ -68,10 +78,79 @@ function CopyButton({ text }) {
       }
     >
       {copied
-        ? <><Check size={14} aria-hidden="true" /><span className="copy-synthesis-btn-label">Copied!</span></>
+        ? <><Check size={14} aria-hidden="true" /><span className="verdict-action-btn-label">Copied!</span></>
         : error
-          ? <><ClipboardCopy size={14} aria-hidden="true" /><span className="copy-synthesis-btn-label">Failed</span></>
-          : <><ClipboardCopy size={14} aria-hidden="true" /><span className="copy-synthesis-btn-label">Copy</span></>
+          ? <><ClipboardCopy size={14} aria-hidden="true" /><span className="verdict-action-btn-label">Failed</span></>
+          : <><ClipboardCopy size={14} aria-hidden="true" /><span className="verdict-action-btn-label">Copy</span></>
+      }
+    </button>
+  );
+}
+
+function ShareButton({ text, chairmanLabel }) {
+  const [status, setStatus] = useState('idle');
+  const canNativeShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+
+  const handleShare = useCallback(async () => {
+    const payload = buildSharePayload(text, chairmanLabel);
+    setStatus('idle');
+
+    if (canNativeShare) {
+      try {
+        await navigator.share(payload);
+        setStatus('shared');
+        setTimeout(() => setStatus('idle'), 2000);
+        return;
+      } catch (err) {
+        if (err?.name === 'AbortError') return;
+        console.warn('[ShareButton] Native share failed:', err);
+      }
+    }
+
+    const ok = await copyTextToClipboard(payload.text);
+    if (ok) {
+      setStatus('copied');
+      setTimeout(() => setStatus('idle'), 2000);
+      return;
+    }
+
+    setStatus('error');
+    setTimeout(() => setStatus('idle'), 3000);
+  }, [canNativeShare, chairmanLabel, text]);
+
+  const label = status === 'shared'
+    ? 'Shared!'
+    : status === 'copied'
+      ? 'Copied!'
+      : status === 'error'
+        ? 'Failed'
+        : 'Share';
+
+  return (
+    <button
+      type="button"
+      className={`verdict-action-btn share-synthesis-btn${status === 'error' ? ' share-error' : ''}`}
+      onClick={handleShare}
+      title={
+        status === 'error'
+          ? 'Share failed — try copy instead'
+          : canNativeShare
+            ? 'Share verdict'
+            : 'Copy formatted verdict for sharing'
+      }
+      aria-label={
+        status === 'shared'
+          ? 'Shared successfully'
+          : status === 'copied'
+            ? 'Copied formatted verdict for sharing'
+            : status === 'error'
+              ? 'Share failed — try copy instead'
+              : 'Share verdict'
+      }
+    >
+      {status === 'shared' || status === 'copied'
+        ? <><Check size={14} aria-hidden="true" /><span className="verdict-action-btn-label">{label}</span></>
+        : <><Share2 size={14} aria-hidden="true" /><span className="verdict-action-btn-label">{label}</span></>
       }
     </button>
   );
@@ -172,18 +251,15 @@ function formatTokens(call) {
 
 function CostCallRow({ call }) {
   const modelId = call.resolved_model || call.requested_model;
-  const meta = providerMeta(modelId);
   const shortName = abbreviateModelName(modelId) || formatModelLabel(modelId);
 
   return (
     <div className="actual-cost-row">
-      <span
+      <ProviderAvatar
         className="actual-cost-row-avatar"
-        style={{ '--agent-color': meta.color }}
+        modelId={modelId}
         aria-hidden="true"
-      >
-        {meta.glyph}
-      </span>
+      />
       <div className="actual-cost-row-main">
         <strong title={formatModelLabel(modelId)}>{shortName}</strong>
         <small>{formatTokens(call)}</small>
@@ -345,7 +421,10 @@ export default function Stage3({ finalResponse, costSummary, billingReceipt, her
             {chairmanLabel}
           </div>
         </div>
-        <CopyButton text={finalResponse.response} />
+        <div className="stage3-header-actions">
+          <CopyButton text={finalResponse.response} />
+          <ShareButton text={finalResponse.response} chairmanLabel={chairmanLabel} />
+        </div>
       </div>
       <div className="final-response">
         <div className="final-answer-toolbar">

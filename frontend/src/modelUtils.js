@@ -26,6 +26,22 @@ export function resolveModelLabel(modelId, modelMap) {
   return abbreviateModelName(modelId, modelMap) || formatModelLabel(modelId);
 }
 
+const PROVIDER_LOGO_SLUG = {
+  anthropic: 'anthropic',
+  openai: 'openai',
+  google: 'google',
+  'x-ai': 'x-ai',
+  xai: 'x-ai',
+  deepseek: 'deepseek',
+  meta: 'meta',
+  'meta-llama': 'meta',
+  mistral: 'mistral',
+  mistralai: 'mistral',
+  qwen: 'qwen',
+  cohere: 'cohere',
+  perplexity: 'perplexity',
+};
+
 const PROVIDER_META = {
   anthropic: { label: 'Anthropic', color: '#d97757', glyph: 'A' },
   openai: { label: 'OpenAI', color: '#10a37f', glyph: 'O' },
@@ -41,6 +57,16 @@ const PROVIDER_META = {
   cohere: { label: 'Cohere', color: '#39594d', glyph: 'C' },
   perplexity: { label: 'Perplexity', color: '#20808d', glyph: 'P' },
 };
+
+export function providerLogoSrc(provider) {
+  const slug = PROVIDER_LOGO_SLUG[(provider || '').toLowerCase()];
+  if (!slug) return null;
+  return `${import.meta.env.BASE_URL}images/providers/${slug}.svg`;
+}
+
+export function hasProviderLogo(provider) {
+  return Boolean(PROVIDER_LOGO_SLUG[(provider || '').toLowerCase()]);
+}
 
 // Provider identity for an avatar: brand color + glyph derived from the model id prefix.
 export function providerMeta(modelId) {

@@ -1,7 +1,11 @@
-/* ── Sidebar shell ── */
+/* ── Sidebar shell (overlay drawer on all screen sizes) ── */
 
 .sidebar {
-  width: var(--sidebar-width, 300px);
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: min(var(--sidebar-width, 320px), 84vw);
+  max-width: calc(100vw - 16px);
   background: #f5f6f8;
   border-right: 1px solid #e2e4e8;
   display: flex;
@@ -13,8 +17,30 @@
   max-height: var(--app-viewport-height, 100dvh);
   min-height: 0;
   overflow: hidden;
-  flex-shrink: 0;
-  position: relative; /* needed for absolute resize handle */
+  z-index: 30;
+  transform: translateX(-110%);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 1, 1),
+    box-shadow 0.28s ease,
+    width 0.2s ease;
+  box-shadow: none;
+  will-change: transform;
+}
+
+.sidebar.open {
+  transform: translateX(0);
+  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.32s ease,
+    width 0.2s ease;
+  box-shadow: 6px 0 32px rgba(0, 0, 0, 0.2), 2px 0 8px rgba(0, 0, 0, 0.08);
+}
+
+.sidebar.pinned {
+  transform: translateX(0);
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.14), 1px 0 6px rgba(0, 0, 0, 0.06);
+}
+
+.sidebar.settings-fullpanel {
+  width: min(max(var(--sidebar-width, 320px), 360px), min(420px, 90vw));
 }
 
 /* ── Drag resize handle ── */
@@ -82,35 +108,6 @@
   .sidebar-resize-handle {
     display: none;
   }
-}
-
-@media (max-width: 900px) {
-  .sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: min(84vw, 320px);
-    max-width: calc(100vw - 16px);
-    height: var(--app-viewport-height, 100dvh);
-    max-height: var(--app-viewport-height, 100dvh);
-    z-index: 30;
-    /* Start off-screen with a little extra distance for shadow to be invisible */
-    transform: translateX(-110%);
-    /* Smooth close: fast initial deceleration (ease-in curve) */
-    transition: transform 0.28s cubic-bezier(0.4, 0, 1, 1),
-                box-shadow 0.28s ease;
-    box-shadow: none;
-    /* Prevent content repaints during animation */
-    will-change: transform;
-  }
-
-  .sidebar.open {
-    transform: translateX(0);
-    /* Spring-like open: ease-out with slight overshoot feel */
-    transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-                box-shadow 0.32s ease;
-    box-shadow: 6px 0 32px rgba(0, 0, 0, 0.2), 2px 0 8px rgba(0, 0, 0, 0.08);
-  }
 
   .sidebar-header {
     padding: calc(env(safe-area-inset-top) + 12px) 12px 10px;
@@ -151,8 +148,36 @@
 .sidebar-brand-row {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;
   gap: 8px;
+}
+
+.sidebar-drawer-pin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  border: 1px solid #d4dae4;
+  border-radius: 8px;
+  background: #fff;
+  color: #66748b;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.sidebar-drawer-pin:hover,
+.sidebar-drawer-pin:focus-visible {
+  background: #eef5ff;
+  border-color: #bfd4ee;
+  color: #1f65bd;
+}
+
+.sidebar-drawer-pin.active {
+  background: #edf4ff;
+  border-color: #9ec2f2;
+  color: #1f65bd;
 }
 
 /* Logo group: icon + title side by side */
@@ -2637,6 +2662,95 @@ button.settings-clean-row:focus-visible {
 .billing-profile-strip span {
   color: var(--muted);
   font-size: 11.5px;
+}
+
+.admin-coverage-card {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-coverage-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.admin-coverage-head .settings-overline {
+  margin-bottom: 4px;
+}
+
+.admin-coverage-headline {
+  display: block;
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.admin-coverage-headline--good {
+  color: #237445;
+}
+
+.admin-coverage-headline--warn {
+  color: #9a5a00;
+}
+
+.admin-coverage-headline--danger {
+  color: #b42318;
+}
+
+.admin-coverage-headline--muted {
+  color: #5a6478;
+}
+
+.admin-coverage-refresh {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.admin-coverage-action {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.admin-coverage-action--good {
+  color: #237445;
+}
+
+.admin-coverage-action--warn {
+  color: #9a5a00;
+}
+
+.admin-coverage-action--danger {
+  color: #b42318;
+}
+
+.admin-coverage-action--muted {
+  color: #66748b;
+}
+
+:root[data-theme='dark'] .admin-coverage-headline--good {
+  color: #6ee7a0;
+}
+
+:root[data-theme='dark'] .admin-coverage-headline--warn {
+  color: #f7c36d;
+}
+
+:root[data-theme='dark'] .admin-coverage-headline--danger {
+  color: #ff8f84;
+}
+
+:root[data-theme='dark'] .admin-coverage-action--good {
+  color: #6ee7a0;
+}
+
+:root[data-theme='dark'] .admin-coverage-action--warn {
+  color: #f7c36d;
+}
+
+:root[data-theme='dark'] .admin-coverage-action--danger {
+  color: #ff8f84;
 }
 
 .admin-finance-grid {

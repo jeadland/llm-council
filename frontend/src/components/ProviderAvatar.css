@@ -1,0 +1,28 @@
+.provider-avatar {
+  position: relative;
+  overflow: hidden;
+}
+
+.provider-avatar-logo {
+  width: 72%;
+  height: 72%;
+  display: block;
+  object-fit: contain;
+}
+
+.provider-avatar--logo {
+  background: #fff !important;
+  color: var(--provider-color, #64748b);
+}
+
+:root[data-theme='dark'] .provider-avatar--logo {
+  background: #f8fafc !important;
+}
+
+.actual-cost-row-avatar.provider-avatar--logo {
+  background: #fff !important;
+}
+
+.app-topbar-provider-avatar.provider-avatar--logo {
+  padding: 2px;
+}

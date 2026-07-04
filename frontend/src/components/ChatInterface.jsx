@@ -9,12 +9,14 @@ import WinnerBanner from "./WinnerBanner";
 import MarkdownContent from "./MarkdownContent";
 import CouncilProcessSteps from "./CouncilProcessSteps";
 import {
+  abbreviateModelName,
   displayModelName,
   estimateCouncilCosts,
   presetNormalCost,
   resolveActiveCouncil,
   shortModelName,
 } from "../modelUtils";
+import ProviderAvatar from "./ProviderAvatar";
 import "./ChatInterface.css";
 
 const promptStarters = [
@@ -141,9 +143,27 @@ function EmptyStartSurface({
           className="empty-council-summary"
           aria-label="Active council summary"
         >
-          <div>
+          <div className="empty-council-summary-council">
             <span>Active council</span>
             <strong>{active.name}</strong>
+            {selectedModels.length > 0 ? (
+              <ul className="empty-council-model-list" aria-label="Council models">
+                {selectedModels.map((modelId) => (
+                  <li className="empty-council-model-item" key={modelId}>
+                    <ProviderAvatar
+                      className="empty-council-model-avatar"
+                      modelId={modelId}
+                      aria-hidden="true"
+                    />
+                    <span title={displayModelName(modelId, modelMap)}>
+                      {abbreviateModelName(modelId, modelMap) || shortModelName(modelId)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="empty-council-model-empty">No council models selected</p>
+            )}
           </div>
           <div>
             <span>Chairman</span>
@@ -242,6 +262,7 @@ export default function ChatInterface({
   const containerRef = useRef(null);
   const textareaRef = useRef(null);
   const shouldAutoScrollRef = useRef(true);
+  const conversationIdRef = useRef(null);
   const hasConfiguredCouncil =
     (settings?.council_models?.length || 0) > 0 && !!settings?.chairman_model;
   const managedReady =
@@ -252,9 +273,37 @@ export default function ChatInterface({
   );
   const messages = conversation?.messages || [];
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const scrollToBottom = useCallback((behavior = "smooth") => {
+    messagesEndRef.current?.scrollIntoView({ behavior, block: "end" });
+  }, []);
+
+  const scrollToLatestVerdict = useCallback((behavior = "auto") => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const msgs = conversation?.messages || [];
+    let anchorId = null;
+    for (let i = msgs.length - 1; i >= 0; i -= 1) {
+      const msg = msgs[i];
+      if (msg.role !== "assistant") continue;
+      if (msg.stage3 || msg.loading?.stage3) {
+        anchorId = `${i}-stage3`;
+        break;
+      }
+    }
+
+    if (anchorId) {
+      const target = container.querySelector(
+        `[data-stage-anchor="${anchorId}"]`,
+      );
+      if (target) {
+        target.scrollIntoView({ behavior, block: "start" });
+        return;
+      }
+    }
+
+    scrollToBottom(behavior);
+  }, [conversation?.messages, scrollToBottom]);
 
   const handleScroll = () => {
     const el = containerRef.current;
@@ -281,10 +330,27 @@ export default function ChatInterface({
   }, []);
 
   useEffect(() => {
-    if (shouldAutoScrollRef.current) {
-      scrollToBottom();
+    const id = conversation?.id;
+    if (!id) {
+      conversationIdRef.current = null;
+      return;
     }
-  }, [conversation]);
+
+    const switched = id !== conversationIdRef.current;
+    if (switched) {
+      conversationIdRef.current = id;
+      shouldAutoScrollRef.current = true;
+    }
+
+    if (!shouldAutoScrollRef.current) return;
+
+    const behavior = switched ? "auto" : "smooth";
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        scrollToLatestVerdict(behavior);
+      });
+    });
+  }, [conversation?.id, conversation?.messages, scrollToLatestVerdict]);
 
   const autoResize = useCallback(() => {
     const ta = textareaRef.current;

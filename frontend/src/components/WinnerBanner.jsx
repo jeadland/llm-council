@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { ChevronDown, Crown } from 'lucide-react';
 import AggregateRankings from './AggregateRankings';
-import { resolveModelLabel, providerMeta } from '../modelUtils';
+import { resolveModelLabel } from '../modelUtils';
+import ProviderAvatar from './ProviderAvatar';
 import './WinnerBanner.css';
 
 export default function WinnerBanner({ aggregateRankings, voteLabel, modelMap }) {
@@ -10,7 +11,6 @@ export default function WinnerBanner({ aggregateRankings, voteLabel, modelMap })
   if (!aggregateRankings || aggregateRankings.length === 0) return null;
 
   const winner = aggregateRankings[0];
-  const meta = providerMeta(winner.model);
   const score = typeof winner.average_rank === 'number' ? winner.average_rank.toFixed(2) : null;
   const hasMore = aggregateRankings.length > 1;
 
@@ -23,12 +23,11 @@ export default function WinnerBanner({ aggregateRankings, voteLabel, modelMap })
         aria-expanded={hasMore ? open : undefined}
         disabled={!hasMore}
       >
-        <span className="winner-avatar" style={{ '--agent-color': meta.color }} aria-hidden="true">
-          {meta.glyph}
+        <ProviderAvatar className="winner-avatar" modelId={winner.model} aria-hidden="true">
           <span className="winner-avatar-crown" aria-hidden="true">
             <Crown size={11} />
           </span>
-        </span>
+        </ProviderAvatar>
 
         <span className="winner-info">
           <span className="winner-eyebrow">Council winner</span>

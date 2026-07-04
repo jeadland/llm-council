@@ -1,4 +1,5 @@
-import { formatModelLabel, providerMeta, resolveModelLabel } from '../modelUtils';
+import { formatModelLabel, resolveModelLabel } from '../modelUtils';
+import ProviderAvatar from './ProviderAvatar';
 import './StagePanels.css';
 
 export function StageIntro({ title, children, variant = 'info' }) {
@@ -21,7 +22,6 @@ export function ModelReviewerTabs({
   return (
     <div className="model-reviewer-tabs" role="tablist" aria-label={ariaLabel}>
       {items.map((item, index) => {
-        const meta = providerMeta(item.model);
         const label = resolveModelLabel(item.model, modelMap);
         const fullLabel = formatModelLabel(item.model);
         const isActive = index === activeIndex;
@@ -37,13 +37,11 @@ export function ModelReviewerTabs({
             onClick={() => onChange(index)}
             title={fullLabel !== label ? fullLabel : label}
           >
-            <span
+            <ProviderAvatar
               className="model-reviewer-tab-avatar"
-              style={{ '--agent-color': meta.color }}
+              modelId={item.model}
               aria-hidden="true"
-            >
-              {meta.glyph}
-            </span>
+            />
             <span className="model-reviewer-tab-label">{label}</span>
           </button>
         );
@@ -53,18 +51,15 @@ export function ModelReviewerTabs({
 }
 
 export function ReviewerContentHeader({ model, subtitle, modelMap }) {
-  const meta = providerMeta(model);
   const label = resolveModelLabel(model, modelMap);
   const fullLabel = formatModelLabel(model);
   return (
     <div className="reviewer-content-header">
-      <span
+      <ProviderAvatar
         className="reviewer-content-avatar"
-        style={{ '--agent-color': meta.color }}
+        modelId={model}
         aria-hidden="true"
-      >
-        {meta.glyph}
-      </span>
+      />
       <div className="reviewer-content-heading">
         <strong title={fullLabel !== label ? fullLabel : undefined}>{label}</strong>
         {subtitle && <span>{subtitle}</span>}
