@@ -252,6 +252,7 @@ export default function ChatInterface({
   const [isEstimating, setIsEstimating] = useState(false);
   const selectedProfileSlug = resolveManagedProfileSlug(settings, presets, councilProfiles);
   const [pendingEstimate, setPendingEstimate] = useState(null);
+  const [customCouncilBlock, setCustomCouncilBlock] = useState(false);
   const [preImproveInput, setPreImproveInput] = useState(null);
   const [improveError, setImproveError] = useState("");
   const [accessGuardMessage, setAccessGuardMessage] = useState("");
@@ -388,6 +389,10 @@ export default function ChatInterface({
     }
     if (!managedReady) {
       submitNow(input);
+      return;
+    }
+    if (!selectedProfileSlug) {
+      setCustomCouncilBlock(true);
       return;
     }
     setIsEstimating(true);
@@ -818,6 +823,62 @@ export default function ChatInterface({
           </div>
         </div>
       </form>
+
+      {customCouncilBlock && (
+        <div className="estimate-modal-backdrop" role="presentation">
+          <div
+            className="estimate-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="custom-council-title"
+          >
+            <div className="estimate-modal-header">
+              <div>
+                <h3 id="custom-council-title">Custom councils need your own key</h3>
+                <p>
+                  Managed balance runs use one of the curated councils
+                  (Quick, Balanced, Deep, or Ultra). Your custom lineup can only
+                  run with your own OpenRouter key.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="estimate-close-btn"
+                onClick={() => setCustomCouncilBlock(false)}
+                aria-label="Close"
+              >
+                Close
+              </button>
+            </div>
+            <p className="estimate-copy">
+              Switch to a curated council to keep using managed balance, or add
+              your OpenRouter key to run this exact custom lineup.
+            </p>
+            <div className="estimate-actions">
+              <button
+                type="button"
+                className="adjust-models-btn"
+                onClick={() => {
+                  setCustomCouncilBlock(false);
+                  onOpenIntegrations?.();
+                }}
+              >
+                Use my OpenRouter key
+              </button>
+              <button
+                type="button"
+                className="start-conversation-btn"
+                onClick={() => {
+                  setCustomCouncilBlock(false);
+                  onOpenModels?.();
+                }}
+              >
+                Open Council setup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {pendingEstimate && (
         <div className="estimate-modal-backdrop" role="presentation">

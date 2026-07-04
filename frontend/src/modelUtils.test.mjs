@@ -69,6 +69,38 @@ test('resolveManagedProfileSlug maps the active preset to the managed billing pr
   );
 });
 
+test('resolveManagedProfileSlug returns null for custom councils that do not match a managed profile', () => {
+  const presets = [
+    {
+      id: 'ultra-premium-frontier',
+      models: ['model/a', 'model/b'],
+      chairman_model: 'model/a',
+    },
+  ];
+  const councilProfiles = [
+    { slug: 'ultra', enabled: true, models: ['model/a', 'model/b'], chairman_model: 'model/a' },
+  ];
+
+  assert.equal(
+    resolveManagedProfileSlug({
+      active_model_group_id: 'custom-1',
+      council_models: ['model/a', 'model/x'],
+      chairman_model: 'model/x',
+    }, presets, councilProfiles),
+    null,
+  );
+
+  assert.equal(
+    resolveManagedProfileSlug({
+      active_model_group_id: 'ultra-premium-frontier',
+      council_models: ['model/a', 'model/x'],
+      chairman_model: 'model/a',
+    }, presets, councilProfiles),
+    null,
+    'Active preset id with drifted selection should not silently pick that profile',
+  );
+});
+
 test('sameModelSet compares model sets without requiring order', () => {
   assert.equal(sameModelSet(['model/a', 'model/b'], ['model/b', 'model/a']), true);
   assert.equal(sameModelSet(['model/a'], ['model/a', 'model/b']), false);

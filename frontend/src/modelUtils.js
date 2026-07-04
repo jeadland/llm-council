@@ -388,12 +388,16 @@ export function resolveManagedProfileSlug(settings, presets = [], councilProfile
     && chairmanMatches(profile.chairman_model, chairman)
   ));
   if (matchingProfiles.length > 0) {
-    return matchingProfiles[matchingProfiles.length - 1].slug || 'balanced';
+    return matchingProfiles[matchingProfiles.length - 1].slug;
   }
 
   const activePreset = presets?.find((item) => item.id === activeId);
   if (activePreset?.id && MANAGED_PRESET_PROFILE_SLUGS[activePreset.id]) {
-    return MANAGED_PRESET_PROFILE_SLUGS[activePreset.id];
+    const exact = sameModelSet(activePreset.models || [], selected)
+      && chairmanMatches(activePreset.chairman_model, chairman);
+    if (exact) {
+      return MANAGED_PRESET_PROFILE_SLUGS[activePreset.id];
+    }
   }
 
   const matchedPreset = presets?.find((preset) => (
@@ -403,7 +407,7 @@ export function resolveManagedProfileSlug(settings, presets = [], councilProfile
     return MANAGED_PRESET_PROFILE_SLUGS[matchedPreset.id];
   }
 
-  return 'balanced';
+  return null;
 }
 
 export function resolveActiveCouncil(settings, presets = []) {
