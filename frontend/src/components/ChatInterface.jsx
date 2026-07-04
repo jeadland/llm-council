@@ -14,6 +14,7 @@ import {
   estimateCouncilCosts,
   presetNormalCost,
   resolveActiveCouncil,
+  resolveManagedProfileSlug,
   shortModelName,
 } from "../modelUtils";
 import ProviderAvatar from "./ProviderAvatar";
@@ -242,13 +243,14 @@ export default function ChatInterface({
   onOpenIntegrations,
   openRouterStatus,
   billingStatus,
+  councilProfiles,
   modelMap,
   presets,
 }) {
   const [input, setInput] = useState("");
   const [isImproving, setIsImproving] = useState(false);
   const [isEstimating, setIsEstimating] = useState(false);
-  const selectedProfileSlug = "balanced";
+  const selectedProfileSlug = resolveManagedProfileSlug(settings, presets, councilProfiles);
   const [pendingEstimate, setPendingEstimate] = useState(null);
   const [preImproveInput, setPreImproveInput] = useState(null);
   const [improveError, setImproveError] = useState("");

@@ -10,6 +10,7 @@ import {
   formatCurationText,
   formatCurationWarnings,
   resolveActiveCouncil,
+  resolveManagedProfileSlug,
   resolveModelLabel,
   sameModelSet,
 } from './modelUtils.js';
@@ -30,6 +31,43 @@ const presets = [
     chairman_model: 'model/c',
   },
 ];
+
+test('resolveManagedProfileSlug maps the active preset to the managed billing profile', () => {
+  const presets = [
+    {
+      id: 'ultra-premium-frontier',
+      models: ['model/a', 'model/b'],
+      chairman_model: 'model/a',
+    },
+    {
+      id: 'premium-balanced',
+      models: ['model/c', 'model/d'],
+      chairman_model: 'model/c',
+    },
+  ];
+  const councilProfiles = [
+    { slug: 'deep', enabled: true, models: ['model/a', 'model/b'], chairman_model: 'model/a', sort_order: 30 },
+    { slug: 'ultra', enabled: true, models: ['model/a', 'model/b'], chairman_model: 'model/a', sort_order: 40 },
+    { slug: 'balanced', enabled: true, models: ['model/c', 'model/d'], chairman_model: 'model/c', sort_order: 20 },
+  ];
+
+  assert.equal(
+    resolveManagedProfileSlug({
+      active_model_group_id: 'ultra-premium-frontier',
+      council_models: ['model/a', 'model/b'],
+      chairman_model: 'model/a',
+    }, presets, councilProfiles),
+    'ultra',
+  );
+  assert.equal(
+    resolveManagedProfileSlug({
+      active_model_group_id: 'premium-balanced',
+      council_models: ['model/c', 'model/d'],
+      chairman_model: 'model/c',
+    }, presets, councilProfiles),
+    'balanced',
+  );
+});
 
 test('sameModelSet compares model sets without requiring order', () => {
   assert.equal(sameModelSet(['model/a', 'model/b'], ['model/b', 'model/a']), true);

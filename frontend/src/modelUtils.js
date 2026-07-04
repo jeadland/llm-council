@@ -371,6 +371,41 @@ function chairmanMatches(expected, selected) {
   return !expected || expected === selected;
 }
 
+const MANAGED_PRESET_PROFILE_SLUGS = {
+  'efficient-daily': 'quick',
+  'premium-balanced': 'balanced',
+  'ultra-premium-frontier': 'ultra',
+};
+
+export function resolveManagedProfileSlug(settings, presets = [], councilProfiles = []) {
+  const activeId = settings?.active_model_group_id || '';
+  const selected = settings?.council_models || [];
+  const chairman = settings?.chairman_model || '';
+
+  const matchingProfiles = (councilProfiles || []).filter((profile) => (
+    profile.enabled
+    && sameModelSet(profile.models || [], selected)
+    && chairmanMatches(profile.chairman_model, chairman)
+  ));
+  if (matchingProfiles.length > 0) {
+    return matchingProfiles[matchingProfiles.length - 1].slug || 'balanced';
+  }
+
+  const activePreset = presets?.find((item) => item.id === activeId);
+  if (activePreset?.id && MANAGED_PRESET_PROFILE_SLUGS[activePreset.id]) {
+    return MANAGED_PRESET_PROFILE_SLUGS[activePreset.id];
+  }
+
+  const matchedPreset = presets?.find((preset) => (
+    sameModelSet(preset.models || [], selected) && chairmanMatches(preset.chairman_model, chairman)
+  ));
+  if (matchedPreset?.id && MANAGED_PRESET_PROFILE_SLUGS[matchedPreset.id]) {
+    return MANAGED_PRESET_PROFILE_SLUGS[matchedPreset.id];
+  }
+
+  return 'balanced';
+}
+
 export function resolveActiveCouncil(settings, presets = []) {
   const activeId = settings?.active_model_group_id || '';
   const selected = settings?.council_models || [];

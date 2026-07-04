@@ -720,6 +720,7 @@ function App() {
           onOpenIntegrations={openIntegrationsPanel}
           openRouterStatus={openRouterStatus}
           billingStatus={billingStatus}
+          councilProfiles={councilProfiles}
           modelMap={modelMap}
           presets={modelPresets}
         />
