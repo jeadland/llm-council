@@ -45,7 +45,7 @@ MODEL_PRESETS = [
         "slots": [
             ["openai/gpt-5.5", "openai/gpt-5.5-pro"],
             ["anthropic/claude-opus-4.8", "anthropic/claude-opus-4.8-fast", "anthropic/claude-opus-4.7"],
-            ["google/gemini-2.5-pro"],
+            ["google/gemini-3.1-pro-preview", "google/gemini-2.5-pro"],
             ["x-ai/grok-4.20", "x-ai/grok-4.20-multi-agent"],
         ],
     },
